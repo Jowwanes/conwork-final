@@ -2920,6 +2920,9 @@ const App = {
     },
 
     renderTasks() {
+        if (typeof this.syncSystemNotificationsFromData === 'function') {
+            this.syncSystemNotificationsFromData();
+        }
         // Sync open modal if any
         if (this.state && this.state.viewingTaskId && !document.getElementById('task-detail-view-modal').classList.contains('hidden')) {
             this.openTaskDetailView(this.state.viewingTaskId, this.state.viewingSubtaskIdx);
@@ -10795,6 +10798,98 @@ const App = {
             }
         } catch (err) {
             console.warn('Error fetching notifications from Supabase:', err);
+        }
+    },
+
+    syncSystemNotificationsFromData() {
+        if (!this.state.currentUser) return;
+        const curUserId = String(this.state.currentUser.id);
+        let changed = false;
+
+        // 1. Task Assignments
+        mockTasks.forEach(t => {
+            if (!t.assignees || !Array.isArray(t.assignees)) return;
+            const isAssigned = t.assignees.some(uid => String(uid) === curUserId);
+            const isCreator = t.creatorId && String(t.creatorId) === curUserId;
+
+            if (isAssigned && !isCreator) {
+                const notifIdKey = `notif-assigned-${t.id}-${curUserId}`;
+                const exists = mockNotifications.some(n => 
+                    (n.id === notifIdKey) || 
+                    (n.type === 'task' && n.linkData && String(n.linkData.taskId) === String(t.id) && String(n.linkData.targetUserId) === curUserId && n.title && n.title.includes('มอบหมาย'))
+                );
+
+                if (!exists) {
+                    mockNotifications.unshift({
+                        id: notifIdKey,
+                        type: 'task',
+                        title: 'คุณได้รับมอบหมายงานใหม่',
+                        message: `งาน: ${t.title || 'ไม่มีชื่อ'}`,
+                        linkData: { view: 'tasks', projectId: t.projectId, taskId: t.id, targetUserId: curUserId },
+                        read: false,
+                        timestamp: t.createdAt || new Date().toISOString()
+                    });
+                    changed = true;
+                }
+            }
+
+            // 2. Pending Reviews
+            if (t.status === 'pending-review' && t.reviewers && Array.isArray(t.reviewers)) {
+                const isReviewer = t.reviewers.some(r => String(r.userId || r) === curUserId);
+                if (isReviewer) {
+                    const notifIdKey = `notif-review-${t.id}-${curUserId}`;
+                    const exists = mockNotifications.some(n => 
+                        (n.id === notifIdKey) || 
+                        (n.type === 'task' && n.title === 'มีการส่งงานให้ตรวจ' && n.linkData && String(n.linkData.taskId) === String(t.id) && String(n.linkData.targetUserId) === curUserId)
+                    );
+
+                    if (!exists) {
+                        mockNotifications.unshift({
+                            id: notifIdKey,
+                            type: 'task',
+                            title: 'มีการส่งงานให้ตรวจ',
+                            message: `งาน: ${t.title || 'ไม่มีชื่อ'}`,
+                            linkData: { view: 'tasks', projectId: t.projectId, taskId: t.id, targetUserId: curUserId },
+                            read: false,
+                            timestamp: t.submittedAt || new Date().toISOString()
+                        });
+                        changed = true;
+                    }
+                }
+            }
+        });
+
+        // 3. Project Membership
+        mockProjects.forEach(p => {
+            if (!p.team || !Array.isArray(p.team)) return;
+            const isMember = p.team.some(m => String(m.userId || m.id || m) === curUserId);
+            const isCreator = p.createdBy && String(p.createdBy) === curUserId;
+
+            if (isMember && !isCreator) {
+                const notifIdKey = `notif-proj-${p.id}-${curUserId}`;
+                const exists = mockNotifications.some(n => 
+                    (n.id === notifIdKey) || 
+                    (n.type === 'project' && n.linkData && String(n.linkData.projectId) === String(p.id))
+                );
+
+                if (!exists) {
+                    mockNotifications.unshift({
+                        id: notifIdKey,
+                        type: 'project',
+                        title: 'โปรเจกต์ใหม่ถูกสร้าง',
+                        message: `เริ่มต้นโปรเจกต์ "${p.name}" สำเร็จ! ขอให้ทีมทำงานอย่างราบรื่นนะครับ 🎉`,
+                        linkData: { view: 'tasks', projectId: p.id, targetUserId: curUserId },
+                        read: false,
+                        timestamp: p.createdAt || new Date().toISOString()
+                    });
+                    changed = true;
+                }
+            }
+        });
+
+        if (changed) {
+            this._saveData();
+            this.renderNotifications();
         }
     },
 
