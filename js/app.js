@@ -706,7 +706,14 @@ const App = {
                                 const p = profileMap.get(uid);
                                 const memberObj = teamMembersData.find(m => m.user_id === uid);
                                 const mRole = memberObj?.company_role;
-                                const mDept = memberObj?.department || p?.department || 'พนักงานทั่วไป';
+                                
+                                // Check if user is company creator or first user registered in company
+                                const isCompanyCreator = (companiesData || []).some(c => String(c.created_by) === String(uid));
+                                const isFirstUserInCompany = teamMembersData.length > 0 && String(teamMembersData[0].user_id) === String(uid);
+                                
+                                const defaultDept = (isCompanyCreator || isFirstUserInCompany) ? 'บริหาร' : 'พนักงานทั่วไป';
+                                const mDept = memberObj?.department || p?.department || defaultDept;
+                                
                                 const isCurrentUser = this.state.currentUser && String(uid) === String(this.state.currentUser.id);
                                 const defaultName = isCurrentUser ? (this.state.currentUser.name || this.state.currentUser.username) : `พนักงาน (${uid.substring(0, 5)})`;
                                 const defaultEmail = isCurrentUser ? this.state.currentUser.email : '';
@@ -715,9 +722,13 @@ const App = {
                                 const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
 
                                 let mappedRole = 'worker';
-                                if (mRole === 'company_admin' || mRole === 'super_admin' || mRole === 'admin') mappedRole = 'admin';
-                                else if (mRole === 'reviewer2' || mRole === 'ceo') mappedRole = 'reviewer2';
-                                else if (mRole === 'reviewer1' || mRole === 'manager') mappedRole = 'reviewer1';
+                                if (isCompanyCreator || isFirstUserInCompany || mRole === 'company_admin' || mRole === 'super_admin' || mRole === 'admin' || mRole === 'ceo') {
+                                    mappedRole = 'admin'; // Administrator / CEO
+                                } else if (mRole === 'reviewer2') {
+                                    mappedRole = 'reviewer2';
+                                } else if (mRole === 'reviewer1' || mRole === 'manager') {
+                                    mappedRole = 'reviewer1';
+                                }
 
                                 mockUsers.push({
                                     id: uid,
