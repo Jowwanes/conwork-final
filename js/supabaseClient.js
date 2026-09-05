@@ -81,16 +81,19 @@ class ConWorkSupabaseService {
         if (!this.isAvailable() || !userId) return null;
 
         try {
-            const profileUpdates = {};
+            const profileUpdates = { id: userId, updated_at: new Date().toISOString() };
             if (fullName !== undefined) profileUpdates.full_name = fullName;
             if (avatarUrl !== undefined) profileUpdates.avatar_url = avatarUrl;
             if (department !== undefined) profileUpdates.department = department;
 
-            if (Object.keys(profileUpdates).length > 0) {
-                await this.client
+            if (Object.keys(profileUpdates).length > 1) {
+                const { error: profErr } = await this.client
                     .from('profiles')
-                    .update(profileUpdates)
-                    .eq('id', userId);
+                    .upsert(profileUpdates);
+
+                if (profErr) {
+                    console.error('Supabase profile upsert error:', profErr);
+                }
             }
 
             const memberUpdates = {};
@@ -107,8 +110,10 @@ class ConWorkSupabaseService {
                 }
                 await query;
             }
+            return { userId, fullName, avatarUrl, department, role };
         } catch (err) {
             console.warn('Supabase profile update warning:', err);
+            return null;
         }
     }
 

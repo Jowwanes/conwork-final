@@ -710,9 +710,9 @@ const App = {
                                 const isCurrentUser = this.state.currentUser && String(uid) === String(this.state.currentUser.id);
                                 const defaultName = isCurrentUser ? (this.state.currentUser.name || this.state.currentUser.username) : `พนักงาน (${uid.substring(0, 5)})`;
                                 const defaultEmail = isCurrentUser ? this.state.currentUser.email : '';
-                                const name = p ? (p.full_name || (p.email ? p.email.split('@')[0] : defaultName)) : defaultName;
-                                const email = p ? p.email : defaultEmail;
-                                const avatar = p ? p.avatar_url : (isCurrentUser ? this.state.currentUser.avatar : null);
+                                const name = (p && p.full_name) ? p.full_name : (isCurrentUser && this.state.currentUser?.name ? this.state.currentUser.name : defaultName);
+                                const email = (p && p.email) ? p.email : defaultEmail;
+                                const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
 
                                 let mappedRole = 'worker';
                                 if (mRole === 'company_admin' || mRole === 'super_admin' || mRole === 'admin') mappedRole = 'admin';
@@ -755,6 +755,14 @@ const App = {
                                     this._loadData().then(() => {
                                         if (typeof this.renderTeam === 'function') this.renderTeam();
                                         if (typeof this.renderProjects === 'function') this.renderProjects();
+                                    });
+                                })
+                                .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+                                    console.log('⚡ Realtime Update: profiles changed');
+                                    this._loadData().then(() => {
+                                        if (typeof this.renderTeam === 'function') this.renderTeam();
+                                        if (typeof this.updateProfile === 'function') this.updateProfile();
+                                        if (typeof this.renderChatList === 'function') this.renderChatList();
                                     });
                                 })
                                 .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
@@ -9515,31 +9523,55 @@ const App = {
         if (input.files && input.files[0]) {
             const file = input.files[0];
 
-            // Check file size (max 2MB)
-            if (file.size > 2 * 1024 * 1024) {
-                App._showToast('ขนาดไฟล์เกิน 2MB', 'error');
+            if (file.size > 5 * 1024 * 1024) {
+                App._showToast('ขนาดไฟล์เกิน 5MB', 'error');
                 input.value = '';
                 return;
             }
 
             const reader = new FileReader();
             reader.onload = function (e) {
-                const preview = document.getElementById('am-avatar-preview');
-                const placeholder = document.getElementById('am-avatar-placeholder');
-                const summaryImg = document.getElementById('am-summary-avatar-img');
-                const summaryIcon = document.getElementById('am-summary-avatar-icon');
+                const img = new Image();
+                img.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 300;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
 
-                if (preview && placeholder) {
-                    preview.src = e.target.result;
-                    preview.classList.remove('hidden');
-                    placeholder.classList.add('hidden');
-                }
+                    const preview = document.getElementById('am-avatar-preview');
+                    const placeholder = document.getElementById('am-avatar-placeholder');
+                    const summaryImg = document.getElementById('am-summary-avatar-img');
+                    const summaryIcon = document.getElementById('am-summary-avatar-icon');
 
-                if (summaryImg && summaryIcon) {
-                    summaryImg.src = e.target.result;
-                    summaryImg.classList.remove('hidden');
-                    summaryIcon.classList.add('hidden');
-                }
+                    if (preview && placeholder) {
+                        preview.src = compressedDataUrl;
+                        preview.classList.remove('hidden');
+                        placeholder.classList.add('hidden');
+                    }
+
+                    if (summaryImg && summaryIcon) {
+                        summaryImg.src = compressedDataUrl;
+                        summaryImg.classList.remove('hidden');
+                        summaryIcon.classList.add('hidden');
+                    }
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         }
@@ -9630,7 +9662,7 @@ const App = {
 
         const preview = document.getElementById('am-avatar-preview');
         let avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`;
-        if (preview && !preview.classList.contains('hidden') && preview.src && preview.src.startsWith('data:image')) {
+        if (preview && !preview.classList.contains('hidden') && preview.src && !preview.src.includes('about:blank')) {
             avatarUrl = preview.src;
         }
 
@@ -9665,8 +9697,8 @@ const App = {
                 }
 
                 // Only update avatar if a new one was uploaded, otherwise keep existing
-                if (preview && !preview.classList.contains('hidden') && preview.src && preview.src.startsWith('data:image')) {
-                    user.avatar = avatarUrl;
+                if (preview && !preview.classList.contains('hidden') && preview.src && !preview.src.includes('about:blank')) {
+                    user.avatar = preview.src;
                 }
 
                 const phone = document.getElementById('am-phone')?.value.trim();
