@@ -810,6 +810,10 @@ const App = {
                                         if (typeof this.renderProjects === 'function') this.renderProjects();
                                     });
                                 })
+                                .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+                                    console.log('⚡ Realtime Update: notifications changed');
+                                    this.fetchNotificationsFromSupabase();
+                                })
                                 .subscribe();
                         }
 
@@ -929,6 +933,7 @@ const App = {
                                         });
                                     });
                                 }
+                                await this.fetchNotificationsFromSupabase();
                             }
                         }
                     }
@@ -10648,7 +10653,7 @@ const App = {
         }
     },
 
-    markAllNotificationsRead() {
+    async markAllNotificationsRead() {
         const curUserId = this.state.currentUser ? String(this.state.currentUser.id) : null;
         mockNotifications.forEach(n => {
             if (!n.linkData?.targetUserId || String(n.linkData.targetUserId) === curUserId) {
@@ -10657,9 +10662,20 @@ const App = {
         });
         this._saveData();
         this.renderNotifications();
+
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable() && curUserId) {
+            try {
+                await window.conworkSupabase.client
+                    .from('notifications')
+                    .update({ is_read: true })
+                    .or(`target_user_id.eq.${curUserId},target_user_id.is.null`);
+            } catch (e) {
+                console.warn('Error marking notifications read in Supabase:', e);
+            }
+        }
     },
 
-    deleteAllNotifications() {
+    async deleteAllNotifications() {
         const curUserId = this.state.currentUser ? String(this.state.currentUser.id) : null;
         for (let i = mockNotifications.length - 1; i >= 0; i--) {
             const n = mockNotifications[i];
@@ -10669,19 +10685,39 @@ const App = {
         }
         this._saveData();
         this.renderNotifications();
-    },
 
-    deleteNotification(id) {
-        const index = mockNotifications.findIndex(n => n.id === id);
-        if (index !== -1) {
-            mockNotifications.splice(index, 1);
-            this._saveData();
-            this.renderNotifications();
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable() && curUserId) {
+            try {
+                await window.conworkSupabase.client
+                    .from('notifications')
+                    .delete()
+                    .or(`target_user_id.eq.${curUserId},target_user_id.is.null`);
+            } catch (e) {
+                console.warn('Error deleting notifications in Supabase:', e);
+            }
         }
     },
 
-    addNotification(type, title, message, linkData) {
-        mockNotifications.unshift({
+    async deleteNotification(id) {
+        const index = mockNotifications.findIndex(n => n.id === id);
+        if (index !== -1) {
+            const notif = mockNotifications[index];
+            mockNotifications.splice(index, 1);
+            this._saveData();
+            this.renderNotifications();
+
+            if (window.conworkSupabase && window.conworkSupabase.isAvailable() && notif && !String(notif.id).startsWith('notif-')) {
+                try {
+                    await window.conworkSupabase.client.from('notifications').delete().eq('id', notif.id);
+                } catch (e) {
+                    console.warn('Error deleting notification in Supabase:', e);
+                }
+            }
+        }
+    },
+
+    async addNotification(type, title, message, linkData) {
+        const notifItem = {
             id: 'notif-' + Date.now() + Math.floor(Math.random() * 1000),
             type, // 'task', 'meeting', 'task-due'
             title,
@@ -10689,9 +10725,77 @@ const App = {
             linkData,
             read: false,
             timestamp: new Date().toISOString()
-        });
+        };
+        mockNotifications.unshift(notifItem);
         this._saveData();
         this.renderNotifications();
+
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                const targetUserId = linkData?.targetUserId || null;
+                const companyId = (this.state.workspaces && this.state.workspaces[0]?.id) || null;
+                const { data, error } = await window.conworkSupabase.client
+                    .from('notifications')
+                    .insert([{
+                        type,
+                        title,
+                        message,
+                        link_data: linkData || {},
+                        target_user_id: targetUserId,
+                        company_id: companyId,
+                        is_read: false
+                    }])
+                    .select()
+                    .single();
+
+                if (!error && data) {
+                    notifItem.id = data.id;
+                    this._saveData();
+                    this.renderNotifications();
+                }
+            } catch (err) {
+                console.warn('Supabase notification insert warning:', err);
+            }
+        }
+    },
+
+    async fetchNotificationsFromSupabase() {
+        if (!window.conworkSupabase || !window.conworkSupabase.isAvailable() || !this.state.currentUser) return;
+        try {
+            const curUserId = String(this.state.currentUser.id);
+            const { data, error } = await window.conworkSupabase.client
+                .from('notifications')
+                .select('*')
+                .or(`target_user_id.eq.${curUserId},target_user_id.is.null`)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (!error && data) {
+                const formatted = data.map(n => ({
+                    id: n.id,
+                    type: n.type,
+                    title: n.title,
+                    message: n.message,
+                    linkData: n.link_data || {},
+                    read: !!n.is_read,
+                    timestamp: n.created_at
+                }));
+
+                formatted.forEach(item => {
+                    const idx = mockNotifications.findIndex(m => String(m.id) === String(item.id));
+                    if (idx === -1) {
+                        mockNotifications.push(item);
+                    } else {
+                        mockNotifications[idx] = item;
+                    }
+                });
+
+                mockNotifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                this.renderNotifications();
+            }
+        } catch (err) {
+            console.warn('Error fetching notifications from Supabase:', err);
+        }
     },
 
     renderNotifications() {
