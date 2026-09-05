@@ -2635,18 +2635,23 @@ const App = {
     },
 
     _canUserReviewTask(task, userId, role) {
-        if (task.assignees && task.assignees.includes(userId)) return false;
+        if (!userId) return false;
+        const uIdStr = String(userId);
 
-        if (task.status === 'pending-review') {
+        // Creator of task can review work
+        if (task.creatorId && String(task.creatorId) === uIdStr) return true;
+        if (task.createdBy && String(task.createdBy) === uIdStr) return true;
+
+        if (task.status === 'pending-review' || task.status === 'in_review') {
             const activeRev = this._getActiveReviewer(task);
             if (activeRev) {
-                return activeRev.userId === userId;
+                return String(activeRev.userId) === uIdStr;
             } else {
-                return (role === 'reviewer1' || role === 'reviewer2' || role === 'admin');
+                return (role === 'reviewer1' || role === 'reviewer2' || role === 'admin' || role === 'super_admin' || role === 'Company_admin');
             }
         }
 
-        return (role === 'reviewer1' || role === 'reviewer2' || role === 'admin');
+        return (role === 'reviewer1' || role === 'reviewer2' || role === 'admin' || role === 'super_admin' || role === 'Company_admin');
     },
 
     _buildTaskCardHtml(t) {
@@ -10834,9 +10839,20 @@ const App = {
             }
 
             // 2. Pending Reviews
-            if (t.status === 'pending-review' && t.reviewers && Array.isArray(t.reviewers)) {
-                const isReviewer = t.reviewers.some(r => String(r.userId || r) === curUserId);
-                if (isReviewer) {
+            if (t.status === 'pending-review' || t.status === 'in_review') {
+                let isReviewer = false;
+                if (t.reviewers && Array.isArray(t.reviewers) && t.reviewers.length > 0) {
+                    isReviewer = t.reviewers.some(r => String(r.userId || r) === curUserId);
+                } else {
+                    const role = this.state.currentUser ? this.state.currentUser.role : null;
+                    const isCreator = (t.creatorId && String(t.creatorId) === curUserId) || (t.createdBy && String(t.createdBy) === curUserId);
+                    const isManagerOrAdmin = role === 'admin' || role === 'reviewer1' || role === 'reviewer2' || role === 'super_admin' || role === 'Company_admin';
+                    isReviewer = isCreator || isManagerOrAdmin || this._canUserReviewTask(t, curUserId, role);
+                }
+
+                const isSoleAssignee = t.assignees && Array.isArray(t.assignees) && t.assignees.length === 1 && String(t.assignees[0]) === curUserId;
+
+                if (isReviewer && (!isSoleAssignee || (t.creatorId && String(t.creatorId) === curUserId))) {
                     const notifIdKey = `notif-review-${t.id}-${curUserId}`;
                     const exists = mockNotifications.some(n => 
                         (n.id === notifIdKey) || 
@@ -10848,7 +10864,7 @@ const App = {
                             id: notifIdKey,
                             type: 'task',
                             title: 'มีการส่งงานให้ตรวจ',
-                            message: `งาน: ${t.title || 'ไม่มีชื่อ'}`,
+                            message: `งาน: ${t.title || 'ไม่มีชื่อ'} (รอการตรวจสอบ)`,
                             linkData: { view: 'tasks', projectId: t.projectId, taskId: t.id, targetUserId: curUserId },
                             read: false,
                             timestamp: t.submittedAt || new Date().toISOString()
