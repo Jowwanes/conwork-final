@@ -3622,60 +3622,69 @@ const App = {
             let hasReviewers = task.reviewers && task.reviewers.length > 0;
             const proj = mockProjects.find(p => p.id === task.projectId);
 
-            if (!hasReviewers && proj && proj.managers && proj.managers.length > 0) {
-                task.reviewers = proj.managers.map((mId, index) => ({
-                    userId: mId,
-                    order: index + 1,
-                    approved: false
-                }));
-                hasReviewers = true;
-            }
-
-            if (hasReviewers) {
-                task.status = 'pending-review';
-                task.isRejected = false;
-                task.submittedAt = new Date().toISOString();
-                if (this.state.revealedTasks && this.state.revealedTasks[task.id]) {
-                    delete this.state.revealedTasks[task.id];
+            if (!hasReviewers) {
+                // If no specific reviewers set, automatically assign task creator and task assigner / project manager
+                let defaultReviewers = [];
+                if (proj && proj.managers && proj.managers.length > 0) {
+                    defaultReviewers.push(...proj.managers);
                 }
-
-                // Add notification to reviewers
-                task.reviewers.forEach(rev => {
-                    const msg = `งาน: ${task.title || 'ไม่มีชื่อ'}`;
-                    App.addNotification('task', 'มีการส่งงานให้ตรวจ', msg, { view: 'tasks', projectId: task.projectId, taskId: task.id });
-                });
-
-                this._syncTaskStatusToDB(task.id, task.status);
-                this._saveData();
-                this.renderTasks();
-                this.showSubmitNotification();
-            } else {
-                task.status = 'done';
-                task.isRejected = false;
-                task.submittedAt = new Date().toISOString();
-                if (!this.state.revealedTasks) this.state.revealedTasks = {};
-                this.state.revealedTasks[task.id] = true;
-
-                // Check project progress
-                if (this.state.currentProject) {
-                    const proj = mockProjects.find(p => p.id === this.state.currentProject);
-                    if (proj) {
-                        const remainingTasks = mockTasks.filter(t => t.projectId === this.state.currentProject);
-                        proj.tasksTotal = remainingTasks.length;
-                        proj.tasksDone = remainingTasks.filter(t => t.status === 'done').length;
-                        proj.progress = proj.tasksTotal > 0 ? Math.round((proj.tasksDone / proj.tasksTotal) * 100) : 0;
-
-                        if (proj.tasksTotal > 0 && proj.tasksDone === proj.tasksTotal) {
-                            proj.status = 'completed';
-                        }
+                if (proj && proj.manager) {
+                    defaultReviewers.push(proj.manager);
+                }
+                if (proj && proj.createdBy) {
+                    defaultReviewers.push(proj.createdBy);
+                }
+                if (task.creatorId) {
+                    defaultReviewers.push(task.creatorId);
+                }
+                if (task.createdBy) {
+                    defaultReviewers.push(task.createdBy);
+                }
+                if (task.assignedBy) {
+                    defaultReviewers.push(task.assignedBy);
+                }
+                
+                // Deduplicate reviewers
+                const uniqueReviewerIds = [...new Set(defaultReviewers.filter(Boolean).map(id => String(id)))];
+                
+                if (uniqueReviewerIds.length > 0) {
+                    task.reviewers = uniqueReviewerIds.map((mId, index) => ({
+                        userId: mId,
+                        order: index + 1,
+                        approved: false
+                    }));
+                } else {
+                    // Fallback to admin/manager role if no creator/manager found
+                    const adminUser = mockUsers.find(u => u.role === 'admin' || u.role === 'reviewer1' || u.role === 'reviewer2');
+                    if (adminUser) {
+                        task.reviewers = [{ userId: String(adminUser.id), order: 1, approved: false }];
                     }
                 }
-
-                this._saveData();
-                this.renderTasks();
-                this.renderProjects();
-                this._showToast('ส่งงานและเสร็จสิ้นเรียบร้อยแล้ว!', 'success');
+                hasReviewers = task.reviewers && task.reviewers.length > 0;
             }
+
+            // Always move to pending-review for verification
+            task.status = 'pending-review';
+            task.isRejected = false;
+            task.submittedAt = new Date().toISOString();
+            if (this.state.revealedTasks && this.state.revealedTasks[task.id]) {
+                delete this.state.revealedTasks[task.id];
+            }
+
+            // Add notification to reviewers
+            if (task.reviewers && task.reviewers.length > 0) {
+                task.reviewers.forEach(rev => {
+                    const msg = `งาน: ${task.title || 'ไม่มีชื่อ'}`;
+                    if (typeof App.addNotification === 'function') {
+                        App.addNotification('task', 'มีการส่งงานให้ตรวจ', msg, { view: 'tasks', projectId: task.projectId, taskId: task.id, targetUserId: rev.userId });
+                    }
+                });
+            }
+
+            this._syncTaskStatusToDB(task.id, task.status);
+            this._saveData();
+            this.renderTasks();
+            this.showSubmitNotification();
         }
         this.cancelSubmit();
         this.closeCreateTaskModal();
