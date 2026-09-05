@@ -7147,7 +7147,13 @@ const App = {
             this.state.editingTaskId = newTaskId;
 
             if (saveType !== 'draft') {
-                this.addNotification('task', 'งานใหม่ถูกเพิ่ม', `มีงานใหม่ : ${title}`, { view: 'tasks', projectId: this.state.currentProject, taskId: newTaskId });
+                if (combinedAssignees && combinedAssignees.length > 0) {
+                    combinedAssignees.forEach(uid => {
+                        this.addNotification('task', 'คุณได้รับมอบหมายงานใหม่', `งาน: ${title}`, { view: 'tasks', projectId: this.state.currentProject, taskId: newTaskId, targetUserId: String(uid) });
+                    });
+                } else {
+                    this.addNotification('task', 'งานใหม่ถูกเพิ่ม', `มีงานใหม่ : ${title}`, { view: 'tasks', projectId: this.state.currentProject, taskId: newTaskId });
+                }
             }
 
             const proj = mockProjects.find(p => p.id === this.state.currentProject);
@@ -10643,13 +10649,24 @@ const App = {
     },
 
     markAllNotificationsRead() {
-        mockNotifications.forEach(n => n.read = true);
+        const curUserId = this.state.currentUser ? String(this.state.currentUser.id) : null;
+        mockNotifications.forEach(n => {
+            if (!n.linkData?.targetUserId || String(n.linkData.targetUserId) === curUserId) {
+                n.read = true;
+            }
+        });
         this._saveData();
         this.renderNotifications();
     },
 
     deleteAllNotifications() {
-        mockNotifications.splice(0, mockNotifications.length);
+        const curUserId = this.state.currentUser ? String(this.state.currentUser.id) : null;
+        for (let i = mockNotifications.length - 1; i >= 0; i--) {
+            const n = mockNotifications[i];
+            if (!n.linkData?.targetUserId || String(n.linkData.targetUserId) === curUserId) {
+                mockNotifications.splice(i, 1);
+            }
+        }
         this._saveData();
         this.renderNotifications();
     },
@@ -10682,7 +10699,16 @@ const App = {
         const list = document.getElementById('notification-list');
         if (!badge || !list) return;
 
-        const unreadCount = mockNotifications.filter(n => !n.read).length;
+        const curUserId = this.state.currentUser ? String(this.state.currentUser.id) : null;
+
+        const userNotifs = mockNotifications.filter(n => {
+            if (n.linkData && n.linkData.targetUserId) {
+                return String(n.linkData.targetUserId) === curUserId;
+            }
+            return true;
+        });
+
+        const unreadCount = userNotifs.filter(n => !n.read).length;
         if (unreadCount > 0) {
             badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
             badge.classList.remove('hidden');
@@ -10690,12 +10716,12 @@ const App = {
             badge.classList.add('hidden');
         }
 
-        if (mockNotifications.length === 0) {
+        if (userNotifs.length === 0) {
             list.innerHTML = '<div class="p-4 text-center text-sm text-gray-500">ไม่มีการแจ้งเตือนใหม่</div>';
             return;
         }
 
-        list.innerHTML = mockNotifications.map(n => {
+        list.innerHTML = userNotifs.map(n => {
             let iconHtml = '';
             if (n.type === 'meeting') {
                 iconHtml = '<div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0"><i class="fa-regular fa-calendar"></i></div>';
