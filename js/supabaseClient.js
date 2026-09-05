@@ -147,14 +147,14 @@ class ConWorkSupabaseService {
         // Add creator as Super Admin
         const { error: memError } = await this.client
             .from('company_members')
-            .insert([{
+            .upsert([{
                 company_id: company.id,
                 user_id: user.id,
                 company_role: 'super_admin',
                 department: 'Management'
-            }]);
+            }], { onConflict: 'company_id,user_id' });
 
-        if (memError) throw memError;
+        if (memError && memError.code !== '23505') throw memError;
 
         // Assign Subscription Plan
         const { data: plan } = await this.client
@@ -192,15 +192,15 @@ class ConWorkSupabaseService {
 
         const { data: member, error: memErr } = await this.client
             .from('company_members')
-            .insert([{
+            .upsert([{
                 company_id: company.id,
                 user_id: user.id,
                 company_role: 'employee'
-            }])
+            }], { onConflict: 'company_id,user_id' })
             .select()
             .single();
 
-        if (memErr) throw memErr;
+        if (memErr && memErr.code !== '23505') throw memErr;
         return { company, member };
     }
 

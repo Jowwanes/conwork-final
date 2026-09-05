@@ -119,8 +119,10 @@ async function saveWorkspace(workspace) {
 async function addMember(userId, workspaceId, role) {
     // 1. Local Storage Fallback
     const members = getMembers();
-    members.push({ user_id: userId, workspace_id: workspaceId, role: role });
-    localStorage.setItem('workspace_members', JSON.stringify(members));
+    if (!members.some(m => m.user_id === userId && m.workspace_id === workspaceId)) {
+        members.push({ user_id: userId, workspace_id: workspaceId, role: role });
+        localStorage.setItem('workspace_members', JSON.stringify(members));
+    }
 
     // 2. Supabase DB Sync
     if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
@@ -129,20 +131,27 @@ async function addMember(userId, workspaceId, role) {
             let dbRole = 'employee';
             if (role === 'admin' || role === 'super_admin') dbRole = 'company_admin';
             
-            const { error } = await window.conworkSupabase.client.from('company_members').insert({
+            const { error } = await window.conworkSupabase.client.from('company_members').upsert({
                 company_id: workspaceId,
                 user_id: userId,
                 company_role: dbRole
-            });
+            }, { onConflict: 'company_id,user_id' });
+
             if (error) {
-                console.error("Error adding member to Supabase:", error);
-                alert("Database Error (company_members): " + error.message);
-                throw error; // Throw to prevent success screen
+                if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('company_members_company_id_user_id_key')) {
+                    console.log("User is already a member of company_members:", workspaceId);
+                } else {
+                    console.error("Error adding member to Supabase:", error);
+                    alert("Database Notice (company_members): " + error.message);
+                }
             }
         } catch (err) {
-            console.error("Error adding member to Supabase:", err);
-            alert("Network Error (company_members): " + err.message);
-            throw err;
+            if (err.message?.includes('duplicate key') || err.message?.includes('company_members_company_id_user_id_key')) {
+                console.log("Duplicate member ignored:", err);
+            } else {
+                console.error("Error adding member to Supabase:", err);
+                alert("Network Error (company_members): " + err.message);
+            }
         }
     }
 }
