@@ -1,0 +1,904 @@
+// State Management
+let currentUser = null;
+let tempOnboardingData = {};
+
+// Initialize Database in LocalStorage if empty
+function initDB() {
+    let usersStr = localStorage.getItem('users');
+    let users = usersStr ? JSON.parse(usersStr) : [];
+    
+    let workspacesStr = localStorage.getItem('workspaces');
+    let workspaces = workspacesStr ? JSON.parse(workspacesStr) : [];
+    
+    let membersStr = localStorage.getItem('workspace_members');
+    let members = membersStr ? JSON.parse(membersStr) : [];
+
+    // Seed initial admin and company if empty (for backward compatibility / demo)
+    if (workspaces.length === 0) {
+        const defaultWorkspace = {
+            workspace_id: 'W-1',
+            type: 'corporate',
+            name: 'Acme Corp',
+            code: 'COMP-1234',
+            domain: 'acme.com',
+            created_at: new Date().toISOString()
+        };
+        workspaces.push(defaultWorkspace);
+        localStorage.setItem('workspaces', JSON.stringify(workspaces));
+    }
+
+    if (users.length === 0) {
+        const defaultAdmin = {
+            user_id: 'U-1',
+            email: 'admin@acme.com',
+            password: 'Password@123',
+            first_name: 'Admin',
+            last_name: 'Acme',
+            created_at: new Date().toISOString()
+        };
+        users.push(defaultAdmin);
+        localStorage.setItem('users', JSON.stringify(users));
+
+        members.push({
+            user_id: 'U-1',
+            workspace_id: 'W-1',
+            role: 'admin'
+        });
+        localStorage.setItem('workspace_members', JSON.stringify(members));
+    }
+}
+
+initDB();
+
+// DB Helpers
+function getUsers() { return JSON.parse(localStorage.getItem('users')) || []; }
+function getWorkspaces() { return JSON.parse(localStorage.getItem('workspaces')) || []; }
+function getMembers() { return JSON.parse(localStorage.getItem('workspace_members')) || []; }
+
+async function saveUser(user) {
+    // 1. Local Storage Fallback
+    const users = getUsers();
+    users.push(user);
+    localStorage.setItem('users', JSON.stringify(users));
+
+    // 2. Supabase DB Sync
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            await window.conworkSupabase.client.from('profiles').upsert({
+                id: user.user_id,
+                email: user.email,
+                full_name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+                avatar_url: user.avatar,
+                account_type: 'personal' // default
+            });
+        } catch (err) {
+            console.error("Error saving user to Supabase:", err);
+        }
+    }
+}
+
+async function saveWorkspace(workspace) {
+    let finalId = workspace.workspace_id;
+
+    // 2. Supabase DB Sync
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            const payload = {
+                name: workspace.name,
+                code: workspace.code || workspace.workspace_id,
+                is_personal: workspace.type === 'personal', // User's DB uses is_personal
+                created_by: workspace.created_by
+            };
+            if (workspace.domain) payload.domain = workspace.domain;
+            
+            const { data, error } = await window.conworkSupabase.client.from('companies').insert(payload).select().single();
+            
+            if (data) {
+                finalId = data.id;
+                workspace.workspace_id = finalId; // Update object for local storage
+            } else if (error) {
+                console.error("Error saving company to Supabase:", error);
+                alert("Database Error (companies): " + error.message);
+                return null; // Stop and return null on error
+            }
+        } catch (err) {
+            console.error("Error saving company to Supabase:", err);
+            alert("Network Error (companies): " + err.message);
+            return null;
+        }
+    }
+
+    // 1. Local Storage Fallback
+    const ws = getWorkspaces();
+    ws.push(workspace);
+    localStorage.setItem('workspaces', JSON.stringify(ws));
+
+    return finalId;
+}
+
+async function addMember(userId, workspaceId, role) {
+    // 1. Local Storage Fallback
+    const members = getMembers();
+    members.push({ user_id: userId, workspace_id: workspaceId, role: role });
+    localStorage.setItem('workspace_members', JSON.stringify(members));
+
+    // 2. Supabase DB Sync
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            // Map our local roles ('admin', 'worker', 'member') to DB roles
+            let dbRole = 'employee';
+            if (role === 'admin' || role === 'super_admin') dbRole = 'company_admin';
+            
+            const { error } = await window.conworkSupabase.client.from('company_members').insert({
+                company_id: workspaceId,
+                user_id: userId,
+                company_role: dbRole
+            });
+            if (error) {
+                console.error("Error adding member to Supabase:", error);
+                alert("Database Error (company_members): " + error.message);
+                throw error; // Throw to prevent success screen
+            }
+        } catch (err) {
+            console.error("Error adding member to Supabase:", err);
+            alert("Network Error (company_members): " + err.message);
+            throw err;
+        }
+    }
+}
+
+function generateInviteCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'COMP-';
+    for(let i=0; i<4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+}
+
+// Navigation & Screen Management
+function showScreen(screenId) {
+    const landing = document.getElementById('landing-screen');
+    if (landing) landing.style.display = 'none';
+    const app = document.getElementById('app-screen');
+    if (app) app.classList.add('hidden');
+    const login = document.getElementById('login-screen');
+    if (login) login.style.display = 'flex';
+
+    document.querySelectorAll('.auth-flow-wrapper .screen').forEach(el => el.classList.remove('active'));
+    const targetScreen = document.getElementById(screenId);
+    if (targetScreen) targetScreen.classList.add('active');
+    
+    // Reset specific forms/errors when navigating (optional)
+    document.querySelectorAll('.auth-flow-wrapper .error-text').forEach(e => e.style.display = 'none');
+}
+
+function switchTeamTab(tab) {
+    const btnJoin = document.getElementById('tab-join-team');
+    const btnCreate = document.getElementById('tab-create-team');
+    const pnlJoin = document.getElementById('panel-join-team');
+    const pnlCreate = document.getElementById('panel-create-team');
+
+    if (tab === 'join') {
+        btnJoin.className = "flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-gray-800";
+        btnCreate.className = "flex-1 py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700";
+        pnlJoin.classList.remove('hidden');
+        pnlCreate.classList.add('hidden');
+    } else {
+        btnCreate.className = "flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-gray-800";
+        btnJoin.className = "flex-1 py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700";
+        pnlCreate.classList.remove('hidden');
+        pnlJoin.classList.add('hidden');
+    }
+}
+
+// STEP 1: Authentication Base
+document.getElementById('form-auth').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value.trim();
+    const pwGroup = document.getElementById('auth-password-group');
+    const pwInput = document.getElementById('auth-password');
+    const errEl = document.getElementById('auth-error');
+
+    errEl.style.display = 'none';
+
+    const users = getUsers();
+    let existingUser = users.find(u => u.email === email);
+    const mode = window.authMode || 'signup';
+
+    if (mode === 'signup') {
+        if (existingUser) {
+            errEl.innerText = 'This email is already registered. Please log in instead.';
+            errEl.style.display = 'block';
+        } else {
+            // New user! Move to profile setup
+            tempOnboardingData.email = email;
+            showScreen('screen-profile-setup');
+        }
+    } else {
+        // login mode
+        // Ask for password if not shown
+        if (pwGroup.style.display === 'none') {
+            pwGroup.style.display = 'block';
+            document.getElementById('btn-auth-continue').innerText = 'Log in';
+            return;
+        }
+
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            const { data, error } = await window.conworkSupabase.client.auth.signInWithPassword({
+                email: email,
+                password: pwInput.value
+            });
+            
+            if (error) {
+                errEl.innerText = "Error: " + error.message;
+                errEl.style.display = "block";
+                return;
+            }
+            
+            if (data.user) {
+                if (!existingUser) {
+                    existingUser = {
+                        user_id: data.user.id,
+                        email: data.user.email,
+                        first_name: data.user.user_metadata?.full_name || email.split('@')[0],
+                        last_name: '',
+                        avatar: data.user.user_metadata?.avatar_url || null,
+                        created_at: new Date().toISOString(),
+                        password: pwInput.value
+                    };
+                    saveUser(existingUser);
+                }
+                currentUser = existingUser;
+                checkAndRouteUser();
+                return;
+            }
+        }
+
+        // Local Fallback
+        if (!existingUser) {
+            errEl.innerText = 'Account not found. Please sign up first.';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        // Validate password
+        if (existingUser.password === pwInput.value) {
+            // Success
+            currentUser = existingUser;
+            checkAndRouteUser();
+        } else {
+            errEl.innerText = "Incorrect password.";
+            errEl.style.display = "block";
+        }
+    }
+});
+
+// STEP 2: Profile Setup (For New Users)
+document.getElementById('form-profile-setup').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    tempOnboardingData.firstName = document.getElementById('profile-first-name').value;
+    tempOnboardingData.lastName = document.getElementById('profile-last-name').value;
+    tempOnboardingData.password = document.getElementById('profile-password').value;
+    
+    // Check if an avatar was uploaded
+    const avatarPreview = document.getElementById('profile-avatar-preview');
+    let avatarUrl = null;
+    if (avatarPreview && !avatarPreview.classList.contains('hidden')) {
+        avatarUrl = avatarPreview.src;
+    }
+    
+    let userId = 'U-' + Date.now();
+
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        const { data, error } = await window.conworkSupabase.client.auth.signUp({
+            email: tempOnboardingData.email,
+            password: tempOnboardingData.password,
+            options: {
+                data: {
+                    full_name: `${tempOnboardingData.firstName} ${tempOnboardingData.lastName}`.trim(),
+                    avatar_url: avatarUrl
+                }
+            }
+        });
+        if (error) {
+            alert("Error signing up: " + error.message);
+            return;
+        }
+        if (data.user) {
+            userId = data.user.id;
+        }
+    }
+    
+    // Create User Entity immediately
+    const newUser = {
+        user_id: userId,
+        email: tempOnboardingData.email,
+        password: tempOnboardingData.password,
+        first_name: tempOnboardingData.firstName,
+        last_name: tempOnboardingData.lastName,
+        avatar: avatarUrl,
+        created_at: new Date().toISOString()
+    };
+    
+    saveUser(newUser);
+    currentUser = newUser;
+    
+    // Smart Routing Check: Did they join via invite code in URL or corporate domain?
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteCodeParam = urlParams.get('code');
+    const emailDomain = tempOnboardingData.email.split('@')[1];
+    
+    const workspaces = getWorkspaces();
+    let autoJoinWs = null;
+
+    if (inviteCodeParam) {
+        autoJoinWs = workspaces.find(w => w.code === inviteCodeParam.toUpperCase());
+    }
+    
+    if (!autoJoinWs && emailDomain) {
+        autoJoinWs = workspaces.find(w => w.domain === emailDomain && w.type === 'corporate');
+    }
+
+    if (!autoJoinWs && window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            if (inviteCodeParam) {
+                const { data } = await window.conworkSupabase.client
+                    .from('companies')
+                    .select('*')
+                    .eq('code', inviteCodeParam.toUpperCase())
+                    .maybeSingle();
+                if (data) {
+                    autoJoinWs = {
+                        workspace_id: data.id,
+                        name: data.name,
+                        code: data.code,
+                        type: data.is_personal ? 'personal' : 'corporate'
+                    };
+                }
+            }
+            if (!autoJoinWs && emailDomain) {
+                const { data } = await window.conworkSupabase.client
+                    .from('companies')
+                    .select('*')
+                    .eq('domain', emailDomain)
+                    .eq('is_personal', false)
+                    .maybeSingle();
+                if (data) {
+                    autoJoinWs = {
+                        workspace_id: data.id,
+                        name: data.name,
+                        code: data.code,
+                        type: data.is_personal ? 'personal' : 'corporate'
+                    };
+                }
+            }
+        } catch(e) {
+            console.error("Error auto-finding workspace:", e);
+        }
+    }
+
+    if (autoJoinWs) {
+        // Auto-bind
+        await addMember(currentUser.user_id, autoJoinWs.workspace_id, 'member');
+        showSuccessScreen("Welcome to " + autoJoinWs.name, "You have been successfully added to the team.", null);
+    } else {
+        // Ask for Intent
+        showScreen('screen-action-select');
+    }
+});
+
+// STEP 3: Action Selection
+async function selectAction(type) {
+    if (type === 'personal') {
+        // Create Personal Workspace
+        const wsId = 'W-' + Date.now();
+        const personalWs = {
+            workspace_id: wsId,
+            type: 'personal',
+            name: 'Personal Space',
+            created_by: currentUser.user_id,
+            created_at: new Date().toISOString()
+        };
+        const realId = await saveWorkspace(personalWs);
+        await addMember(currentUser.user_id, realId, 'admin'); // user is admin of their personal space
+        
+        showSuccessScreen("Welcome!", "Your personal workspace is ready.", null);
+    } else if (type === 'team') {
+        showScreen('screen-team-setup');
+    }
+}
+
+// STEP 4A: Join Team via Code
+const codeInput = document.getElementById('join-invite-code');
+const feedbackEl = document.getElementById('join-code-feedback');
+const btnJoin = document.getElementById('btn-join-team');
+let validWorkspaceId = null;
+let checkTimeout = null;
+
+if (codeInput) {
+    codeInput.addEventListener('input', function(e) {
+        this.value = this.value.toUpperCase();
+        const val = this.value.trim();
+        
+        if (checkTimeout) clearTimeout(checkTimeout);
+
+        if(val.length >= 9) {
+            feedbackEl.className = 'feedback-text text-gray-500 mt-2 text-sm text-center';
+            feedbackEl.innerHTML = `Searching team...`;
+            
+            checkTimeout = setTimeout(async () => {
+                let workspace = getWorkspaces().find(w => w.code === val && w.type === 'corporate');
+                
+                // If not found in localStorage, search in Supabase DB
+                if (!workspace && window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+                    try {
+                        const { data, error } = await window.conworkSupabase.client
+                            .from('companies')
+                            .select('*')
+                            .eq('code', val)
+                            .maybeSingle();
+                            
+                        if (data) {
+                            workspace = {
+                                workspace_id: data.id,
+                                name: data.name,
+                                code: data.code,
+                                type: data.is_personal ? 'personal' : 'corporate',
+                                domain: data.domain,
+                                created_by: data.created_by
+                            };
+                            // Save to local storage cache
+                            const localWs = getWorkspaces();
+                            if (!localWs.some(w => w.workspace_id === workspace.workspace_id)) {
+                                localWs.push(workspace);
+                                localStorage.setItem('workspaces', JSON.stringify(localWs));
+                            }
+                        }
+                    } catch(err) {
+                        console.error("Error finding company in Supabase:", err);
+                    }
+                }
+
+                if(workspace) {
+                    feedbackEl.className = 'feedback-text success text-green-600 mt-2 text-sm text-center';
+                    feedbackEl.innerHTML = `✔️ Found: <strong>${workspace.name}</strong>`;
+                    btnJoin.disabled = false;
+                    validWorkspaceId = workspace.workspace_id;
+                } else {
+                    feedbackEl.className = 'feedback-text error text-red-500 mt-2 text-sm text-center';
+                    feedbackEl.innerHTML = `❌ Team not found.`;
+                    btnJoin.disabled = true;
+                    validWorkspaceId = null;
+                }
+            }, 300);
+        } else {
+            feedbackEl.innerHTML = '';
+            btnJoin.disabled = true;
+            validWorkspaceId = null;
+        }
+    });
+}
+
+document.getElementById('form-join-team').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if(!validWorkspaceId) return;
+    
+    // Check if already member
+    const isMember = getMembers().find(m => m.user_id === currentUser.user_id && m.workspace_id === validWorkspaceId);
+    if(isMember) {
+        document.getElementById('join-error').innerText = "You are already a member of this team.";
+        document.getElementById('join-error').style.display = 'block';
+        return;
+    }
+
+    try {
+        await addMember(currentUser.user_id, validWorkspaceId, 'member');
+        showSuccessScreen("Joined Successfully!", "You are now part of the team.", null);
+    } catch(err) {
+        console.error("Error joining team:", err);
+        const errEl = document.getElementById('join-error');
+        if (errEl) {
+            errEl.innerText = "Error joining team: " + (err.message || err);
+            errEl.style.display = 'block';
+        }
+    }
+});
+
+// STEP 4B: Create Team
+document.getElementById('form-create-team').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const name = document.getElementById('create-team-name').value;
+    const domain = document.getElementById('create-team-domain').value;
+    
+    const wsId = 'W-' + Date.now();
+    const code = generateInviteCode();
+    
+    const corporateWs = {
+        workspace_id: wsId,
+        type: 'corporate',
+        name: name,
+        created_by: currentUser.user_id,
+        domain: domain || null,
+        code: code,
+        created_at: new Date().toISOString()
+    };
+    
+    // Disable button to prevent double submit
+    const btn = document.getElementById('btn-create-team');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Creating...";
+    }
+    
+    try {
+        const realId = await saveWorkspace(corporateWs);
+        if (!realId) {
+            throw new Error("Failed to create workspace");
+        }
+        await addMember(currentUser.user_id, realId, 'admin'); // Creator is admin
+        
+        showSuccessScreen("Team Created!", "Your team workspace is ready.", code);
+    } catch (err) {
+        console.error(err);
+        // Do not show success screen if it failed
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Create Team";
+        }
+    }
+});
+
+
+// Utility & Routing
+function showSuccessScreen(title, message, inviteCode) {
+    document.getElementById('success-title').innerText = title;
+    document.getElementById('success-message').innerText = message;
+    
+    if (inviteCode) {
+        document.getElementById('success-team-info').classList.remove('hidden');
+        document.getElementById('success-invite-code').innerText = inviteCode;
+    } else {
+        document.getElementById('success-team-info').classList.add('hidden');
+    }
+    
+    showScreen('screen-success');
+}
+
+async function checkAndRouteUser() {
+    if(!currentUser) return;
+    
+    // Check real memberships from Supabase first
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            // 1. Search company_members by user_id
+            let { data } = await window.conworkSupabase.client
+                .from('company_members')
+                .select('*')
+                .eq('user_id', currentUser.user_id);
+                
+            // 2. Search profile by email if user_id mapping differs
+            if (!data || data.length === 0) {
+                const { data: prof } = await window.conworkSupabase.client
+                    .from('profiles')
+                    .select('id')
+                    .eq('email', currentUser.email)
+                    .maybeSingle();
+
+                if (prof && prof.id) {
+                    const { data: memByProf } = await window.conworkSupabase.client
+                        .from('company_members')
+                        .select('*')
+                        .eq('user_id', prof.id);
+
+                    if (memByProf && memByProf.length > 0) {
+                        data = memByProf;
+                        currentUser.user_id = prof.id;
+                        saveUser(currentUser);
+                    }
+                }
+            }
+
+            // 3. Fallback: Check if user created any company in Supabase
+            if (!data || data.length === 0) {
+                const { data: createdComp } = await window.conworkSupabase.client
+                    .from('companies')
+                    .select('*')
+                    .eq('created_by', currentUser.user_id);
+
+                if (createdComp && createdComp.length > 0) {
+                    try { await addMember(currentUser.user_id, createdComp[0].id, 'admin'); } catch(e){}
+                    data = [{ company_id: createdComp[0].id, company_role: 'company_admin' }];
+                }
+            }
+
+            // 4. Auto-connect registered email to active company in Supabase
+            if (!data || data.length === 0) {
+                const { data: corporateComp } = await window.conworkSupabase.client
+                    .from('companies')
+                    .select('*')
+                    .eq('is_personal', false)
+                    .order('created_at', { ascending: false });
+
+                if (corporateComp && corporateComp.length > 0) {
+                    const primaryComp = corporateComp[0];
+                    try {
+                        await addMember(currentUser.user_id, primaryComp.id, 'employee');
+                        data = [{ company_id: primaryComp.id, company_role: 'employee' }];
+                    } catch(e) {
+                        console.error('Error auto-binding to corporate company:', e);
+                    }
+                }
+            }
+
+            if (data && data.length > 0) {
+                const companyId = data[0].company_id;
+                
+                // Fetch company details
+                const { data: compData } = await window.conworkSupabase.client
+                    .from('companies')
+                    .select('*')
+                    .eq('id', companyId)
+                    .maybeSingle();
+
+                const localWs = getWorkspaces();
+                if (compData && !localWs.some(w => w.workspace_id === compData.id)) {
+                    localWs.push({
+                        workspace_id: compData.id,
+                        name: compData.name,
+                        code: compData.code,
+                        type: compData.is_personal ? 'personal' : 'corporate'
+                    });
+                    localStorage.setItem('workspaces', JSON.stringify(localWs));
+                }
+
+                goToDashboard(companyId, data[0].company_role);
+                return;
+            }
+        } catch(e) {
+            console.error('Error checking memberships:', e);
+        }
+    }
+
+    // Check local memberships fallback (only if Supabase is offline)
+    const memberships = getMembers().filter(m => m.user_id === currentUser.user_id);
+    if (memberships.length === 0) {
+        // User has no company! Force them to pick a mode.
+        showScreen('screen-action-select');
+        return;
+    }
+
+    goToDashboard(memberships[0].workspace_id, memberships[0].role);
+}
+
+function goToDashboard(passedWorkspaceId = null, passedRole = null) {
+    if(!currentUser) {
+        showScreen('screen-auth');
+        return;
+    }
+
+    let workspaceId = passedWorkspaceId;
+    let role = passedRole || 'worker';
+
+    if (!workspaceId) {
+        // Determine primary role/department for UI based on membership
+        const memberships = getMembers().filter(m => m.user_id === currentUser.user_id);
+        const primaryMembership = memberships.length > 0 ? memberships[0] : { role: 'member', workspace_id: 'W-1' };
+        role = primaryMembership.role;
+        workspaceId = primaryMembership.workspace_id;
+    }
+    
+    // Find workspace name
+    const workspaceInfo = getWorkspaces().find(w => w.workspace_id === workspaceId) || { name: 'ConWork' };
+
+    if (typeof App !== 'undefined' && App.state) {
+        App.state.currentUser = {
+            id: currentUser.user_id,
+            name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.email.split('@')[0],
+            username: currentUser.email.split('@')[0],
+            email: currentUser.email,
+            role: role,
+            department: role === 'admin' ? 'ผู้บริหาร' : 'พนักงานทั่วไป',
+            status: 'online',
+            avatar: currentUser.avatar || "https://ui-avatars.com/api/?name=" + encodeURIComponent(currentUser.first_name || currentUser.email) + "&background=random",
+            workspaceId: workspaceId,
+            workspaceName: workspaceInfo.name
+        };
+        try { sessionStorage.setItem('conwork_user', JSON.stringify(App.state.currentUser)); } catch(e){}
+        App.showApp();
+        App._loadData(); // Ensure we load the new workspace's data right away
+        App.renderProjects(); // Refresh UI for new workspace data
+    } else {
+        setTimeout(goToDashboard, 100);
+    }
+}
+
+function copyInviteCode() {
+    const code = document.getElementById('success-invite-code').innerText;
+    navigator.clipboard.writeText(code).then(() => {
+        alert("Invite Code copied!");
+    });
+}
+
+function logout() {
+    currentUser = null;
+    tempOnboardingData = {};
+    document.getElementById('app-screen').classList.add('hidden');
+    const login = document.getElementById('login-screen');
+    if(login) login.style.display = 'none';
+    const landing = document.getElementById('landing-screen');
+    if(landing) landing.style.display = 'flex';
+    showScreen('screen-auth');
+}
+
+// Password Visibility Toggle
+function togglePassword(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const icon = btn ? btn.querySelector('i') : null;
+    if (input.type === 'password') {
+        input.type = 'text';
+        if (icon) {
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        }
+    } else {
+        input.type = 'password';
+        if (icon) {
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+}
+
+// Avatar Previews
+function previewAvatar(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('profile-avatar-preview').src = e.target.result;
+            document.getElementById('profile-avatar-preview').classList.remove('hidden');
+            document.getElementById('profile-avatar-icon').classList.add('hidden');
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+function previewTeamLogo(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('team-logo-preview').src = e.target.result;
+            document.getElementById('team-logo-preview').classList.remove('hidden');
+            document.getElementById('team-logo-icon').classList.add('hidden');
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Forgot Password Flow
+async function forgotPassword() {
+    const emailInput = document.getElementById('auth-email').value;
+    const email = prompt("Please enter your registered email to reset your password:", emailInput || "");
+    
+    if (!email) return;
+    
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            const { data, error } = await window.conworkSupabase.client.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + window.location.pathname
+            });
+            if (error) throw error;
+            alert("A password reset link has been sent to your email. Please check your inbox.");
+        } catch (error) {
+            console.error("Reset password error:", error.message);
+            alert("Error sending reset link: " + error.message);
+        }
+    } else {
+        alert("Supabase is not configured. Cannot reset password in mock mode.");
+    }
+}
+
+// Actual Google Login via Supabase
+async function loginWithGoogle() {
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            const { data, error } = await window.conworkSupabase.client.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
+            });
+            if (error) throw error;
+        } catch (error) {
+            console.error("Google login error:", error.message);
+            alert("Error logging in with Google: " + error.message);
+        }
+    } else {
+        // Fallback to mock if Supabase is not configured
+        const email = prompt("Supabase not configured. Simulating Google Login...\n\nEnter your Google Email:");
+        if (email) {
+            document.getElementById('auth-email').value = email;
+            document.getElementById('form-auth').dispatchEvent(new Event('submit'));
+        }
+    }
+}
+
+let isRecoveryFlow = false;
+
+// Listen for Supabase Auth state changes (e.g. returning from Google OAuth)
+if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+    window.conworkSupabase.client.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+            isRecoveryFlow = true;
+            document.getElementById('landing-screen').style.display = 'none';
+            document.getElementById('login-screen').style.display = 'flex';
+            showScreen('screen-update-password');
+            return;
+        }
+
+        if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
+            if (isRecoveryFlow) return; // Wait for them to update password
+            
+            // Map Supabase user to our local DB user format
+            const supabaseUser = session.user;
+            let users = getUsers();
+            let existingUser = users.find(u => u.email === supabaseUser.email);
+            
+            if (!existingUser) {
+                // First time logging in with Google on this device, auto-create a user record
+                existingUser = {
+                    user_id: supabaseUser.id,
+                    email: supabaseUser.email || '',
+                    first_name: supabaseUser.user_metadata?.full_name || (supabaseUser.email ? supabaseUser.email.split('@')[0] : 'User'),
+                    last_name: '',
+                    avatar: supabaseUser.user_metadata?.avatar_url || null,
+                    created_at: new Date().toISOString()
+                };
+                saveUser(existingUser);
+            }
+            currentUser = existingUser;
+            checkAndRouteUser();
+        } else if (event === 'SIGNED_OUT') {
+            logout();
+        }
+    });
+}
+
+// Handle Update Password Submission
+const updatePasswordForm = document.getElementById('form-update-password');
+if (updatePasswordForm) {
+    updatePasswordForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const newPassword = document.getElementById('new-password').value;
+        const errorEl = document.getElementById('update-password-error');
+        errorEl.style.display = 'none';
+        
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            const { error } = await window.conworkSupabase.client.auth.updateUser({
+                password: newPassword
+            });
+            
+            if (error) {
+                errorEl.innerText = error.message;
+                errorEl.style.display = 'block';
+            } else {
+                alert("Password updated successfully!");
+                isRecoveryFlow = false;
+                
+                const { data: { session } } = await window.conworkSupabase.client.auth.getSession();
+                if (session) {
+                    const supabaseUser = session.user;
+                    let users = getUsers();
+                    let existingUser = users.find(u => u.email === supabaseUser.email);
+                    if (existingUser) {
+                        existingUser.password = newPassword; // Update local mock password too
+                        localStorage.setItem('users', JSON.stringify(users));
+                        currentUser = existingUser;
+                        checkAndRouteUser();
+                    }
+                }
+            }
+        }
+    });
+}
