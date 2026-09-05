@@ -77,7 +77,7 @@ class ConWorkSupabaseService {
         return user;
     }
 
-    async updateUserProfile({ userId, fullName, avatarUrl, department, role, companyId }) {
+    async updateUserProfile({ userId, fullName, avatarUrl, department, role, jobTitle, companyId }) {
         if (!this.isAvailable() || !userId) return null;
 
         try {
@@ -85,6 +85,7 @@ class ConWorkSupabaseService {
             if (fullName !== undefined) profileUpdates.full_name = fullName;
             if (avatarUrl !== undefined) profileUpdates.avatar_url = avatarUrl;
             if (department !== undefined) profileUpdates.department = department;
+            if (jobTitle !== undefined) profileUpdates.job_title = jobTitle;
 
             if (Object.keys(profileUpdates).length > 1) {
                 const { error: profErr } = await this.client
@@ -98,7 +99,7 @@ class ConWorkSupabaseService {
 
             const memberUpdates = {};
             if (role !== undefined) {
-                memberUpdates.company_role = (role === 'admin' || role === 'reviewer2' || role === 'Company_admin') ? 'super_admin' : 'employee';
+                memberUpdates.company_role = role;
             }
             if (department !== undefined) {
                 memberUpdates.department = department;
@@ -110,7 +111,7 @@ class ConWorkSupabaseService {
                 }
                 await query;
             }
-            return { userId, fullName, avatarUrl, department, role };
+            return { userId, fullName, avatarUrl, department, role, jobTitle };
         } catch (err) {
             console.warn('Supabase profile update warning:', err);
             return null;

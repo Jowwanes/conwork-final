@@ -722,13 +722,19 @@ const App = {
                                 const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
 
                                 let mappedRole = 'worker';
-                                if (isCompanyCreator || isFirstUserInCompany || mRole === 'company_admin' || mRole === 'super_admin' || mRole === 'admin' || mRole === 'ceo') {
-                                    mappedRole = 'admin'; // Administrator / CEO
-                                } else if (mRole === 'reviewer2') {
+                                if (mRole === 'reviewer2' || mRole === 'ceo') {
                                     mappedRole = 'reviewer2';
                                 } else if (mRole === 'reviewer1' || mRole === 'manager') {
                                     mappedRole = 'reviewer1';
+                                } else if (mRole === 'admin' || mRole === 'company_admin' || mRole === 'super_admin') {
+                                    mappedRole = 'admin';
+                                } else if (mRole === 'worker' || mRole === 'employee') {
+                                    mappedRole = 'worker';
+                                } else if (isCompanyCreator || isFirstUserInCompany) {
+                                    mappedRole = 'admin';
                                 }
+
+                                const jobTitle = p?.job_title || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
 
                                 mockUsers.push({
                                     id: uid,
@@ -736,6 +742,7 @@ const App = {
                                     username: name,
                                     name: name,
                                     role: mappedRole,
+                                    jobTitle: jobTitle,
                                     department: mDept,
                                     avatar: avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
                                     status: 'online'
@@ -746,6 +753,7 @@ const App = {
                                     this.state.currentUser.avatar = avatar || this.state.currentUser.avatar;
                                     this.state.currentUser.department = mDept;
                                     this.state.currentUser.role = mappedRole;
+                                    this.state.currentUser.jobTitle = jobTitle;
                                 }
                             });
                             this.updateProfile();
@@ -3948,7 +3956,7 @@ const App = {
 
         const buildMemberHtml = (u) => {
             const isOnline = u.status === 'online';
-            const roleLabel = u.role === 'admin' ? 'แอดมิน' : u.role === 'reviewer2' ? 'ผู้บริหาร' : u.role === 'reviewer1' ? 'หัวหน้าแผนก' : u.role === 'worker' ? 'พนักงาน' : 'ผู้มอบหมาย';
+            const roleLabel = u.jobTitle || (u.role === 'admin' ? 'แอดมิน' : u.role === 'reviewer2' ? 'ผู้บริหาร' : u.role === 'reviewer1' ? 'หัวหน้าแผนก' : u.role === 'worker' ? 'พนักงาน' : 'ผู้มอบหมาย');
 
             if (this.state.teamViewMode === 'grid') {
                 return `
@@ -3963,7 +3971,7 @@ const App = {
                             <span class="absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-300'}"></span>
                         </div>
                         <h4 class="font-bold text-gray-800 text-sm mb-1 line-clamp-1 w-full px-2" title="${u.name}">${u.name}</h4>
-                        ${u.role === 'reviewer2' || u.role === 'admin' || u.role === 'reviewer1' ? `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">${roleLabel}</span>` : ''}
+                        <span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">${roleLabel}</span>
                         <p class="text-xs text-gray-500 truncate w-full px-2 mt-1">${u.department}</p>
                     </div>
                 `;
@@ -3979,7 +3987,7 @@ const App = {
                         <div>
                             <div class="flex items-center gap-2">
                                 <h4 class="font-bold text-gray-800 text-sm">${u.name}</h4>
-                                ${u.role === 'reviewer2' || u.role === 'admin' || u.role === 'reviewer1' ? `<span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full">${roleLabel}</span>` : ''}
+                                <span class="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded-full">${roleLabel}</span>
                             </div>
                             <p class="text-xs text-gray-500 mt-0.5">${u.department} ${u.username ? `• @${u.username}` : ''}</p>
                         </div>
@@ -9940,7 +9948,8 @@ const App = {
                         fullName: user.name,
                         avatarUrl: user.avatar,
                         department: user.department,
-                        role: user.role
+                        role: user.role,
+                        jobTitle: user.jobTitle
                     });
                 }
                 this._saveData();
