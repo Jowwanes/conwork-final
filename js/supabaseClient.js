@@ -534,6 +534,29 @@ class ConWorkSupabaseService {
         return data || payload;
     }
 
+    subscribeGlobalUserMessages(onNewMessageCallback) {
+        if (!this.isAvailable()) return null;
+
+        if (this.globalMsgChannel) {
+            try { this.client.removeChannel(this.globalMsgChannel); } catch (e) {}
+        }
+
+        const channel = this.client.channel('global_user_chat_messages');
+        channel.on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages'
+        }, payload => {
+            if (payload && payload.new) {
+                onNewMessageCallback(payload.new);
+            }
+        });
+
+        channel.subscribe();
+        this.globalMsgChannel = channel;
+        return channel;
+    }
+
     subscribeToChannelMessages(channelId, onNewMessageCallback, onPresenceCallback = null) {
         if (!this.isAvailable()) return null;
 

@@ -7579,8 +7579,83 @@ const App = {
             });
 
             localStorage.setItem('conwork_chats', JSON.stringify(mockChats));
+            this.initGlobalChatRealtime();
         } catch (err) {
             console.warn('loadUserChats error:', err);
+        }
+    },
+
+    initGlobalChatRealtime() {
+        if (!window.conworkSupabase || !window.conworkSupabase.isAvailable()) return;
+        if (this._globalChatSubscribed) return;
+        this._globalChatSubscribed = true;
+
+        window.conworkSupabase.subscribeGlobalUserMessages((newMsg) => {
+            this.handleIncomingGlobalMessage(newMsg);
+        });
+    },
+
+    handleIncomingGlobalMessage(newMsg) {
+        if (!newMsg || !newMsg.channel_id) return;
+        const myId = this.state.currentUser?.id;
+        if (myId && String(newMsg.sender_id) === String(myId)) return;
+
+        const d = new Date(newMsg.created_at || Date.now());
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const timeStr = `${day}/${month}/${year} ${hours}:${minutes}`;
+
+        let targetChat = mockChats.find(c => c.supabaseChannelId === newMsg.channel_id || c.id === newMsg.channel_id);
+
+        if (!targetChat) {
+            const senderUser = mockUsers.find(u => String(u.id) === String(newMsg.sender_id));
+            const senderId = senderUser ? senderUser.id : newMsg.sender_id;
+            targetChat = this.getOrCreateChat(senderId, senderUser);
+            if (targetChat) targetChat.supabaseChannelId = newMsg.channel_id;
+        }
+
+        const isContentImage = newMsg.content && (newMsg.content.startsWith('data:image/') || newMsg.content.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i));
+        const isContentFile = newMsg.content && (newMsg.content.startsWith('data:application/') || newMsg.content.match(/\.(pdf|docx|xlsx|zip)(\?.*)?$/i));
+        const msgType = isContentImage ? 'image' : (isContentFile ? 'file' : 'text');
+
+        const messageObj = {
+            id: newMsg.id || 'm-' + Math.random(),
+            chatId: targetChat ? targetChat.id : newMsg.channel_id,
+            senderId: newMsg.sender_id,
+            text: newMsg.content,
+            type: msgType,
+            timestamp: timeStr,
+            replyTo: null
+        };
+
+        if (!mockMessages.some(m => m.id === newMsg.id || (m.text === newMsg.content && String(m.senderId) === String(newMsg.sender_id)))) {
+            mockMessages.push(messageObj);
+        }
+
+        const isCurrentlyViewingThisChat = this.state.currentView === 'messages' && this.state.currentChat === targetChat?.id;
+
+        if (isCurrentlyViewingThisChat) {
+            this.renderMessages();
+            this.renderChatList();
+            const msgContainer = document.getElementById('chat-messages-container');
+            if (msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight;
+        } else {
+            if (targetChat) {
+                targetChat.unreadCount = (targetChat.unreadCount || 0) + 1;
+            }
+            this.updateUnreadBadge();
+            if (this.state.currentView === 'messages') {
+                this.renderChatList();
+            }
+
+            const senderName = mockUsers.find(u => String(u.id) === String(newMsg.sender_id))?.name || 'ผู้ใช้';
+            const displayPreview = msgType === 'image' ? '[ส่งรูปภาพ]' : (msgType === 'file' ? '[ส่งไฟล์แนบ]' : newMsg.content);
+            if (typeof this._showToast === 'function') {
+                this._showToast(`💬 ข้อความใหม่จาก ${senderName}: ${displayPreview.substring(0, 35)}`, 'info');
+            }
         }
     },
 
@@ -7699,13 +7774,17 @@ const App = {
                     const hours = String(d.getHours()).padStart(2, '0');
                     const minutes = String(d.getMinutes()).padStart(2, '0');
                     const timeStr = `${day}/${month}/${year} ${hours}:${minutes}`;
+
+                    const isContentImage = msg.content && (msg.content.startsWith('data:image/') || msg.content.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i));
+                    const isContentFile = msg.content && (msg.content.startsWith('data:application/') || msg.content.match(/\.(pdf|docx|xlsx|zip)(\?.*)?$/i));
+                    const msgType = isContentImage ? 'image' : (isContentFile ? 'file' : 'text');
                     
                     mockMessages.push({
                         id: msg.id || 'm-' + Math.random(),
                         chatId: chat.id,
                         senderId: msg.sender_id,
                         text: msg.content,
-                        type: 'text',
+                        type: msgType,
                         timestamp: timeStr,
                         replyTo: null
                     });
@@ -7724,13 +7803,17 @@ const App = {
                     const minutes = String(d.getMinutes()).padStart(2, '0');
                     const timeStr = `${day}/${month}/${year} ${hours}:${minutes}`;
 
+                    const isContentImage = newMsg.content && (newMsg.content.startsWith('data:image/') || newMsg.content.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i));
+                    const isContentFile = newMsg.content && (newMsg.content.startsWith('data:application/') || newMsg.content.match(/\.(pdf|docx|xlsx|zip)(\?.*)?$/i));
+                    const msgType = isContentImage ? 'image' : (isContentFile ? 'file' : 'text');
+
                     if (!mockMessages.some(m => m.id === newMsg.id || (m.text === newMsg.content && String(m.senderId) === String(newMsg.sender_id)))) {
                         mockMessages.push({
                             id: newMsg.id || 'm-' + Math.random(),
                             chatId: chat.id,
                             senderId: newMsg.sender_id,
                             text: newMsg.content,
-                            type: 'text',
+                            type: msgType,
                             timestamp: timeStr,
                             replyTo: null
                         });
@@ -7778,6 +7861,15 @@ const App = {
                 badge.classList.remove('hidden');
             } else {
                 badge.classList.add('hidden');
+            }
+        }
+        const topBadge = document.getElementById('top-nav-notification-badge');
+        if (topBadge) {
+            if (totalUnread > 0) {
+                topBadge.textContent = totalUnread > 99 ? '99+' : totalUnread;
+                topBadge.classList.remove('hidden');
+            } else {
+                topBadge.classList.add('hidden');
             }
         }
     },
@@ -8137,10 +8229,14 @@ const App = {
             }
 
             let contentHtml = '';
-            if (m.type === 'image') {
-                contentHtml = `<img src="${m.text}" class="max-w-xs rounded-lg mt-1 cursor-pointer hover:opacity-90" onclick="window.open('${m.text}', '_blank')">`;
+            const isImg = m.type === 'image' || (m.text && (m.text.startsWith('data:image/') || m.text.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i)));
+            const isFile = m.type === 'file' || (m.text && (m.text.startsWith('data:application/') || m.text.match(/\.(pdf|docx|xlsx|zip)(\?.*)?$/i)));
+            if (isImg) {
+                contentHtml = `<img src="${m.text}" class="max-w-xs max-h-80 rounded-lg mt-1 cursor-pointer hover:opacity-90 object-cover shadow-sm" onclick="window.open('${m.text}', '_blank')">`;
+            } else if (isFile) {
+                contentHtml = `<a href="${m.text}" download="${m.fileName || 'file'}" class="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-1 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100"><i class="fa-solid fa-file-arrow-down text-lg"></i> ดาวน์โหลดไฟล์แนบ (${m.fileName || 'เอกสาร'})</a>`;
             } else {
-                contentHtml = `<p class="text-sm">${m.text}</p>`;
+                contentHtml = `<p class="text-sm whitespace-pre-wrap">${m.text}</p>`;
             }
 
             let forwardedHtml = '';
@@ -8582,9 +8678,16 @@ const App = {
         const file = event.target.files[0];
         if (!file || !this.state.currentChat) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const dataUrl = e.target.result;
+        if (file.size > 10 * 1024 * 1024) {
+            if (typeof this._showToast === 'function') this._showToast('ขนาดไฟล์ต้องไม่เกิน 10MB', 'error');
+            else alert('ขนาดไฟล์ต้องไม่เกิน 10MB');
+            event.target.value = '';
+            return;
+        }
+
+        const isImage = file.type.startsWith('image/');
+
+        const processAndSend = (dataUrl, msgType) => {
             const now = new Date();
             const day = String(now.getDate()).padStart(2, '0');
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -8593,12 +8696,15 @@ const App = {
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const timeStr = `${day}/${month}/${year} ${hours}:${minutes}`;
 
+            const tempMsgId = 'm' + Date.now();
+
             mockMessages.push({
-                id: 'm' + Date.now(),
+                id: tempMsgId,
                 chatId: this.state.currentChat,
                 senderId: this.state.currentUser?.id || 1,
                 text: dataUrl,
-                type: 'image',
+                type: msgType,
+                fileName: file.name,
                 timestamp: timeStr,
                 replyTo: this.state.replyingToMsgId || null
             });
@@ -8606,8 +8712,71 @@ const App = {
             this.renderMessages();
             this.renderChatList();
             this._saveData();
+
+            if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+                const chat = mockChats.find(c => c.id === this.state.currentChat);
+                let targetChanId = chat ? chat.supabaseChannelId : null;
+                if (!targetChanId) {
+                    if (this.state.currentChat === 'note') {
+                        window.conworkSupabase.getOrCreatePersonalNoteChannel().then(cid => {
+                            if (cid) {
+                                if (chat) chat.supabaseChannelId = cid;
+                                window.conworkSupabase.sendMessage(cid, dataUrl, msgType);
+                            }
+                        });
+                    } else if (chat && (chat.userId || chat.id.startsWith('user-'))) {
+                        const targetId = chat.userId || chat.id.replace('user-', '');
+                        window.conworkSupabase.getOrCreateDirectChannel(targetId).then(cid => {
+                            if (cid) {
+                                if (chat) chat.supabaseChannelId = cid;
+                                window.conworkSupabase.sendMessage(cid, dataUrl, msgType);
+                            }
+                        });
+                    }
+                } else {
+                    window.conworkSupabase.sendMessage(targetChanId, dataUrl, msgType);
+                }
+            }
         };
-        reader.readAsDataURL(file);
+
+        if (isImage) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxDim) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        }
+                    } else {
+                        if (height > maxDim) {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                    processAndSend(compressedDataUrl, 'image');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                processAndSend(e.target.result, 'file');
+            };
+            reader.readAsDataURL(file);
+        }
+
         event.target.value = '';
     },
 
