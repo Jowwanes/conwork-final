@@ -902,83 +902,6 @@
                 <!-- 3. CALENDAR VIEW (ปฏิทิน) -->
                 <div id="view-calendar" class="view-section hidden h-full flex flex-col gap-2 p-6">
 
-                    <!-- Header & Tabs -->
-                    <div class="flex items-center shrink-0 mb-3 w-full gap-4 justify-between">
-                        <!-- Removed Calendar Tabs from here -->
-
-                        <!-- Stats Cards (Centered) -->
-                        <div class="flex-1 flex justify-center overflow-x-auto">
-                            <div class="flex items-center gap-3 lg:gap-6 pb-2">
-                                <!-- Card 1: งานวันนี้ -->
-                                <div
-                                    class="bg-white border border-green-100 shadow-md shadow-gray-200/50 hover:shadow-xl hover:-translate-y-1 hover:border-green-300 transition-all duration-300 rounded-2xl py-3 px-5 lg:px-6 min-w-[140px] lg:min-w-[160px] flex items-center gap-4 cursor-pointer group">
-                                    <div
-                                        class="w-11 h-11 rounded-full bg-green-50 group-hover:bg-green-100 transition-colors flex items-center justify-center text-green-600 shrink-0">
-                                        <i
-                                            class="fa-regular fa-circle-check text-lg group-hover:scale-110 transition-transform duration-300"></i>
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <span id="stat-today-tasks"
-                                            class="text-2xl font-bold text-gray-800 leading-none tracking-tight">8</span>
-                                        <span class="text-xs text-gray-500 font-medium mt-1">งานวันนี้</span>
-                                    </div>
-                                </div>
-
-                                <!-- Card 2: งานสัปดาห์นี้ -->
-                                <div
-                                    class="bg-white border border-orange-100 shadow-md shadow-gray-200/50 hover:shadow-xl hover:-translate-y-1 hover:border-orange-300 transition-all duration-300 rounded-2xl py-3 px-5 lg:px-6 min-w-[140px] lg:min-w-[160px] flex items-center gap-4 cursor-pointer group">
-                                    <div
-                                        class="w-11 h-11 rounded-full bg-orange-50 group-hover:bg-orange-100 transition-colors flex items-center justify-center text-orange-500 shrink-0">
-                                        <i
-                                            class="fa-regular fa-clock text-lg group-hover:scale-110 transition-transform duration-300"></i>
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <span id="stat-week-tasks"
-                                            class="text-2xl font-bold text-gray-800 leading-none tracking-tight">24</span>
-                                        <span class="text-xs text-gray-500 font-medium mt-1">งานสัปดาห์นี้</span>
-                                    </div>
-                                </div>
-
-                                <!-- Card 3: งานทั้งหมด -->
-                                <div
-                                    class="bg-white border border-blue-100 shadow-md shadow-gray-200/50 hover:shadow-xl hover:-translate-y-1 hover:border-blue-300 transition-all duration-300 rounded-2xl py-3 px-5 lg:px-6 min-w-[140px] lg:min-w-[160px] flex items-center gap-4 cursor-pointer group">
-                                    <div
-                                        class="w-11 h-11 rounded-full bg-blue-50 group-hover:bg-blue-100 transition-colors flex items-center justify-center text-blue-600 shrink-0">
-                                        <i
-                                            class="fa-regular fa-calendar-days text-lg group-hover:scale-110 transition-transform duration-300"></i>
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <span id="stat-total-tasks"
-                                            class="text-2xl font-bold text-gray-800 leading-none tracking-tight">15</span>
-                                        <span class="text-xs text-gray-500 font-medium mt-1">งานทั้งหมด</span>
-                                    </div>
-                                </div>
-
-                                <!-- Card 4: ความคืบหน้าเฉลี่ย -->
-                                <div
-                                    class="bg-white border border-purple-100 shadow-md shadow-gray-200/50 hover:shadow-xl hover:-translate-y-1 hover:border-purple-300 transition-all duration-300 rounded-2xl py-3 px-5 lg:px-6 min-w-[140px] lg:min-w-[160px] flex items-center gap-4 cursor-pointer group">
-                                    <div
-                                        class="w-11 h-11 rounded-full bg-purple-50 group-hover:bg-purple-100 transition-colors flex items-center justify-center text-purple-600 shrink-0">
-                                        <i
-                                            class="fa-solid fa-chart-pie text-lg group-hover:scale-110 transition-transform duration-300"></i>
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <span id="stat-avg-progress"
-                                            class="text-2xl font-bold text-gray-800 leading-none tracking-tight">52%</span>
-                                        <span class="text-xs text-gray-500 font-medium mt-1">ความคืบหน้าเฉลี่ย</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="shrink-0 ml-auto">
-                            <button id="header-btn-create-event"
-                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-sm text-sm font-semibold flex items-center gap-2 transition-colors h-11"
-                                onclick="App.openCreateEventModal()">
-                                <i class="fa-solid fa-plus"></i> สร้างกิจกรรม
-                            </button>
-                        </div>
-                    </div>
-
                     <!-- Main Content Split -->
                     <div class="flex gap-5 flex-1 min-h-0">
 
@@ -1010,6 +933,13 @@
                                         <p id="cal-group-member-count" class="text-xs text-gray-500 font-medium mt-1">
                                             สมาชิก 5 คน</p>
                                     </div>
+                                </div>
+                                <div class="shrink-0 ml-auto">
+                                    <button id="header-btn-create-event"
+                                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-sm text-sm font-semibold flex items-center gap-2 transition-colors h-11"
+                                        onclick="App.openCreateEventModal()">
+                                        <i class="fa-solid fa-plus"></i> สร้างกิจกรรม
+                                    </button>
                                 </div>
                             </div>
 
