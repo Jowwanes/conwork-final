@@ -8,9 +8,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/jpeg" href="img/logo.jpg">
     <!-- Fonts -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Tailwind CSS -->
@@ -21,7 +19,7 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Kanit', 'Inter', 'sans-serif'],
+                        sans: ['Prompt', 'Inter', 'Kanit', 'sans-serif'],
                     },
                     colors: {
                         primary: '#4193FA', 
@@ -133,223 +131,187 @@
 <body class="text-gray-800 antialiased h-screen overflow-hidden flex flex-col font-sans bg-cream">
 
     <!-- ================= LANDING SCREEN ================= -->
-    <div id="landing-screen" class="absolute inset-0 z-50 bg-white overflow-y-auto flex flex-col font-sans scroll-smooth text-slate-700 antialiased selection:bg-blue-100 selection:text-blue-700">
-        <!-- Clean Sticky Navigation Header -->
-        <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 transition-all">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3.5 flex items-center justify-between">
-                <!-- Brand Logo & Title -->
-                <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-                    <img src="img/logo.jpg" alt="ConWork Logo" class="h-10 w-auto rounded-xl shadow-xs border border-slate-100 object-contain">
-                    <div class="flex flex-col">
-                        <span class="text-xl font-bold tracking-tight text-slate-900 leading-none">ConWork</span>
-                        <span class="text-[10px] text-slate-400 font-medium tracking-wider uppercase mt-0.5">Enterprise Work OS</span>
-                    </div>
+    <div id="landing-screen" class="absolute inset-0 z-50 bg-white overflow-y-auto flex flex-col font-sans scroll-smooth text-slate-700 antialiased selection:bg-slate-100 selection:text-slate-900">
+        
+        <!-- Minimal Sticky Header -->
+        <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 transition-all">
+            <div class="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+                <!-- Brand -->
+                <div class="flex items-center gap-2.5 cursor-pointer" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                    <img src="img/logo.jpg" alt="ConWork" class="h-7 w-auto rounded-lg object-contain">
+                    <span class="text-base font-semibold tracking-tight text-slate-900">ConWork</span>
                 </div>
 
-                <!-- Desktop Nav Links -->
-                <nav class="hidden lg:flex items-center gap-7 text-sm font-medium text-slate-600">
-                    <a href="#features" class="hover:text-blue-600 transition-colors py-1">ฟีเจอร์หลัก</a>
-                    <a href="#workflow" class="hover:text-blue-600 transition-colors py-1">ระบบตรวจงาน 2 ระดับ</a>
-                    <a href="#finance" class="hover:text-blue-600 transition-colors py-1">งบประมาณ & การเงิน</a>
-                    <a href="#roles" class="hover:text-blue-600 transition-colors py-1">สิทธิ์และบทบาท</a>
-                    <a href="#faq" class="hover:text-blue-600 transition-colors py-1">คำถามที่พบบ่อย</a>
+                <!-- Minimal Navigation -->
+                <nav class="hidden md:flex items-center gap-8 text-xs font-medium text-slate-500">
+                    <a href="#features" class="hover:text-slate-900 transition-colors">ฟีเจอร์หลัก</a>
+                    <a href="#workflow" class="hover:text-slate-900 transition-colors">ตรวจรับงาน 2 ระดับ</a>
+                    <a href="#finance" class="hover:text-slate-900 transition-colors">งบประมาณโครงการ</a>
+                    <a href="#roles" class="hover:text-slate-900 transition-colors">สิทธิ์ตามบทบาท</a>
+                    <a href="#faq" class="hover:text-slate-900 transition-colors">คำถามที่พบบ่อย</a>
                 </nav>
 
-                <!-- Auth Buttons -->
+                <!-- Actions -->
                 <div class="flex items-center gap-3">
-                    <button onclick="showLoginScreen('login')" class="text-sm font-medium text-slate-700 hover:text-blue-600 px-3.5 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+                    <button onclick="showLoginScreen('login')" class="text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-1.5 transition-colors">
                         เข้าสู่ระบบ
                     </button>
-                    <button onclick="showLoginScreen('signup')" class="text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full shadow-xs hover:shadow transition-all flex items-center gap-1.5">
-                        <span>เริ่มต้นใช้งานฟรี</span>
-                        <i class="fa-solid fa-arrow-right text-xs ml-0.5"></i>
+                    <button onclick="showLoginScreen('signup')" class="text-xs font-medium bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-full transition-all">
+                        เริ่มต้นใช้งานฟรี
                     </button>
-                    <!-- Mobile Menu Button -->
-                    <button onclick="toggleLandingMobileMenu()" class="lg:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-50" aria-label="Menu">
-                        <i class="fa-solid fa-bars text-lg" id="landing-hamburger-icon"></i>
+                    <!-- Mobile Hamburger -->
+                    <button onclick="toggleLandingMobileMenu()" class="md:hidden p-1.5 text-slate-600 hover:text-slate-900" aria-label="Menu">
+                        <i class="fa-solid fa-bars text-base" id="landing-hamburger-icon"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Mobile Navigation Dropdown -->
-            <div id="landing-mobile-menu" class="hidden lg:hidden border-t border-slate-100 bg-white px-5 py-4 space-y-3 shadow-lg">
-                <a href="#features" onclick="toggleLandingMobileMenu()" class="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600">
-                    ฟีเจอร์หลักของระบบ
-                </a>
-                <a href="#workflow" onclick="toggleLandingMobileMenu()" class="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600">
-                    ระบบตรวจรับงาน 2 ระดับ (2-Tier)
-                </a>
-                <a href="#finance" onclick="toggleLandingMobileMenu()" class="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600">
-                    ระบบการเงิน & งบประมาณโครงการ
-                </a>
-                <a href="#roles" onclick="toggleLandingMobileMenu()" class="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600">
-                    โครงสร้างและสิทธิ์ตามบทบาท
-                </a>
-                <a href="#faq" onclick="toggleLandingMobileMenu()" class="block py-2 text-sm font-medium text-slate-700 hover:text-blue-600">
-                    คำถามที่พบบ่อย (FAQ)
-                </a>
+            <!-- Mobile Menu Dropdown -->
+            <div id="landing-mobile-menu" class="hidden md:hidden border-t border-slate-100 bg-white px-5 py-4 space-y-3 text-xs">
+                <a href="#features" onclick="toggleLandingMobileMenu()" class="block py-1 text-slate-600 hover:text-slate-900">ฟีเจอร์หลักของระบบ</a>
+                <a href="#workflow" onclick="toggleLandingMobileMenu()" class="block py-1 text-slate-600 hover:text-slate-900">ระบบตรวจรับงาน 2 ระดับ (2-Tier)</a>
+                <a href="#finance" onclick="toggleLandingMobileMenu()" class="block py-1 text-slate-600 hover:text-slate-900">งบประมาณ & การเงินโครงการ</a>
+                <a href="#roles" onclick="toggleLandingMobileMenu()" class="block py-1 text-slate-600 hover:text-slate-900">โครงสร้างทีมและสิทธิ์การใช้งาน</a>
+                <a href="#faq" onclick="toggleLandingMobileMenu()" class="block py-1 text-slate-600 hover:text-slate-900">คำถามที่พบบ่อย (FAQ)</a>
                 <div class="pt-3 border-t border-slate-100 flex gap-2">
-                    <button onclick="showLoginScreen('login')" class="w-1/2 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700">เข้าสู่ระบบ</button>
-                    <button onclick="showLoginScreen('signup')" class="w-1/2 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold">เริ่มต้นฟรี</button>
+                    <button onclick="showLoginScreen('login')" class="w-1/2 py-2 rounded-lg border border-slate-200 text-slate-700 font-medium">เข้าสู่ระบบ</button>
+                    <button onclick="showLoginScreen('signup')" class="w-1/2 py-2 rounded-lg bg-slate-900 text-white font-medium">เริ่มต้นฟรี</button>
                 </div>
             </div>
         </header>
 
-        <!-- ================= HERO SECTION ================= -->
-        <section class="relative pt-12 pb-20 md:pt-18 md:pb-28 overflow-hidden bg-gradient-to-b from-slate-50/60 via-white to-white">
-            <!-- Subtle Ambient Background -->
-            <div class="absolute inset-0 pointer-events-none z-0">
-                <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-blue-100/40 blur-3xl rounded-full"></div>
-            </div>
-
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                <!-- Subtle Pill Badge -->
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/80 shadow-xs mb-6 text-xs text-slate-600 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-blue-600"></span>
-                    <span>ระบบบริหารงานและโครงการครบวงจรระดับองค์กร</span>
+        <!-- ================= HERO SECTION (Clean & Minimal) ================= -->
+        <section class="pt-16 pb-20 md:pt-24 md:pb-28 text-center px-4">
+            <div class="max-w-4xl mx-auto">
+                <!-- Status Pill -->
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-200 bg-slate-50/70 text-xs text-slate-600 font-medium mb-8">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>ConWork Enterprise Platform</span>
                     <span class="text-slate-300">|</span>
-                    <span class="text-blue-600 font-semibold">Dual-Approval & Budgeting</span>
+                    <span class="text-slate-500">Dual-Approval & Budgeting OS</span>
                 </div>
 
-                <!-- Main Hero Heading (Clean & Legible) -->
-                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-tight max-w-4xl mx-auto">
-                    ขับเคลื่อนทุกโปรเจกต์สู่ความสำเร็จ <br>
-                    <span class="text-blue-600">จัดการงาน อนุมัติ 2 ระดับ และควบคุมงบประมาณ</span>
+                <!-- Minimal Headline -->
+                <h1 class="text-4xl sm:text-6xl font-medium text-slate-900 tracking-tight leading-[1.2]">
+                    บริหารทุกโปรเจกต์อย่างแม่นยำ <br>
+                    <span class="text-slate-400 font-normal">จัดการงาน อนุมัติ 2 ระดับ และควบคุมงบ</span>
                 </h1>
 
                 <!-- Subtitle -->
-                <p class="mt-5 sm:mt-6 text-base sm:text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-normal">
-                    ConWork ผสานกระดานคันบัน, การตรวจรับงานคู่ขนาน (Manager & CEO), บันทึกรายรับ-รายจ่ายโครงการ และการสื่อสารในทีมไว้ในที่เดียว เพื่อการทำงานที่โปร่งใสและตรวจสอบได้จริง
+                <p class="mt-6 text-sm sm:text-base text-slate-500 max-w-xl mx-auto leading-relaxed font-normal">
+                    ผสานกระดานคันบัน, ระบบตรวจรับงาน 2 ขั้นตอน (Manager & CEO), บันทึกรายรับ-รายจ่าย และแชททีม ไว้ในพื้นที่ทำงานเดียวกันที่เรียบง่ายและโปร่งใส
                 </p>
 
-                <!-- Clean CTA Buttons -->
-                <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
-                    <button onclick="showLoginScreen('signup')" class="w-full sm:w-auto px-7 py-3.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm hover:shadow transition-all flex items-center justify-center gap-2">
-                        <span>เริ่มต้นใช้งานฟรี</span>
-                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                <!-- Actions -->
+                <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button onclick="showLoginScreen('signup')" class="w-full sm:w-auto px-6 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-medium transition-all shadow-xs">
+                        เริ่มต้นใช้งาน — ฟรี
                     </button>
-                    <button onclick="showLoginScreen('login')" class="w-full sm:w-auto px-6 py-3.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold border border-slate-200 transition-colors flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-user-check text-slate-400 text-xs"></i>
-                        <span>เข้าสู่ระบบองค์กร</span>
+                    <button onclick="showLoginScreen('login')" class="w-full sm:w-auto px-6 py-2.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-medium border border-slate-200 transition-colors">
+                        เข้าสู่ระบบองค์กร
                     </button>
                 </div>
 
-                <!-- Clean Trust Metrics -->
-                <div class="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400 font-medium">
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-500"></i> ใช้งานได้ทันทีผ่านเบราว์เซอร์</span>
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-cloud text-blue-500"></i> คลาวด์ซิงค์แบบเรียลไทม์</span>
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield text-slate-500"></i> ความปลอดภัยระดับ Role-Based</span>
+                <!-- Minimal Trust Row -->
+                <div class="mt-8 flex items-center justify-center gap-6 text-[11px] text-slate-400 font-medium">
+                    <span>ไม่ต้องติดตั้งโปรแกรม</span>
+                    <span class="text-slate-200">&bull;</span>
+                    <span>คลาวด์ซิงค์เรียลไทม์</span>
+                    <span class="text-slate-200">&bull;</span>
+                    <span>ความปลอดภัยระดับ Role-Based</span>
                 </div>
 
-                <!-- ================= WORKSPACE INTERACTIVE MOCKUP SHOWCASE ================= -->
-                <div class="mt-12 sm:mt-16 relative max-w-5xl mx-auto text-left">
-                    <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/90 overflow-hidden">
-                        <!-- macOS Window Header Bar -->
-                        <div class="bg-slate-50 border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between">
+                <!-- ================= WORKSPACE INTERFACE PREVIEW ================= -->
+                <div class="mt-14 max-w-4xl mx-auto text-left">
+                    <div class="bg-white rounded-2xl border border-slate-200/90 shadow-lg shadow-slate-100 overflow-hidden">
+                        <!-- Window Titlebar -->
+                        <div class="bg-slate-50/80 border-b border-slate-200/60 px-4 py-2.5 flex items-center justify-between">
                             <div class="flex items-center gap-1.5">
-                                <span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>
-                                <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span>
-                                <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>
-                                <span class="ml-3 text-[11px] font-medium text-slate-400 hidden sm:inline-block">ConWork Enterprise Workspace</span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block"></span>
                             </div>
-                            <div class="bg-white px-3 py-1 rounded-md border border-slate-200 text-[11px] text-slate-500 flex items-center gap-1.5 w-60 sm:w-80 justify-center">
-                                <i class="fa-solid fa-lock text-emerald-500 text-[9px]"></i>
-                                <span class="font-mono text-slate-500 truncate">app.conwork.com/project/alpha</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-slate-400 text-xs">
-                                <span class="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-[9px]">CEO</span>
-                            </div>
+                            <div class="text-[11px] text-slate-400 font-mono">conwork.app / workspace / alpha-project</div>
+                            <span class="text-[10px] text-slate-500 font-medium px-2 py-0.5 rounded bg-slate-200/60">CEO Access</span>
                         </div>
 
-                        <!-- Workspace Mock Content -->
-                        <div class="p-4 sm:p-5 bg-white">
-                            <!-- Project Top Info -->
+                        <!-- Workspace Body -->
+                        <div class="p-5">
+                            <!-- Project Header Info -->
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700">Active</span>
-                                        <h2 class="text-base font-bold text-slate-800">โครงการพัฒนาระบบ Enterprise Portal 2026</h2>
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        <h3 class="text-sm font-semibold text-slate-900">โครงการพัฒนาระบบ Enterprise Portal 2026</h3>
                                     </div>
-                                    <p class="text-xs text-slate-400 mt-0.5">แผนก: Core Engineering • ความคืบหน้าภาพรวม 78%</p>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">Core Engineering • ความคืบหน้า 78%</p>
                                 </div>
-                                <div class="flex items-center gap-2.5">
-                                    <div class="px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-150 flex items-center gap-2">
-                                        <i class="fa-solid fa-wallet text-emerald-600 text-xs"></i>
-                                        <div>
-                                            <div class="text-[9px] text-slate-400">งบประมาณโครงการ</div>
-                                            <div class="text-xs font-bold text-slate-800">฿1,500,000 <span class="text-emerald-600 font-normal">(คงเหลือ 68%)</span></div>
-                                        </div>
-                                    </div>
+                                <div class="text-right">
+                                    <div class="text-[10px] text-slate-400">งบประมาณโครงการ</div>
+                                    <div class="text-xs font-semibold text-slate-900">฿1,500,000 <span class="text-emerald-600 font-normal text-[11px]">(คงเหลือ 68%)</span></div>
                                 </div>
                             </div>
 
-                            <!-- 4 Kanban Columns Preview -->
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3.5">
+                            <!-- 4 Minimal Kanban Columns -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
                                 <!-- Col 1: To Do -->
-                                <div class="bg-slate-50/70 rounded-xl p-3 border border-slate-100 flex flex-col gap-2.5">
-                                    <div class="flex items-center justify-between px-1">
-                                        <span class="text-xs font-semibold text-slate-600">รอดำเนินการ</span>
-                                        <span class="bg-slate-200/80 text-slate-600 text-[10px] font-bold px-1.5 py-0.2 rounded-full">2</span>
+                                <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                    <div class="flex items-center justify-between text-slate-500 font-medium text-[11px]">
+                                        <span>รอดำเนินการ</span>
+                                        <span class="text-slate-400">2</span>
                                     </div>
-                                    <div class="bg-white p-3 rounded-lg border border-slate-150 shadow-xs">
-                                        <span class="bg-amber-50 text-amber-700 text-[9px] font-semibold px-1.5 py-0.5 rounded">High Priority</span>
-                                        <h3 class="text-xs font-medium text-slate-800 mt-1.5">ออกแบบ UI/UX Mobile & Web</h3>
-                                        <div class="flex items-center justify-between text-[10px] text-slate-400 mt-2.5 pt-2 border-t border-slate-50">
+                                    <div class="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-xs">
+                                        <span class="text-[9px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">High</span>
+                                        <div class="font-medium text-slate-800 text-[11px] mt-1">ออกแบบ UI/UX Web App</div>
+                                        <div class="text-[10px] text-slate-400 mt-2 flex justify-between">
                                             <span>20 ก.ย.</span>
-                                            <span class="text-blue-600 font-medium">งานย่อย 2/4</span>
+                                            <span>2/4 งานย่อย</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Col 2: In Progress -->
-                                <div class="bg-blue-50/40 rounded-xl p-3 border border-blue-100/60 flex flex-col gap-2.5">
-                                    <div class="flex items-center justify-between px-1">
-                                        <span class="text-xs font-semibold text-blue-700">กำลังดำเนินการ</span>
-                                        <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.2 rounded-full">1</span>
+                                <!-- Col 2: Doing -->
+                                <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                    <div class="flex items-center justify-between text-slate-500 font-medium text-[11px]">
+                                        <span>กำลังทำ</span>
+                                        <span class="text-slate-400">1</span>
                                     </div>
-                                    <div class="bg-white p-3 rounded-lg border border-blue-150 shadow-xs">
-                                        <span class="bg-rose-50 text-rose-700 text-[9px] font-semibold px-1.5 py-0.5 rounded">Urgent</span>
-                                        <h3 class="text-xs font-medium text-slate-800 mt-1.5">เชื่อมต่อ Payment API</h3>
-                                        <div class="w-full bg-slate-100 rounded-full h-1 mt-2">
-                                            <div class="bg-blue-600 h-1 rounded-full" style="width: 70%"></div>
-                                        </div>
-                                        <div class="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+                                    <div class="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-xs">
+                                        <span class="text-[9px] font-medium text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded">Urgent</span>
+                                        <div class="font-medium text-slate-800 text-[11px] mt-1">เชื่อมต่อ Payment API</div>
+                                        <div class="text-[10px] text-slate-400 mt-2 flex justify-between">
                                             <span>ธนกฤต ม.</span>
-                                            <span class="text-blue-600 font-semibold">70%</span>
+                                            <span class="text-slate-700 font-medium">70%</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Col 3: Review 1 -->
-                                <div class="bg-amber-50/40 rounded-xl p-3 border border-amber-100/60 flex flex-col gap-2.5">
-                                    <div class="flex items-center justify-between px-1">
-                                        <span class="text-xs font-semibold text-amber-800">ตรวจรอบ 1 (Manager)</span>
-                                        <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full">1</span>
+                                <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                    <div class="flex items-center justify-between text-slate-500 font-medium text-[11px]">
+                                        <span>รอตรวจ 1 (Manager)</span>
+                                        <span class="text-slate-400">1</span>
                                     </div>
-                                    <div class="bg-white p-3 rounded-lg border border-amber-200/80 shadow-xs">
-                                        <span class="bg-amber-50 text-amber-800 text-[9px] font-semibold px-1.5 py-0.5 rounded">รอผู้จัดการอนุมัติ</span>
-                                        <h3 class="text-xs font-medium text-slate-800 mt-1.5">สรุปสถาปัตยกรรมระบบ</h3>
-                                        <div class="flex items-center justify-between text-[10px] text-slate-400 mt-2.5 pt-2 border-t border-slate-50">
-                                            <span class="text-amber-700">รอ Reviewer 1</span>
-                                            <i class="fa-solid fa-arrow-right text-[9px] text-amber-500"></i>
+                                    <div class="bg-white p-2.5 rounded-lg border border-amber-200/80 shadow-xs">
+                                        <span class="text-[9px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">รอผู้จัดการ</span>
+                                        <div class="font-medium text-slate-800 text-[11px] mt-1">สรุปสถาปัตยกรรมระบบ</div>
+                                        <div class="text-[10px] text-amber-700 mt-2">
+                                            รอ Reviewer 1 อนุมัติ
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Col 4: Done & Approved -->
-                                <div class="bg-emerald-50/40 rounded-xl p-3 border border-emerald-100/60 flex flex-col gap-2.5">
-                                    <div class="flex items-center justify-between px-1">
-                                        <span class="text-xs font-semibold text-emerald-800">อนุมัติเสร็จสิ้น (Done)</span>
-                                        <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full">5</span>
+                                <!-- Col 4: Done -->
+                                <div class="bg-slate-50/80 rounded-xl p-3 border border-slate-100 flex flex-col gap-2">
+                                    <div class="flex items-center justify-between text-slate-500 font-medium text-[11px]">
+                                        <span>อนุมัติเสร็จสิ้น</span>
+                                        <span class="text-slate-400">5</span>
                                     </div>
-                                    <div class="bg-white p-3 rounded-lg border border-emerald-200/80 shadow-xs">
-                                        <span class="bg-emerald-50 text-emerald-700 text-[9px] font-semibold px-1.5 py-0.5 rounded">
-                                            <i class="fa-solid fa-check-double mr-1"></i> 2-Tier Passed
-                                        </span>
-                                        <h3 class="text-xs font-medium text-slate-800 mt-1.5">ติดตั้ง Cloud Server Database</h3>
-                                        <div class="flex items-center justify-between text-[10px] text-slate-400 mt-2.5 pt-2 border-t border-slate-50">
-                                            <span class="text-emerald-700 font-medium"><i class="fa-solid fa-crown text-amber-500 mr-1"></i> CEO Approved</span>
-                                            <span>สมบูรณ์</span>
+                                    <div class="bg-white p-2.5 rounded-lg border border-emerald-200/80 shadow-xs">
+                                        <span class="text-[9px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">2-Tier Passed</span>
+                                        <div class="font-medium text-slate-800 text-[11px] mt-1">ติดตั้ง Server & DB</div>
+                                        <div class="text-[10px] text-emerald-700 mt-2 font-medium">
+                                            CEO Approved
                                         </div>
                                     </div>
                                 </div>
@@ -360,463 +322,314 @@
             </div>
         </section>
 
-        <!-- ================= STATS SECTION (Clean & Light) ================= -->
-        <section class="py-12 bg-white border-y border-slate-100">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+        <!-- ================= STATS SECTION (Minimalist Numbers) ================= -->
+        <section class="py-10 border-y border-slate-100 bg-slate-50/30">
+            <div class="max-w-4xl mx-auto px-5">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                     <div>
-                        <div class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">2-Tier</div>
-                        <div class="text-xs font-semibold text-slate-700 mt-1">Approval Workflow</div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">ตรวจรับงาน 2 ขั้นตอน มั่นใจทุกงาน</p>
+                        <div class="text-xl font-semibold text-slate-900 font-mono">2-Tier</div>
+                        <div class="text-xs text-slate-500 mt-0.5">ระบบตรวจงานคู่ขนาน</div>
                     </div>
                     <div>
-                        <div class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">100%</div>
-                        <div class="text-xs font-semibold text-slate-700 mt-1">Budget Transparency</div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">คุมงบประมาณ แนบหลักฐานสลิปชัดเจน</p>
+                        <div class="text-xl font-semibold text-slate-900 font-mono">100%</div>
+                        <div class="text-xs text-slate-500 mt-0.5">งบประมาณโปร่งใส</div>
                     </div>
                     <div>
-                        <div class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">40%+</div>
-                        <div class="text-xs font-semibold text-slate-700 mt-1">Faster Delivery</div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">ลดขั้นตอนและเวลาในการส่งต่องาน</p>
+                        <div class="text-xl font-semibold text-slate-900 font-mono">Real-time</div>
+                        <div class="text-xs text-slate-500 mt-0.5">คลาวด์ซิงค์ทันที</div>
                     </div>
                     <div>
-                        <div class="text-2xl sm:text-3xl font-bold text-slate-900 font-mono">Real-time</div>
-                        <div class="text-xs font-semibold text-slate-700 mt-1">Cloud Collaboration</div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">อัปเดตข้อมูลและแจ้งเตือนทันที</p>
+                        <div class="text-xl font-semibold text-slate-900 font-mono">RBAC</div>
+                        <div class="text-xs text-slate-500 mt-0.5">แยกสิทธิ์ตามบทบาท</div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ================= 6 CORE MODULES (Clean Bento Cards) ================= -->
-        <section id="features" class="py-20 md:py-24 bg-slate-50/50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center max-w-2xl mx-auto mb-14">
-                    <span class="text-xs font-semibold text-blue-600 tracking-wider uppercase bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                        System Features
-                    </span>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mt-3 tracking-tight">
-                        ครบเครื่องทุกมิติของการบริหารงานโครงการ
+        <!-- ================= 6 CORE FEATURES (Minimalist Grid) ================= -->
+        <section id="features" class="py-20 md:py-24">
+            <div class="max-w-5xl mx-auto px-5 sm:px-8">
+                <div class="text-center max-w-xl mx-auto mb-14">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-widest">Core Capabilities</span>
+                    <h2 class="text-2xl sm:text-3xl font-medium text-slate-900 mt-2 tracking-tight">
+                        ครบเครื่องทุกความต้องการของทีม
                     </h2>
-                    <p class="text-sm text-slate-500 mt-2">
-                        ออกแบบมาเพื่อการทำงานที่กระชับ รวดเร็ว และเป็นระเบียบ ตั้งแต่วางแผนจนถึงตรวจรับงาน
+                    <p class="text-xs sm:text-sm text-slate-500 mt-2">
+                        ออกแบบอย่างเรียบง่าย เน้นประสิทธิภาพการใช้งานจริง โดยตัดฟังก์ชันที่ไม่จำเป็นออก
                     </p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <!-- Module 1 -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
-                        <div>
-                            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg mb-4">
-                                <i class="fa-solid fa-list-check"></i>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-800 mb-2">1. บอร์ดคันบัน & งานย่อย (Kanban)</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                กระดานคันบันที่คล่องตัว ลากและวางปรับสถานะงาน มอบหมายผู้รับผิดชอบ กำหนดระดับความสำคัญ (Urgent, High, Normal) และสร้าง Checklist งานย่อย
-                            </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <!-- Feature 1 -->
+                    <div class="p-5 rounded-xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 text-sm mb-4">
+                            <i class="fa-solid fa-list-check"></i>
                         </div>
-                        <div class="mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5">
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-blue-500 text-[10px]"></i> คอลัมน์สถานะงานปรับเปลี่ยนได้</div>
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-blue-500 text-[10px]"></i> แถบแสดงความคืบหน้างานย่อย</div>
-                        </div>
-                    </div>
-
-                    <!-- Module 2 -->
-                    <div class="bg-white rounded-2xl p-6 border border-emerald-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between relative">
-                        <span class="absolute top-4 right-4 bg-emerald-50 text-emerald-700 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-emerald-100">
-                            จุดเด่นหลัก
-                        </span>
-                        <div>
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg mb-4">
-                                <i class="fa-solid fa-stamp"></i>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-800 mb-2">2. ตรวจรับงาน 2 ระดับ (2-Tier Approval)</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                ส่งงานให้ผู้จัดการทีม (Reviewer 1) ตรวจรอบแรก และส่งต่อให้ผู้บริหาร (Reviewer 2 / CEO) อนุมัติขั้นสุดท้าย พร้อมระบบบันทึกประวัติการตรวจ
-                            </p>
-                        </div>
-                        <div class="mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5">
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> ตรวจสอบงานไม่หลุดมาตรฐาน</div>
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> ส่งกลับแก้ไขพร้อมคำแนะนำได้ทันที</div>
-                        </div>
-                    </div>
-
-                    <!-- Module 3 -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
-                        <div>
-                            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg mb-4">
-                                <i class="fa-solid fa-wallet"></i>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-800 mb-2">3. บัญชี & งบประมาณ (Financial Control)</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                บันทึกรายรับ (Income) และรายจ่าย (Expense) ของแต่ละโปรเจกต์ แนบสลิป/ใบเสร็จ และคำนวณงบประมาณคงเหลือพร้อมกำไรสุทธิแบบเรียลไทม์
-                            </p>
-                        </div>
-                        <div class="mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5">
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-amber-500 text-[10px]"></i> แนบหลักฐานสลิปตรวจสอบได้</div>
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-amber-500 text-[10px]"></i> จำกัดสิทธิ์การมองเห็นตัวเลขเงิน</div>
-                        </div>
-                    </div>
-
-                    <!-- Module 4 -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
-                        <div>
-                            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg mb-4">
-                                <i class="fa-solid fa-users-gear"></i>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-800 mb-2">4. โครงสร้างทีม & สิทธิ์ (Team & RBAC)</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                จัดการสมาชิกตามแผนกและบทบาท (CEO, Manager, Member) พร้อมระบบกำหนด Custom Permissions รายบุคคลได้อย่างละเอียดและปลอดภัย
-                            </p>
-                        </div>
-                        <div class="mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5">
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-purple-500 text-[10px]"></i> CEO มีสิทธิ์ Master จัดการทุกส่วน</div>
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-purple-500 text-[10px]"></i> ปรับเปลี่ยนตำแหน่งและบันทึกทันที</div>
-                        </div>
-                    </div>
-
-                    <!-- Module 5 -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
-                        <div>
-                            <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-lg mb-4">
-                                <i class="fa-solid fa-comments"></i>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-800 mb-2">5. แชททีม & บันทึกงาน (Chat & Notes)</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                สื่อสารกันในองค์กรผ่านห้องแชทโปรเจกต์และแชทส่วนตัว พร้อมระบบสมุดบันทึกส่วนบุคคล (Personal Notes) สำหรับจดบันทึกงานที่สำคัญ
-                            </p>
-                        </div>
-                        <div class="mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5">
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-teal-500 text-[10px]"></i> ข้อความแจ้งเตือนแบบเรียลไทม์</div>
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-teal-500 text-[10px]"></i> โน้ตส่วนตัว ปลอดภัยเฉพาะคุณ</div>
-                        </div>
-                    </div>
-
-                    <!-- Module 6 -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/70 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between">
-                        <div>
-                            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg mb-4">
-                                <i class="fa-solid fa-chart-simple"></i>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-800 mb-2">6. รายงาน & แดชบอร์ด (Reports & KPI)</h3>
-                            <p class="text-xs text-slate-500 leading-relaxed">
-                                วิเคราะห์ประสิทธิภาพและผลการดำเนินงานผ่านแดชบอร์ด ติดตามสถิติงานเสร็จทันกำหนด งานค้างส่ง และประสิทธิภาพของทีมงาน
-                            </p>
-                        </div>
-                        <div class="mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-600 space-y-1.5">
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-rose-500 text-[10px]"></i> สรุป KPI ความสำเร็จของโปรเจกต์</div>
-                            <div class="flex items-center gap-1.5"><i class="fa-solid fa-check text-rose-500 text-[10px]"></i> ออกรายงานผลงาน (Work Report) ได้ทันที</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= 2-TIER APPROVAL DEEP DIVE (Clean Minimalist) ================= -->
-        <section id="workflow" class="py-20 md:py-24 bg-white border-t border-slate-100">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-                    <div>
-                        <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                            Quality & Workflow
-                        </span>
-                        <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mt-3 tracking-tight">
-                            ระบบตรวจรับงาน 2 ระดับ <br>
-                            <span class="text-emerald-600 font-normal">ควบคุมมาตรฐานงานได้อย่างแม่นยำ</span>
-                        </h2>
-                        <p class="text-sm text-slate-500 mt-3 leading-relaxed">
-                            กระบวนการตรวจงานคู่ขนานที่ช่วยให้งานทุกชิ้นผ่านการตรวจสอบจากหัวหน้าทีม และได้รับการอนุมัติอย่างเป็นทางการจากผู้บริหารก่อนส่งมอบจริง
+                        <h3 class="text-sm font-semibold text-slate-900 mb-1.5">1. กระดานคันบัน & งานย่อย</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            ลากวางปรับสถานะงาน มอบหมายผู้รับผิดชอบ กำหนดระดับความสำคัญ และสร้าง Checklist ย่อยเพื่อติดตามงานอย่างเป็นระเบียบ
                         </p>
-
-                        <div class="mt-6 space-y-4">
-                            <div class="flex items-start gap-3.5">
-                                <span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</span>
-                                <div>
-                                    <h4 class="text-sm font-semibold text-slate-800">ส่งมอบผลงาน (Submit Task)</h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">ผู้ปฏิบัติงานส่งรายงานผลงาน แนบไฟล์ หรือลิงก์ชิ้นงาน</p>
-                                </div>
-                            </div>
-                            <div class="flex items-start gap-3.5">
-                                <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</span>
-                                <div>
-                                    <h4 class="text-sm font-semibold text-slate-800">ตรวจรอบที่ 1 โดยผู้จัดการ (Reviewer 1)</h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">ผู้จัดการทีมตรวจสอบความถูกต้อง หากต้องแก้ไขสามารถส่งกลับได้ทันที</p>
-                                </div>
-                            </div>
-                            <div class="flex items-start gap-3.5">
-                                <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</span>
-                                <div>
-                                    <h4 class="text-sm font-semibold text-slate-800">อนุมัติขั้นสุดท้ายโดยผู้บริหาร (Reviewer 2 / CEO)</h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">ผู้บริหารอนุมัติงานขั้นสุดท้าย สถานะงานเปลี่ยนเป็น Done อย่างสมบูรณ์</p>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
-                    <!-- Visual Flow Card -->
-                    <div class="bg-slate-50 rounded-2xl p-6 border border-slate-200/80">
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Workflow Progression</div>
-                        <div class="space-y-3">
-                            <div class="bg-white p-3.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
-                                <div class="flex items-center gap-2.5">
-                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                                    <span class="font-medium text-slate-700">ส่งงาน: จัดทำคู่มือระบบ</span>
-                                </div>
-                                <span class="text-slate-400">ผู้ปฏิบัติงาน</span>
-                            </div>
-                            <div class="flex justify-center text-slate-300 text-xs my-0.5"><i class="fa-solid fa-arrow-down"></i></div>
-                            <div class="bg-white p-3.5 rounded-xl border border-amber-200 flex items-center justify-between text-xs">
-                                <div class="flex items-center gap-2.5">
-                                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                    <span class="font-medium text-amber-900">ตรวจรอบ 1: ผ่านเกณฑ์เบื้องต้น</span>
-                                </div>
-                                <span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-semibold text-[10px]">Manager Approved</span>
-                            </div>
-                            <div class="flex justify-center text-slate-300 text-xs my-0.5"><i class="fa-solid fa-arrow-down"></i></div>
-                            <div class="bg-white p-3.5 rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
-                                <div class="flex items-center gap-2.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span class="font-medium text-emerald-900">อนุมัติสมบูรณ์ (Done)</span>
-                                </div>
-                                <span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold text-[10px]">CEO Approved (2-Tier)</span>
-                            </div>
+                    <!-- Feature 2 -->
+                    <div class="p-5 rounded-xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 text-sm mb-4">
+                            <i class="fa-solid fa-stamp"></i>
                         </div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-1.5">2. ตรวจรับงาน 2 ระดับ (2-Tier)</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            ระบบตรวจงานคู่ขนาน: ผู้จัดการตรวจทานรอบแรก และผู้บริหาร (CEO) อนุมัติขั้นสุดท้าย พร้อมบันทึกประวัติการตรวจ
+                        </p>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="p-5 rounded-xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 text-sm mb-4">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-1.5">3. บัญชี & งบประมาณโครงการ</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            บันทึกรายรับ-รายจ่ายของโปรเจกต์ แนบสลิป/หลักฐาน คำนวณงบประมาณคงเหลือและกำไรสุทธิแบบเรียลไทม์
+                        </p>
+                    </div>
+
+                    <!-- Feature 4 -->
+                    <div class="p-5 rounded-xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 text-sm mb-4">
+                            <i class="fa-solid fa-users-gear"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-1.5">4. จัดการโครงสร้างทีม & สิทธิ์</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            แยกแผนก กำหนดบทบาท CEO, Manager, Member พร้อมตั้งค่าสิทธิ์รายบุคคล (Custom Permissions) อย่างยืดหยุ่น
+                        </p>
+                    </div>
+
+                    <!-- Feature 5 -->
+                    <div class="p-5 rounded-xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 text-sm mb-4">
+                            <i class="fa-solid fa-comments"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-1.5">5. แชททีม & บันทึกงานส่วนตัว</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            แชทประจำโครงการและข้อความส่วนตัว พร้อมระบบสมุดโน้ตส่วนบุคคล ปลอดภัยเฉพาะคุณ ไม่ต้องสลับแอป
+                        </p>
+                    </div>
+
+                    <!-- Feature 6 -->
+                    <div class="p-5 rounded-xl border border-slate-200/70 bg-white hover:border-slate-300 transition-all">
+                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 text-sm mb-4">
+                            <i class="fa-solid fa-chart-simple"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-1.5">6. รายงาน & แดชบอร์ดผู้บริหาร</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            มองเห็นภาพรวมความก้าวหน้าโครงการ สถิติงานเสร็จตรงเวลา และออกรายงานสรุปผลงาน (Work Report) ในคลิกเดียว
+                        </p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ================= PROJECT FINANCE DEEP DIVE (Clean Minimalist) ================= -->
-        <section id="finance" class="py-20 md:py-24 bg-slate-50/50 border-t border-slate-100">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-                    <!-- Financial Card -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs">
-                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
-                            <div>
-                                <span class="text-[10px] font-bold text-slate-400 uppercase">Cash Flow Summary</span>
-                                <h4 class="text-sm font-bold text-slate-800">โครงการ Alpha Enterprise</h4>
-                            </div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">Real-time</span>
+        <!-- ================= 2-TIER WORKFLOW (Minimal Pipeline) ================= -->
+        <section id="workflow" class="py-20 border-t border-slate-100 bg-slate-50/40">
+            <div class="max-w-4xl mx-auto px-5 sm:px-8">
+                <div class="text-center max-w-lg mx-auto mb-12">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-widest">Workflow Engine</span>
+                    <h2 class="text-2xl font-medium text-slate-900 mt-2">กระบวนการตรวจรับงาน 2 ระดับ</h2>
+                    <p class="text-xs text-slate-500 mt-1.5">มั่นใจในคุณภาพก่อนส่งมอบงานจริง</p>
+                </div>
+
+                <!-- 3 Minimal Step Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200/70">
+                        <div class="font-mono text-slate-400 text-xs mb-2">01</div>
+                        <div class="font-semibold text-slate-900 mb-1">ส่งมอบผลงาน</div>
+                        <p class="text-slate-500 leading-relaxed">ผู้ปฏิบัติงานส่งรายงาน แนบไฟล์หรือลิงก์ผลงาน พร้อมรายละเอียด</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200/70">
+                        <div class="font-mono text-amber-600 text-xs mb-2">02</div>
+                        <div class="font-semibold text-slate-900 mb-1">ผู้จัดการตรวจรอบแรก</div>
+                        <p class="text-slate-500 leading-relaxed">Reviewer 1 ตรวจสอบคุณภาพ หากต้องแก้ไขสามารถส่งกลับได้ทันที</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200/70">
+                        <div class="font-mono text-emerald-600 text-xs mb-2">03</div>
+                        <div class="font-semibold text-slate-900 mb-1">ผู้บริหารอนุมัติสมบูรณ์</div>
+                        <p class="text-slate-500 leading-relaxed">Reviewer 2 (CEO) อนุมัติขั้นสุดท้าย สถานะเปลี่ยนเป็น Done อย่างเป็นทางการ</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PROJECT FINANCE (Minimal Summary) ================= -->
+        <section id="finance" class="py-20 border-t border-slate-100">
+            <div class="max-w-4xl mx-auto px-5 sm:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <span class="text-[11px] font-medium text-slate-400 uppercase tracking-widest">Financial Transparency</span>
+                        <h2 class="text-2xl font-medium text-slate-900 mt-2">ควบคุมงบประมาณโครงการ</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-3 leading-relaxed">
+                            บันทึกกระแสเงินสด รายรับ-รายจ่ายของโปรเจกต์ พร้อมแนบรูปสลิปและใบเสร็จ คำนวณกำไรสุทธิ (Margin) ให้อัตโนมัติ ป้องกันปัญหางบบานปลาย
+                        </p>
+                        <div class="mt-4 space-y-2 text-xs text-slate-600">
+                            <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> แนบสลิปและหลักฐานตรวจสอบได้ทุกรายการ</div>
+                            <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> คำนวณกำไรคงเหลือแบบเรียลไทม์</div>
+                            <div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> จำกัดสิทธิ์การมองเห็นเฉพาะผู้ที่ได้รับอนุญาต</div>
                         </div>
-                        <div class="grid grid-cols-3 gap-3 text-center mb-4">
-                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    </div>
+
+                    <!-- Minimal Cashflow Card -->
+                    <div class="bg-slate-50/70 p-5 rounded-xl border border-slate-200/70 text-xs">
+                        <div class="text-[10px] text-slate-400 font-mono mb-3">FINANCIAL SUMMARY / ALPHA PROJECT</div>
+                        <div class="grid grid-cols-3 gap-2 text-center mb-4">
+                            <div class="bg-white p-2.5 rounded-lg border border-slate-200/50">
                                 <div class="text-[10px] text-slate-400">งบประมาณ</div>
-                                <div class="text-xs font-bold text-slate-800 mt-0.5">฿2,000,000</div>
+                                <div class="font-semibold text-slate-900 mt-0.5">฿2,000,000</div>
                             </div>
-                            <div class="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100">
-                                <div class="text-[10px] text-emerald-700">รายรับรวม</div>
-                                <div class="text-xs font-bold text-emerald-800 mt-0.5">฿1,450,000</div>
+                            <div class="bg-white p-2.5 rounded-lg border border-slate-200/50">
+                                <div class="text-[10px] text-slate-400">รายรับรวม</div>
+                                <div class="font-semibold text-emerald-600 mt-0.5">฿1,450,000</div>
                             </div>
-                            <div class="bg-rose-50/60 p-2.5 rounded-xl border border-rose-100">
-                                <div class="text-[10px] text-rose-700">รายจ่ายรวม</div>
-                                <div class="text-xs font-bold text-rose-800 mt-0.5">฿620,000</div>
-                            </div>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 text-xs">
-                                <span class="text-slate-700">เงินงวดที่ 1 (แนบสลิปแล้ว)</span>
-                                <span class="font-semibold text-emerald-600">+฿800,000</span>
-                            </div>
-                            <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 text-xs">
-                                <span class="text-slate-700">ค่าบริการ Cloud & Domain</span>
-                                <span class="font-semibold text-rose-600">-฿45,000</span>
+                            <div class="bg-white p-2.5 rounded-lg border border-slate-200/50">
+                                <div class="text-[10px] text-slate-400">รายจ่ายรวม</div>
+                                <div class="font-semibold text-rose-600 mt-0.5">฿620,000</div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Text -->
-                    <div>
-                        <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider bg-amber-50 px-3 py-1 rounded-full border border-amber-100">
-                            Financial Control
-                        </span>
-                        <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mt-3 tracking-tight">
-                            ควบคุมงบประมาณโครงการ <br>
-                            <span class="text-amber-600 font-normal">เห็นตัวเลขรายรับ-รายจ่ายโปร่งใส</span>
-                        </h2>
-                        <p class="text-sm text-slate-500 mt-3 leading-relaxed">
-                            บันทึกกระแสเงินสดของโปรเจกต์ได้แบบเรียลไทม์ แนบสลิปและใบเสร็จไว้กับรายการ พร้อมคำนวณงบประมาณคงเหลือและกำไรสุทธิให้อัตโนมัติ
-                        </p>
-                        <ul class="mt-5 space-y-2.5 text-xs text-slate-600">
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500"></i> แนบหลักฐานสลิปการโอนเงินและใบเสร็จ</li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500"></i> คำนวณอัตรากำไร (Margin) ทันที</li>
-                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500"></i> จำกัดสิทธิ์การเข้าถึงข้อมูลการเงินเพื่อความปลอดภัย</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ================= SOLUTIONS BY ROLE (Clean Minimalist) ================= -->
-        <section id="roles" class="py-20 md:py-24 bg-white border-t border-slate-100">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center max-w-2xl mx-auto mb-14">
-                    <span class="text-xs font-semibold text-slate-500 tracking-wider uppercase bg-slate-100 px-3 py-1 rounded-full">
-                        Roles & Permissions
-                    </span>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mt-3 tracking-tight">
-                        ออกแบบมาเพื่อทุกบทบาทในองค์กร
-                    </h2>
-                    <p class="text-sm text-slate-500 mt-2">
-                        สิทธิ์การใช้งานและการแสดงผลที่ปรับให้เหมาะกับหน้าที่ของแต่ละตำแหน่ง
-                    </p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <!-- CEO -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                        <div>
-                            <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-base mb-4">
-                                <i class="fa-solid fa-crown"></i>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between p-2 rounded bg-white border border-slate-200/40">
+                                <span class="text-slate-600">เงินงวดที่ 1 (แนบสลิปแล้ว)</span>
+                                <span class="font-medium text-emerald-600">+฿800,000</span>
                             </div>
-                            <h3 class="text-base font-bold text-slate-900 mb-1">ผู้บริหาร (CEO)</h3>
-                            <p class="text-xs text-slate-400 mb-4">สิทธิ์ Master Access และอนุมัติงานขั้นสุดท้าย</p>
-                            <ul class="space-y-2 text-xs text-slate-600">
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500 text-[10px]"></i> ตรวจสอบภาพรวมและ KPI ทุกโครงการ</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500 text-[10px]"></i> สิทธิ์ Reviewer 2 อนุมัติขั้นสุดท้าย</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500 text-[10px]"></i> ดูข้อมูลงบประมาณและกำไรโครงการ</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500 text-[10px]"></i> จัดการตำแหน่งและสิทธิ์สมาชิก</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Manager -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                        <div>
-                            <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-base mb-4">
-                                <i class="fa-solid fa-user-tie"></i>
+                            <div class="flex justify-between p-2 rounded bg-white border border-slate-200/40">
+                                <span class="text-slate-600">ค่า Server Cloud</span>
+                                <span class="font-medium text-rose-600">-฿45,000</span>
                             </div>
-                            <h3 class="text-base font-bold text-slate-900 mb-1">หัวหน้างาน (Manager / PM)</h3>
-                            <p class="text-xs text-slate-400 mb-4">บริหารความคืบหน้าและตรวจงานรอบแรก</p>
-                            <ul class="space-y-2 text-xs text-slate-600">
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-[10px]"></i> สร้างและแจกจ่ายงานให้สมาชิกทีม</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-[10px]"></i> สิทธิ์ Reviewer 1 ตรวจสอบงานเบื้องต้น</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-[10px]"></i> ควบคุมเดดไลน์และไทม์ไลน์โครงการ</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-blue-500 text-[10px]"></i> สื่อสารในแชทโครงการและแชร์โน้ต</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Member -->
-                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                        <div>
-                            <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-base mb-4">
-                                <i class="fa-solid fa-laptop-code"></i>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-900 mb-1">ทีมงาน (Team Member)</h3>
-                            <p class="text-xs text-slate-400 mb-4">โฟกัสงานที่ได้รับมอบหมายและส่งงานสะดวกรวดเร็ว</p>
-                            <ul class="space-y-2 text-xs text-slate-600">
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> ดูรายการงานของตนเองอย่างชัดเจน</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> ส่งผลงานพร้อมแนบไฟล์และบันทึกข้อความ</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> รับแจ้งเตือนผลการตรวจงานทันที</li>
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500 text-[10px]"></i> แชทปรึกษางานกับเพื่อนร่วมงานในระบบ</li>
-                            </ul>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ================= FAQ SECTION (Clean Accordion) ================= -->
-        <section id="faq" class="py-20 md:py-24 bg-slate-50/50 border-t border-slate-100">
-            <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="text-center mb-12">
-                    <span class="text-xs font-semibold text-slate-500 tracking-wider uppercase bg-slate-100 px-3 py-1 rounded-full">
-                        FAQ
-                    </span>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 mt-3 tracking-tight">
-                        คำถามที่พบบ่อย
-                    </h2>
+        <!-- ================= ROLES & PERMISSIONS ================= -->
+        <section id="roles" class="py-20 border-t border-slate-100 bg-slate-50/40">
+            <div class="max-w-4xl mx-auto px-5 sm:px-8">
+                <div class="text-center max-w-lg mx-auto mb-12">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-widest">Access Control</span>
+                    <h2 class="text-2xl font-medium text-slate-900 mt-2">สิทธิ์ตามบทบาทหน้าที่</h2>
+                    <p class="text-xs text-slate-500 mt-1.5">จัดสรรสิทธิ์อย่างชัดเจนเพื่อความปลอดภัย</p>
                 </div>
 
-                <div class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-white p-5 rounded-xl border border-slate-200/70">
+                        <div class="font-semibold text-slate-900 mb-1">ผู้บริหาร (CEO)</div>
+                        <p class="text-slate-400 text-[11px] mb-3">Master Access</p>
+                        <p class="text-slate-500 leading-relaxed">ดูภาพรวมทุกโครงการ อนุมัติงานขั้นสุดท้าย (Reviewer 2) จัดการงบประมาณ และปรับสิทธิ์สมาชิก</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200/70">
+                        <div class="font-semibold text-slate-900 mb-1">หัวหน้างาน (Manager)</div>
+                        <p class="text-slate-400 text-[11px] mb-3">Project Lead</p>
+                        <p class="text-slate-500 leading-relaxed">มอบหมายงาน ตรวจสอบคุณภาพงานรอบแรก (Reviewer 1) ควบคุมกำหนดส่ง และดูแลทีม</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-xl border border-slate-200/70">
+                        <div class="font-semibold text-slate-900 mb-1">ทีมงาน (Member)</div>
+                        <p class="text-slate-400 text-[11px] mb-3">Contributor</p>
+                        <p class="text-slate-500 leading-relaxed">ดูรายการงานตนเอง ส่งมอบงานพร้อมแนบหลักฐาน รับฟีดแบ็ก และแชทประสานงานในระบบ</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= FAQ SECTION ================= -->
+        <section id="faq" class="py-20 border-t border-slate-100">
+            <div class="max-w-2xl mx-auto px-5">
+                <div class="text-center mb-10">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-widest">FAQ</span>
+                    <h2 class="text-2xl font-medium text-slate-900 mt-2">คำถามที่พบบ่อย</h2>
+                </div>
+
+                <div class="space-y-2.5 text-xs">
                     <!-- Q1 -->
-                    <div class="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
-                        <button onclick="toggleLandingFaq('faq-1')" class="w-full text-left px-5 py-4 flex items-center justify-between font-semibold text-slate-800 text-sm hover:text-blue-600 transition-colors">
-                            <span>1. ConWork เหมาะกับองค์กรหรือทีมประเภทใด?</span>
-                            <i id="faq-1-icon" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200"></i>
+                    <div class="border border-slate-200/70 rounded-lg overflow-hidden bg-white">
+                        <button onclick="toggleLandingFaq('faq-1')" class="w-full text-left p-4 flex justify-between items-center font-medium text-slate-800 hover:text-slate-900">
+                            <span>ConWork เหมาะกับองค์กรหรือทีมประเภทใด?</span>
+                            <i id="faq-1-icon" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
                         </button>
-                        <div id="faq-1-answer" class="hidden px-5 pb-4 text-xs text-slate-500 leading-relaxed border-t border-slate-50 pt-3">
-                            เหมาะสำหรับธุรกิจขนาดกลางและขนาดใหญ่, บริษัทพัฒนาซอฟต์แวร์, บริษัทรับเหมาก่อสร้าง/ออกแบบ, เอเจนซี่ และทีมที่ต้องการความชัดเจนในการตรวจรับงานหลายระดับพร้อมระบบบันทึกกระแสเงินสดของโปรเจกต์
+                        <div id="faq-1-answer" class="hidden px-4 pb-4 text-slate-500 leading-relaxed border-t border-slate-50 pt-2.5">
+                            เหมาะสำหรับธุรกิจขนาดกลางและใหญ่, บริษัทซอฟต์แวร์, บริษัทรับเหมา/สถาปนิก, เอเจนซี่ และทีมที่ต้องการความโปร่งใสในการตรวจงาน 2 ระดับ พร้อมระบบควบคุมกระแสเงินสดของโปรเจกต์
                         </div>
                     </div>
 
                     <!-- Q2 -->
-                    <div class="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
-                        <button onclick="toggleLandingFaq('faq-2')" class="w-full text-left px-5 py-4 flex items-center justify-between font-semibold text-slate-800 text-sm hover:text-blue-600 transition-colors">
-                            <span>2. ระบบตรวจรับงาน 2 ระดับ (2-Tier) ทำงานอย่างไร?</span>
-                            <i id="faq-2-icon" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200"></i>
+                    <div class="border border-slate-200/70 rounded-lg overflow-hidden bg-white">
+                        <button onclick="toggleLandingFaq('faq-2')" class="w-full text-left p-4 flex justify-between items-center font-medium text-slate-800 hover:text-slate-900">
+                            <span>ระบบตรวจรับงาน 2 ระดับ (2-Tier) ทำงานอย่างไร?</span>
+                            <i id="faq-2-icon" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
                         </button>
-                        <div id="faq-2-answer" class="hidden px-5 pb-4 text-xs text-slate-500 leading-relaxed border-t border-slate-50 pt-3">
-                            เมื่องานถูกส่ง จะเข้าสู่ขั้นตอน Review 1 ให้ผู้จัดการทีมตรวจสอบก่อน เมื่อผ่านแล้วจึงส่งต่อไปยัง Review 2 ให้ผู้บริหาร (CEO) อนุมัติขั้นสุดท้าย สถานะจึงจะเปลี่ยนเป็น Done อย่างเป็นทางการ
+                        <div id="faq-2-answer" class="hidden px-4 pb-4 text-slate-500 leading-relaxed border-t border-slate-50 pt-2.5">
+                            เมื่องานถูกส่ง จะเข้าสู่ Review 1 ให้ผู้จัดการทีมตรวจสอบก่อน เมื่อผ่านแล้วจึงส่งต่อไปยัง Review 2 ให้ผู้บริหาร (CEO) อนุมัติขั้นสุดท้าย สถานะจึงจะเปลี่ยนเป็น Done อย่างเป็นทางการ
                         </div>
                     </div>
 
                     <!-- Q3 -->
-                    <div class="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
-                        <button onclick="toggleLandingFaq('faq-3')" class="w-full text-left px-5 py-4 flex items-center justify-between font-semibold text-slate-800 text-sm hover:text-blue-600 transition-colors">
-                            <span>3. สามารถบันทึกรายรับ-รายจ่ายของโครงการได้หรือไม่?</span>
-                            <i id="faq-3-icon" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200"></i>
+                    <div class="border border-slate-200/70 rounded-lg overflow-hidden bg-white">
+                        <button onclick="toggleLandingFaq('faq-3')" class="w-full text-left p-4 flex justify-between items-center font-medium text-slate-800 hover:text-slate-900">
+                            <span>สามารถบันทึกรายรับ-รายจ่ายของโครงการได้หรือไม่?</span>
+                            <i id="faq-3-icon" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
                         </button>
-                        <div id="faq-3-answer" class="hidden px-5 pb-4 text-xs text-slate-500 leading-relaxed border-t border-slate-50 pt-3">
-                            สามารถบันทึกได้ในแต่ละโปรเจกต์ รองรับการแนบสลิปการโอนหรือใบเสร็จ ระบบจะคำนวณงบประมาณคงเหลือและกำไรสุทธิให้อัตโนมัติแบบเรียลไทม์
+                        <div id="faq-3-answer" class="hidden px-4 pb-4 text-slate-500 leading-relaxed border-t border-slate-50 pt-2.5">
+                            สามารถบันทึกได้ในแต่ละโปรเจกต์ แนบสลิปโอนเงินหรือใบเสร็จได้ และระบบจะคำนวณเงินคงเหลือและกำไรสุทธิให้อัตโนมัติแบบเรียลไทม์
                         </div>
                     </div>
 
                     <!-- Q4 -->
-                    <div class="bg-white rounded-xl border border-slate-200/80 overflow-hidden shadow-2xs">
-                        <button onclick="toggleLandingFaq('faq-4')" class="w-full text-left px-5 py-4 flex items-center justify-between font-semibold text-slate-800 text-sm hover:text-blue-600 transition-colors">
-                            <span>4. ผู้บริหาร (CEO) มีสิทธิ์ในการแก้ไขอะไรบ้าง?</span>
-                            <i id="faq-4-icon" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200"></i>
+                    <div class="border border-slate-200/70 rounded-lg overflow-hidden bg-white">
+                        <button onclick="toggleLandingFaq('faq-4')" class="w-full text-left p-4 flex justify-between items-center font-medium text-slate-800 hover:text-slate-900">
+                            <span>ผู้บริหาร (CEO) มีสิทธิ์ในการแก้ไขอะไรบ้าง?</span>
+                            <i id="faq-4-icon" class="fa-solid fa-chevron-down text-slate-400 text-[10px] transition-transform duration-200"></i>
                         </button>
-                        <div id="faq-4-answer" class="hidden px-5 pb-4 text-xs text-slate-500 leading-relaxed border-t border-slate-50 pt-3">
-                            ผู้บริหารระดับ CEO หรือ Super Admin มีสิทธิ์ Master Access สามารถแก้ไขงาน จัดการสมาชิกในทีม กำหนดบทบาทและสิทธิ์รายบุคคล เข้าถึงข้อมูลงบประมาณ และอนุมัติงานขั้นสุดท้ายได้ครบทั้งหมด
+                        <div id="faq-4-answer" class="hidden px-4 pb-4 text-slate-500 leading-relaxed border-t border-slate-50 pt-2.5">
+                            ผู้บริหารระดับ CEO หรือ Super Admin มีสิทธิ์ Master Access ครอบคลุมการแก้ไขงาน จัดการสมาชิกในทีม กำหนดบทบาทและสิทธิ์รายบุคคล เข้าถึงข้อมูลงบประมาณ และอนุมัติงานขั้นสุดท้าย
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- ================= CTA BANNER (Clean & Elegant) ================= -->
-        <section class="py-16 md:py-20 bg-slate-900 text-white text-center">
-            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                <h2 class="text-2xl sm:text-4xl font-bold tracking-tight">
-                    พร้อมยกระดับการทำงานขององค์กรคุณแล้วหรือยัง?
+        <!-- ================= MINIMAL CTA ================= -->
+        <section class="py-16 border-t border-slate-100 text-center bg-slate-50/50">
+            <div class="max-w-xl mx-auto px-5">
+                <h2 class="text-2xl font-medium text-slate-900 tracking-tight">
+                    เริ่มต้นใช้งาน ConWork วันนี้
                 </h2>
-                <p class="mt-3 text-sm sm:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
-                    เริ่มต้นใช้งาน ConWork วันนี้ เพื่อการจัดการงานที่โปร่งใส ตรวจรับงานอย่างเป็นระบบ และควบคุมงบประมาณได้อย่างมีประสิทธิภาพ
+                <p class="text-xs text-slate-500 mt-2">
+                    ยกระดับมาตรฐานการจัดการงานและโครงการขององค์กรคุณ
                 </p>
-                <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-                    <button onclick="showLoginScreen('signup')" class="w-full sm:w-auto px-7 py-3 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2">
-                        <span>เริ่มต้นใช้งานฟรี</span>
-                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                <div class="mt-6 flex justify-center gap-3">
+                    <button onclick="showLoginScreen('signup')" class="px-6 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-medium transition-all">
+                        เริ่มต้นใช้งานฟรี
                     </button>
-                    <button onclick="showLoginScreen('login')" class="w-full sm:w-auto px-6 py-3 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium border border-slate-700 transition-colors">
+                    <button onclick="showLoginScreen('login')" class="px-5 py-2.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium border border-slate-200 transition-colors">
                         เข้าสู่ระบบ
                     </button>
                 </div>
             </div>
         </section>
 
-        <!-- ================= CLEAN MINIMAL FOOTER ================= -->
-        <footer class="bg-white border-t border-slate-100 py-10 text-xs text-slate-500">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-2.5">
-                    <img src="img/logo.jpg" alt="ConWork" class="h-6 w-auto rounded-md">
-                    <span class="font-bold text-slate-800 text-sm">ConWork</span>
-                    <span class="text-slate-300">|</span>
-                    <span>Enterprise Work OS &copy; 2026</span>
+        <!-- ================= MINIMAL FOOTER ================= -->
+        <footer class="py-8 border-t border-slate-100 text-[11px] text-slate-400">
+            <div class="max-w-5xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-slate-700">ConWork</span>
+                    <span>&copy; 2026 Enterprise Work OS</span>
                 </div>
-                <div class="flex items-center gap-6">
-                    <a href="#features" class="hover:text-slate-800">ฟีเจอร์หลัก</a>
-                    <a href="#workflow" class="hover:text-slate-800">ตรวจงาน 2 ระดับ</a>
-                    <a href="#finance" class="hover:text-slate-800">งบประมาณ</a>
-                    <a href="javascript:void(0)" onclick="showLoginScreen('login')" class="hover:text-blue-600 font-medium">เข้าสู่ระบบ</a>
+                <div class="flex gap-4">
+                    <a href="#features" class="hover:text-slate-600">ฟีเจอร์</a>
+                    <a href="#workflow" class="hover:text-slate-600">การตรวจงาน</a>
+                    <a href="#finance" class="hover:text-slate-600">งบประมาณ</a>
+                    <a href="javascript:void(0)" onclick="showLoginScreen('login')" class="hover:text-slate-900 font-medium">เข้าสู่ระบบ</a>
                 </div>
             </div>
         </footer>
 
-        <!-- Landing Page Scripts -->
+        <!-- Scripts -->
         <script>
             window.authMode = 'signup';
             function showLoginScreen(mode = 'signup') {
