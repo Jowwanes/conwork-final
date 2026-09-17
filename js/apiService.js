@@ -28,13 +28,17 @@ const ApiService = {
     // 1. Projects API
     // ==========================================
     
-    async getProjects() {
-        // [โค้ดเมื่อต่อ Database จริง]
-        // const response = await fetch(`${CONFIG.API_BASE_URL}/projects`, { headers: this._getHeaders() });
-        // return await response.json();
-        
+    async getProjects(companyId = null) {
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                const projects = await window.conworkSupabase.fetchProjects(companyId);
+                if (projects && projects.length > 0) return projects;
+            } catch (e) {
+                console.warn("Supabase fetchProjects fallback to mock:", e);
+            }
+        }
         await this._delay();
-        return mockProjects; // ดึงข้อมูล Mock 
+        return mockProjects; // ข้อมูล Mock สำหรับโหมดออฟไลน์
     },
 
     async getProjectById(projectId) {
@@ -43,14 +47,14 @@ const ApiService = {
     },
 
     async createProject(projectData) {
-        // [โค้ดเมื่อต่อ Database จริง]
-        // const response = await fetch(`${CONFIG.API_BASE_URL}/projects`, {
-        //     method: 'POST',
-        //     headers: this._getHeaders(),
-        //     body: JSON.stringify(projectData)
-        // });
-        // return await response.json();
-        
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable() && projectData.companyId) {
+            try {
+                const newProj = await window.conworkSupabase.createProject(projectData);
+                if (newProj) return newProj;
+            } catch (e) {
+                console.warn("Supabase createProject fallback to mock:", e);
+            }
+        }
         await this._delay();
         mockProjects.push(projectData);
         return projectData;

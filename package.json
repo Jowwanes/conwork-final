@@ -1,0 +1,18 @@
+{
+  "name": "conwork-final",
+  "version": "1.0.0",
+  "description": "ConWork - Enterprise Management Platform",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y serve -l 3000 .",
+    "start": "npx -y serve -l 3000 .",
+    "serve": "npx -y serve -l 3000 ."
+  },
+  "keywords": [
+    "enterprise",
+    "management",
+    "conwork"
+  ],
+  "author": "",
+  "license": "ISC"
+}

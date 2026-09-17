@@ -5936,7 +5936,13 @@ const App = {
     },
 
     scheduleMeeting() {
-        alert("ระบบนัดประชุมกำลังอยู่ในระหว่างการพัฒนา!");
+        this.openCreateEventModal();
+        this.setEventType('meeting');
+        const titleInput = document.getElementById('cev-title');
+        if (titleInput) {
+            titleInput.placeholder = 'หัวข้อการประชุม เช่น ประชุมทีมประจำสัปดาห์';
+            titleInput.focus();
+        }
     },
 
     // --- Create Event Modal Logic ---
@@ -8844,14 +8850,23 @@ const App = {
     },
 
     addEmployee() {
-        alert("ระบบเพิ่มพนักงานกำลังอยู่ในระหว่างการพัฒนา!");
+        this.openAddMemberModal();
     },
 
     quickSearch(inputElement, event) {
         if (event && event.key !== 'Enter') return;
-        if (inputElement.value.trim()) {
-            alert("กำลังค้นหา : " + inputElement.value);
-            inputElement.value = '';
+        const query = (typeof inputElement === 'string' ? inputElement : inputElement?.value || '').trim();
+        if (!query) return;
+
+        // เปลี่ยนไปยังหน้าโปรเจกต์และกรองผลลัพธ์
+        this.switchView('projects');
+        const projectSearch = document.getElementById('project-search-input');
+        if (projectSearch) {
+            projectSearch.value = query;
+            this.renderProjects();
+        }
+        if (typeof this._showToast === 'function') {
+            this._showToast(`ค้นหา: "${query}"`, 'info');
         }
     },
 
