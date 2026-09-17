@@ -133,139 +133,1053 @@
 <body class="text-gray-800 antialiased h-screen overflow-hidden flex flex-col font-sans bg-cream">
 
     <!-- ================= LANDING SCREEN ================= -->
-    <div id="landing-screen" class="absolute inset-0 z-50 bg-white overflow-y-auto flex flex-col font-sans">
-        <!-- Header -->
-        <header class="flex items-center justify-between px-8 py-4 bg-cream sticky top-0 z-40">
-            <div class="flex items-center gap-8">
-                <div class="flex items-center space-x-2 text-gray-800">
-                    <img src="img/logo.jpg" alt="ConWork Logo" class="h-12 w-auto">
-                    <span class="text-2xl font-bold tracking-tight text-primary">ConWork</span>
+    <div id="landing-screen" class="absolute inset-0 z-50 bg-[#fafafa] overflow-y-auto flex flex-col font-sans scroll-smooth text-gray-800">
+        <!-- Top Announcement Bar -->
+        <div class="bg-gradient-to-r from-blue-600 via-primary to-indigo-700 text-white text-xs sm:text-sm py-2.5 px-4 text-center font-medium shadow-sm flex items-center justify-center gap-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white">
+                <i class="fa-solid fa-sparkles mr-1 text-yellow-300"></i> New 2026
+            </span>
+            <span>ConWork Enterprise OS — ระบบจัดการโปรเจกต์ ตรวจรับงาน 2 ระดับ และควบคุมงบประมาณแบบเรียลไทม์</span>
+            <a href="#features" class="underline hover:text-white/80 ml-2 hidden sm:inline-flex items-center gap-1 font-semibold">
+                ดูฟีเจอร์ทั้งหมด <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </a>
+        </div>
+
+        <!-- Sticky Navigation Header -->
+        <header class="sticky top-0 z-40 backdrop-blur-xl bg-white/85 border-b border-gray-100 transition-all duration-300">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                    <img src="img/logo.jpg" alt="ConWork Logo" class="h-11 w-auto rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex flex-col">
+                        <span class="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-600 via-primary to-indigo-600 bg-clip-text text-transparent">ConWork</span>
+                        <span class="text-[10px] text-gray-400 font-semibold tracking-wider uppercase -mt-1">Enterprise Work OS</span>
+                    </div>
                 </div>
-                <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-800">
-                    <a href="#" class="hover:text-gray-600 flex items-center gap-1">Products <i class="fa-solid fa-chevron-down text-[10px]"></i></a>
-                    <a href="#" class="hover:text-gray-600 flex items-center gap-1">Solutions <i class="fa-solid fa-chevron-down text-[10px]"></i></a>
-                    <a href="#" class="hover:text-gray-600 flex items-center gap-1">Learning & support <i class="fa-solid fa-chevron-down text-[10px]"></i></a>
-                    <a href="#" class="hover:text-gray-600">Pricing</a>
+
+                <!-- Desktop Navigation Menu -->
+                <nav class="hidden lg:flex items-center gap-8 text-sm font-medium text-gray-600">
+                    <a href="#features" class="hover:text-primary transition-colors flex items-center gap-1.5 py-2">
+                        <i class="fa-solid fa-layer-group text-xs text-blue-500"></i> ฟีเจอร์หลัก
+                    </a>
+                    <a href="#workflow" class="hover:text-primary transition-colors flex items-center gap-1.5 py-2">
+                        <i class="fa-solid fa-stamp text-xs text-emerald-500"></i> ตรวจงาน 2 ระดับ
+                    </a>
+                    <a href="#finance" class="hover:text-primary transition-colors flex items-center gap-1.5 py-2">
+                        <i class="fa-solid fa-wallet text-xs text-amber-500"></i> งบประมาณ & การเงิน
+                    </a>
+                    <a href="#roles" class="hover:text-primary transition-colors flex items-center gap-1.5 py-2">
+                        <i class="fa-solid fa-users-gear text-xs text-indigo-500"></i> จัดการทีม & สิทธิ์
+                    </a>
+                    <a href="#faq" class="hover:text-primary transition-colors flex items-center gap-1.5 py-2">
+                        <i class="fa-solid fa-circle-question text-xs text-gray-400"></i> คำถามที่พบบ่อย
+                    </a>
                 </nav>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <button onclick="showLoginScreen('login')" class="text-sm font-semibold text-gray-700 hover:text-primary px-3 sm:px-4 py-2 rounded-xl hover:bg-gray-50 transition-all">
+                        <i class="fa-solid fa-arrow-right-to-bracket mr-1.5 text-gray-400"></i> เข้าสู่ระบบ
+                    </button>
+                    <button onclick="showLoginScreen('signup')" class="text-sm font-semibold bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-indigo-600 text-white px-5 py-2.5 rounded-full shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transform hover:-translate-y-0.5 transition-all flex items-center gap-2">
+                        <span>เริ่มต้นใช้งานฟรี</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
+                    <!-- Mobile Menu Button -->
+                    <button onclick="toggleLandingMobileMenu()" class="lg:hidden p-2 rounded-xl text-gray-600 hover:bg-gray-100 focus:outline-none" aria-label="Toggle menu">
+                        <i class="fa-solid fa-bars text-xl" id="landing-hamburger-icon"></i>
+                    </button>
+                </div>
             </div>
-            <div class="flex items-center gap-6 text-sm font-medium">
-                <a href="#" class="hidden lg:block text-gray-800 hover:text-gray-600"><i class="fa-solid fa-globe"></i></a>
-                <a href="#" class="hidden lg:block text-gray-800 hover:text-gray-600">Contact sales</a>
-                <a href="#" class="text-gray-800 hover:text-gray-600" onclick="showLoginScreen('login')">Log in</a>
-                <button class="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-full transition-colors" onclick="showLoginScreen('signup')">Get started</button>
+
+            <!-- Mobile Navigation Dropdown -->
+            <div id="landing-mobile-menu" class="hidden lg:hidden border-t border-gray-100 bg-white/95 backdrop-blur-lg px-4 pt-3 pb-6 space-y-3">
+                <a href="#features" onclick="toggleLandingMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-700 hover:bg-blue-50 hover:text-primary">
+                    <i class="fa-solid fa-layer-group mr-2 text-blue-500"></i> ฟีเจอร์หลักของระบบ
+                </a>
+                <a href="#workflow" onclick="toggleLandingMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-700 hover:bg-blue-50 hover:text-primary">
+                    <i class="fa-solid fa-stamp mr-2 text-emerald-500"></i> ระบบตรวจรับงาน 2 ระดับ
+                </a>
+                <a href="#finance" onclick="toggleLandingMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-700 hover:bg-blue-50 hover:text-primary">
+                    <i class="fa-solid fa-wallet mr-2 text-amber-500"></i> ระบบการเงิน & งบประมาณโครงการ
+                </a>
+                <a href="#roles" onclick="toggleLandingMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-700 hover:bg-blue-50 hover:text-primary">
+                    <i class="fa-solid fa-users-gear mr-2 text-indigo-500"></i> โครงสร้างองค์กรและสิทธิ์การใช้งาน
+                </a>
+                <a href="#faq" onclick="toggleLandingMobileMenu()" class="block px-3 py-2 rounded-lg text-base font-medium text-gray-700 hover:bg-blue-50 hover:text-primary">
+                    <i class="fa-solid fa-circle-question mr-2 text-gray-400"></i> คำถามที่พบบ่อย (FAQ)
+                </a>
+                <div class="pt-2 border-t border-gray-100 flex gap-2">
+                    <button onclick="showLoginScreen('login')" class="w-1/2 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50">เข้าสู่ระบบ</button>
+                    <button onclick="showLoginScreen('signup')" class="w-1/2 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold shadow-md">สมัครใช้งาน</button>
+                </div>
             </div>
         </header>
 
-        <!-- Hero Section -->
-        <main class="flex-1 flex flex-col items-center justify-center text-center px-4 relative pb-40" style="min-height: calc(100vh - 80px);">
-            <div class="relative z-10 max-w-4xl mx-auto flex flex-col items-center mt-20">
-                <h1 class="text-4xl sm:text-5xl md:text-7xl font-bold text-gray-900 tracking-tight leading-[1.1]">
-                    The OS for <br/> <span class="text-secondary">human-agent</span> teams
+        <!-- ================= HERO SECTION ================= -->
+        <section class="relative pt-12 pb-24 md:pt-20 md:pb-32 overflow-hidden">
+            <!-- Background Decorative Grid & Gradients -->
+            <div class="absolute inset-0 pointer-events-none z-0">
+                <div class="absolute top-10 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-tr from-blue-300/25 via-primary/20 to-emerald-200/20 blur-3xl rounded-full"></div>
+                <div class="absolute -top-10 -right-20 w-96 h-96 bg-pink-200/20 blur-3xl rounded-full"></div>
+                <div class="w-full h-full opacity-[0.35]" style="background-image: radial-gradient(#94a3b8 1.2px, transparent 1.2px); background-size: 28px 28px;"></div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+                <!-- Pill Badge -->
+                <div class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white border border-blue-100 shadow-sm mb-8 animate-bounce-subtle">
+                    <span class="flex h-2.5 w-2.5 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+                    </span>
+                    <span class="text-xs sm:text-sm font-medium text-gray-700">
+                        แพลตฟอร์มบริหารโครงการยุคใหม่ • <strong class="text-primary font-semibold">Dual-Approval & Cashflow Control</strong>
+                    </span>
+                </div>
+
+                <!-- Main Hero Heading -->
+                <h1 class="text-4xl sm:text-5xl lg:text-7xl font-extrabold text-gray-900 tracking-tight leading-[1.15] max-w-5xl mx-auto">
+                    ขับเคลื่อนทุกโปรเจกต์สู่ความสำเร็จ <br class="hidden sm:block">
+                    <span class="bg-gradient-to-r from-blue-600 via-primary to-teal-500 bg-clip-text text-transparent">
+                        จัดการงาน อนุมัติ 2 ระดับ และคุมงบประมาณ
+                    </span>
                 </h1>
-                <p class="text-gray-500 text-lg md:text-xl mt-6 max-w-2xl">
-                    Supercharge your teams to get things done
+
+                <!-- Subtitle / Value Proposition -->
+                <p class="mt-6 sm:mt-8 text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-normal">
+                    ConWork ผสานกระดานคันบัน (Kanban Board), ระบบตรวจรับงาน 2 ขั้นตอน (Manager & CEO Approval), การบันทึกรายรับ-รายจ่ายโครงการ และการสื่อสารในทีมเข้าไว้ด้วยกันอย่างไร้รอยต่อ เพื่อการส่งมอบงานที่ตรงเวลาและโปร่งใส 100%
                 </p>
-                <button class="bg-primary hover:bg-blue-600 text-white px-8 py-3.5 rounded-full text-lg font-medium mt-10 transition-colors" onclick="showLoginScreen('signup')">
-                    Get started
-                </button>
-            </div>
-            
-            <!-- Decorative Floating Elements simulating Asana UI -->
-            <div class="absolute inset-0 pointer-events-none overflow-hidden z-0 hidden md:block">
-                <!-- SVG lines connecting nodes -->
-                <svg class="absolute w-full h-full" style="opacity: 0.3;">
-                    <path d="M 15%,35% C 25%,35% 30%,20% 50%,20% C 70%,20% 75%,15% 85%,15%" stroke="#ff4d4f" stroke-width="2" fill="none"/>
-                    <path d="M 10%,80% C 20%,80% 30%,60% 50%,60% C 70%,60% 80%,45% 90%,45%" stroke="#d9d9d9" stroke-width="1.5" fill="none"/>
-                    <circle cx="50%" cy="20%" r="4" fill="#ff4d4f" />
-                    <circle cx="85%" cy="15%" r="4" fill="#ff4d4f" />
-                </svg>
 
-                <div class="absolute top-[25%] left-[10%] bg-white border border-gray-200 shadow-xl rounded-2xl p-6 flex flex-col items-start gap-2 animate-float" style="animation-delay: 0s;">
-                    <span class="text-2xl font-medium text-gray-800 leading-tight">Launch product <br>in 4 weeks</span>
-                    <div class="mt-2 bg-green-200 text-green-800 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-2">
-                        <i class="fa-solid fa-robot"></i> Launch Planner
+                <!-- CTA Buttons Group -->
+                <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button onclick="showLoginScreen('signup')" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-primary to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-base font-semibold shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 group">
+                        <span>ทดลองใช้งานฟรีทันที</span>
+                        <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                    </button>
+                    <button onclick="showLoginScreen('login')" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white hover:bg-gray-50 text-gray-800 text-base font-semibold border border-gray-200 shadow-sm hover:shadow transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-primary"></i>
+                        <span>เข้าสู่ระบบองค์กร</span>
+                    </button>
+                </div>
+
+                <!-- Trust Badges -->
+                <div class="mt-8 flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs sm:text-sm text-gray-500 font-medium">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                        <span>ไม่มีค่าใช้จ่ายแอบแฝง</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-amber-500"></i>
+                        <span>ซิงค์ข้อมูล Real-time ผ่าน Cloud</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-lock text-blue-500"></i>
+                        <span>ความปลอดภัยระดับ Enterprise RBAC</span>
                     </div>
                 </div>
 
-                <div class="absolute top-[15%] left-[45%] flex gap-2 animate-float" style="animation-delay: 1s;">
-                    <img src="https://i.pravatar.cc/150?u=12" class="w-14 h-14 rounded-full border-4 border-white shadow-lg">
-                    <div class="w-14 h-14 bg-blue-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-white"><i class="fa-solid fa-bolt"></i></div>
-                    <div class="w-14 h-14 bg-pink-100 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-pink-500"><i class="fa-solid fa-bolt"></i></div>
-                </div>
-
-                <div class="absolute top-[12%] right-[25%] bg-white border border-gray-200 shadow-xl rounded-2xl p-4 flex items-center gap-3 animate-float" style="animation-delay: 0.5s;">
-                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-lg"><i class="fa-solid fa-list-check"></i></div>
-                    <span class="text-lg font-medium text-gray-800">Enablement</span>
-                </div>
-
-                <div class="absolute top-[28%] right-[10%] bg-white border border-gray-200 shadow-xl rounded-2xl p-5 flex flex-col items-start gap-2 animate-float" style="animation-delay: 2s;">
-                    <div class="bg-[#d4ff00] text-gray-900 text-xs font-bold px-3 py-1 rounded-sm">Pricing Strategist</div>
-                    <span class="text-sm text-gray-600">Sales and launch readiness</span>
-                </div>
-
-                <div class="absolute bottom-[35%] right-[5%] bg-white border border-gray-200 shadow-xl rounded-2xl p-5 flex items-center gap-4 animate-float" style="animation-delay: 1.5s;">
-                    <div class="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center text-xl"><i class="fa-solid fa-check"></i></div>
-                    <span class="text-2xl font-medium text-gray-800">Product launched!</span>
-                </div>
-
-                <div class="absolute bottom-[10%] left-[10%] bg-white border border-gray-200 shadow-xl rounded-2xl p-5 w-80 animate-float" style="animation-delay: 0.8s;">
-                    <div class="text-lg font-bold text-gray-800 mb-4">Product Launch</div>
-                    <div class="flex items-center gap-3 text-sm text-gray-600 mb-2">
-                        <i class="fa-solid fa-caret-down"></i> UX & Research
-                    </div>
-                    <div class="flex items-center justify-between text-xs p-2 bg-gray-50 rounded-lg">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-circle-check text-green-500"></i> Project plan created
+                <!-- ================= WORKSPACE INTERACTIVE MOCKUP SHOWCASE ================= -->
+                <div class="mt-14 sm:mt-18 relative max-w-6xl mx-auto text-left">
+                    <!-- Glassmorphism Container with Realistic Browser Chrome -->
+                    <div class="bg-white rounded-3xl shadow-2xl border border-gray-200/80 overflow-hidden relative transition-all duration-500">
+                        <!-- macOS Window Header Bar -->
+                        <div class="bg-slate-100/90 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span>
+                                <span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>
+                                <span class="w-3 h-3 rounded-full bg-green-400 inline-block"></span>
+                                <span class="ml-4 text-xs font-medium text-gray-400 hidden sm:inline-block">ConWork Enterprise Workspace v2.4</span>
+                            </div>
+                            <!-- Mock URL Bar -->
+                            <div class="bg-white px-4 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-500 flex items-center gap-2 w-72 sm:w-96 justify-center shadow-inner">
+                                <i class="fa-solid fa-lock text-emerald-500 text-[10px]"></i>
+                                <span class="font-mono text-gray-600">https://conwork.enterprise.app/project/fintech-portal</span>
+                            </div>
+                            <div class="flex items-center gap-3 text-gray-400 text-xs">
+                                <i class="fa-solid fa-bell"></i>
+                                <span class="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-[10px]">CEO</span>
+                            </div>
                         </div>
-                        <div class="bg-green-100 text-green-700 px-2 py-0.5 rounded">Complete</div>
+
+                        <!-- Workspace Mock Content -->
+                        <div class="p-4 sm:p-6 bg-slate-50/50">
+                            <!-- Project Top Info Bar -->
+                            <div class="bg-white rounded-2xl p-4 sm:p-5 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">Active Project</span>
+                                        <h2 class="text-lg sm:text-xl font-bold text-gray-800">โครงการพัฒนาระบบ Enterprise Portal 2026</h2>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">ผู้รับผิดชอบหลัก: กิตติศักดิ์ พ. • แผนก: Core Engineering • ความคืบหน้าภาพรวม 78%</p>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <!-- Budget Badge -->
+                                    <div class="px-3.5 py-2 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center gap-2.5">
+                                        <i class="fa-solid fa-sack-dollar text-emerald-600 text-base"></i>
+                                        <div>
+                                            <div class="text-[10px] text-emerald-700 font-medium">งบประมาณโครงการ</div>
+                                            <div class="text-xs font-bold text-emerald-900">฿1,500,000 (คงเหลือ 68%)</div>
+                                        </div>
+                                    </div>
+                                    <!-- Team Avatars -->
+                                    <div class="flex -space-x-2 overflow-hidden">
+                                        <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/150?u=12" alt="Avatar">
+                                        <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/150?u=24" alt="Avatar">
+                                        <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white" src="https://i.pravatar.cc/150?u=35" alt="Avatar">
+                                        <span class="inline-flex h-8 w-8 rounded-full ring-2 ring-white bg-blue-100 text-blue-700 items-center justify-center text-xs font-bold">+5</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 4 Kanban Columns Preview -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <!-- Col 1: To Do -->
+                                <div class="bg-gray-100/80 rounded-2xl p-3 border border-gray-200/60 flex flex-col gap-3">
+                                    <div class="flex items-center justify-between px-1">
+                                        <span class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-slate-400"></span> รอดำเนินการ (To Do)
+                                        </span>
+                                        <span class="bg-gray-200 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">3</span>
+                                    </div>
+                                    <!-- Card 1 -->
+                                    <div class="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm hover:shadow transition-shadow">
+                                        <span class="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded">High Priority</span>
+                                        <h3 class="text-xs font-bold text-gray-800 mt-2">จัดทำ UX/UI Wireframe สำหรับแดชบอร์ด</h3>
+                                        <div class="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2 border-t border-gray-50">
+                                            <span><i class="fa-regular fa-calendar mr-1"></i> 20 ก.ย.</span>
+                                            <span class="text-blue-600 font-medium"><i class="fa-solid fa-list-check mr-1"></i> 2/4 งานย่อย</span>
+                                        </div>
+                                    </div>
+                                    <!-- Card 2 -->
+                                    <div class="bg-white p-3.5 rounded-xl border border-gray-100 shadow-sm hover:shadow transition-shadow">
+                                        <span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded">Normal</span>
+                                        <h3 class="text-xs font-bold text-gray-800 mt-2">เตรียมเอกสาร Security Compliance</h3>
+                                        <div class="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2 border-t border-gray-50">
+                                            <span><i class="fa-regular fa-calendar mr-1"></i> 25 ก.ย.</span>
+                                            <span><i class="fa-solid fa-paperclip mr-1"></i> 3 ไฟล์</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Col 2: In Progress -->
+                                <div class="bg-blue-50/60 rounded-2xl p-3 border border-blue-100 flex flex-col gap-3">
+                                    <div class="flex items-center justify-between px-1">
+                                        <span class="text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-blue-500"></span> กำลังดำเนินการ (Doing)
+                                        </span>
+                                        <span class="bg-blue-200/80 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">2</span>
+                                    </div>
+                                    <!-- Card 3 -->
+                                    <div class="bg-white p-3.5 rounded-xl border border-blue-100 shadow-sm hover:shadow transition-shadow">
+                                        <span class="bg-rose-50 text-rose-700 text-[10px] font-bold px-2 py-0.5 rounded">Urgent</span>
+                                        <h3 class="text-xs font-bold text-gray-800 mt-2">เชื่อมต่อ API Payment Gateway</h3>
+                                        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2.5">
+                                            <div class="bg-blue-500 h-1.5 rounded-full" style="width: 70%"></div>
+                                        </div>
+                                        <div class="flex items-center justify-between text-[11px] text-gray-400 mt-2.5 pt-2 border-t border-gray-50">
+                                            <span class="text-gray-500"><i class="fa-solid fa-user-check text-blue-500 mr-1"></i> ธนกฤต ม.</span>
+                                            <span class="text-blue-600 font-bold">70%</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Col 3: Review 1 (Manager Review) -->
+                                <div class="bg-amber-50/60 rounded-2xl p-3 border border-amber-100 flex flex-col gap-3">
+                                    <div class="flex items-center justify-between px-1">
+                                        <span class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> ตรวจรอบ 1 (Manager)
+                                        </span>
+                                        <span class="bg-amber-200/80 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">1</span>
+                                    </div>
+                                    <!-- Card 4 -->
+                                    <div class="bg-white p-3.5 rounded-xl border border-amber-200 shadow-sm ring-1 ring-amber-400/30">
+                                        <div class="flex items-center justify-between">
+                                            <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                                                <i class="fa-solid fa-clock-rotate-left"></i> รอผู้จัดการอนุมัติ
+                                            </span>
+                                            <span class="text-[10px] text-gray-400 font-mono">Tier 1</span>
+                                        </div>
+                                        <h3 class="text-xs font-bold text-gray-800 mt-2">สรุปสถาปัตยกรรมระบบฐานข้อมูล</h3>
+                                        <p class="text-[11px] text-gray-500 mt-1 line-clamp-1">ผู้ส่งงาน: ปรียานุช ร. • แนบไฟล์ Diagram 4 ชุด</p>
+                                        <div class="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
+                                            <span class="text-[10px] text-amber-700 font-medium">รอ Reviewer 1 ตรวจสอบ</span>
+                                            <i class="fa-solid fa-chevron-right text-[10px] text-amber-500"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Col 4: Approved & Done (CEO Verified) -->
+                                <div class="bg-emerald-50/60 rounded-2xl p-3 border border-emerald-100 flex flex-col gap-3">
+                                    <div class="flex items-center justify-between px-1">
+                                        <span class="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> อนุมัติสมบูรณ์ (Done)
+                                        </span>
+                                        <span class="bg-emerald-200/80 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">5</span>
+                                    </div>
+                                    <!-- Card 5 -->
+                                    <div class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-sm relative overflow-hidden">
+                                        <div class="flex items-center justify-between">
+                                            <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
+                                                <i class="fa-solid fa-check-double text-emerald-600"></i> 2-Tier Passed
+                                            </span>
+                                            <span class="text-[10px] text-emerald-600 font-bold font-mono">100%</span>
+                                        </div>
+                                        <h3 class="text-xs font-bold text-gray-800 mt-2">ติดตั้ง Cloud Server & Supabase DB</h3>
+                                        <div class="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                                            <span class="text-emerald-700 font-medium"><i class="fa-solid fa-crown text-amber-500 mr-1"></i> CEO Approved</span>
+                                            <span class="text-gray-400">เมื่อวานนี้</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Floating Badges over Mockup -->
+                    <div class="hidden sm:flex absolute -bottom-6 -left-6 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-gray-100 shadow-xl items-center gap-3 animate-float" style="animation-delay: 0s;">
+                        <div class="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">รายงานกำไรสุทธิโครงการ</div>
+                            <div class="text-sm font-bold text-gray-800">+฿425,000 (Margin 32.5%)</div>
+                        </div>
+                    </div>
+
+                    <div class="hidden sm:flex absolute -top-6 -right-6 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-gray-100 shadow-xl items-center gap-3 animate-float" style="animation-delay: 1.5s;">
+                        <div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-stamp"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500">ระบบตรวจงาน 2 ระดับ</div>
+                            <div class="text-sm font-bold text-gray-800">Manager + CEO Final Sign-off</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= STATS & IMPACT RIBBON ================= -->
+        <section class="py-12 bg-white border-y border-gray-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+                    <div class="p-4">
+                        <div class="text-3xl sm:text-4xl font-extrabold text-blue-600 font-mono tracking-tight">2-Tier</div>
+                        <div class="text-sm font-semibold text-gray-800 mt-1">Approval Workflow</div>
+                        <p class="text-xs text-gray-500 mt-0.5">ระบบตรวจงาน 2 ระดับ ป้องกันงานผิดพลาด 100%</p>
+                    </div>
+                    <div class="p-4">
+                        <div class="text-3xl sm:text-4xl font-extrabold text-emerald-500 font-mono tracking-tight">100%</div>
+                        <div class="text-sm font-semibold text-gray-800 mt-1">Financial Transparency</div>
+                        <p class="text-xs text-gray-500 mt-0.5">บันทึกรายรับ-รายจ่าย แนบสลิป คุมงบได้แบบสดๆ</p>
+                    </div>
+                    <div class="p-4">
+                        <div class="text-3xl sm:text-4xl font-extrabold text-indigo-600 font-mono tracking-tight">40%+</div>
+                        <div class="text-sm font-semibold text-gray-800 mt-1">Faster Delivery</div>
+                        <p class="text-xs text-gray-500 mt-0.5">ลดเวลาการสื่อสารซ้ำซ้อน ส่งมอบงานเร็วกว่าเดิม</p>
+                    </div>
+                    <div class="p-4">
+                        <div class="text-3xl sm:text-4xl font-extrabold text-teal-600 font-mono tracking-tight">Real-time</div>
+                        <div class="text-sm font-semibold text-gray-800 mt-1">Cloud Sync & Chat</div>
+                        <p class="text-xs text-gray-500 mt-0.5">อัปเดตงานและแชททีมงานทันทีด้วย Supabase</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= 6 CORE SYSTEM MODULES ================= -->
+        <section id="features" class="py-20 md:py-28 bg-[#fafafa]">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <!-- Section Header -->
+                <div class="text-center max-w-3xl mx-auto mb-16">
+                    <span class="text-xs sm:text-sm font-bold text-primary tracking-wider uppercase bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100">
+                        All-in-One Enterprise Platform
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mt-4 tracking-tight">
+                        ครบเครื่องทุกมิติของการบริหารองค์กรและโครงการ
+                    </h2>
+                    <p class="text-base sm:text-lg text-gray-600 mt-3">
+                        ออกแบบมาเพื่อรองรับการทำงานของทีมยุคใหม่อย่างแท้จริง ตั้งแต่วางแผนงาน จนถึงปิดงวดบัญชีโครงการ
+                    </p>
+                </div>
+
+                <!-- 6 Modules Bento Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Module 1: Kanban & Subtasks -->
+                    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                            <div class="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl mb-6 shadow-sm">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-3">1. บอร์ดคันบันและงานย่อย (Kanban & Subtasks)</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">
+                                บริหารงานแบบคล่องตัวด้วยกระดาน Kanban ที่รองรับ Drag & Drop จัดลำดับความสำคัญ (Urgent, High, Normal, Low), กำหนดวันส่งงาน และสร้าง Checklist งานย่อยเพื่อการติดตามที่ชัดเจน
+                            </p>
+                        </div>
+                        <ul class="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-600">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-primary"></i> ปรับแต่งคอลัมน์และขั้นตอนการทำงานได้อิสระ</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-primary"></i> ติดตามความก้าวหน้างานย่อย (Progress Bar)</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-primary"></i> แนบไฟล์งาน ลิงก์ และคอมเมนต์ในบัตรงาน</li>
+                        </ul>
+                    </div>
+
+                    <!-- Module 2: 2-Tier Approval Workflow -->
+                    <div class="bg-white rounded-3xl p-8 border border-emerald-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
+                            Signature Feature
+                        </div>
+                        <div>
+                            <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl mb-6 shadow-sm">
+                                <i class="fa-solid fa-stamp"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-3">2. ตรวจรับงาน 2 ระดับ (2-Tier Approval)</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">
+                                มาตรฐานการตรวจรับงานคู่ขนาน: ส่งงานให้หัวหน้าทีม (Reviewer 1 / Manager) ตรวจสอบคุณภาพรอบแรก ก่อนส่งต่อไปให้ผู้บริหาร (Reviewer 2 / CEO) ทำการอนุมัติขั้นสุดท้าย (Final Sign-off)
+                            </p>
+                        </div>
+                        <ul class="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-600">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> ตรวจสอบงานไม่หลุด QC และมีประวัติบันทึกชัดเจน</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> ส่งแก้ไขพร้อมระบุเหตุผลและคำแนะนำได้ทันที</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-500"></i> ป้องกันการแก้สถานะงานโดยพลการ</li>
+                        </ul>
+                    </div>
+
+                    <!-- Module 3: Project Accounting & Budget -->
+                    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                            <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-2xl mb-6 shadow-sm">
+                                <i class="fa-solid fa-wallet"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-3">3. บัญชีและการเงินโครงการ (Financial & Budget)</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">
+                                บันทึกทุกกระแสเงินสดของโปรเจกต์: แยกประเภทรายรับ (Income) และรายจ่าย (Expense), แนบไฟล์สลิปหลักฐาน, ตรวจสอบงบประมาณคงเหลือ และคำนวณกำไร/ขาดทุนสุทธิ (Net Margin) อัตโนมัติ
+                            </p>
+                        </div>
+                        <ul class="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-600">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500"></i> ตั้งงบประมาณโครงการ (Project Budget)</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500"></i> แนบหลักฐานใบเสร็จ/สลิปตรวจสอบได้</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-500"></i> แยกสิทธิ์การมองเห็นตัวเลขทางการเงิน</li>
+                        </ul>
+                    </div>
+
+                    <!-- Module 4: Dynamic RBAC & Teams -->
+                    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                            <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl mb-6 shadow-sm">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-3">4. โครงสร้างทีมและสิทธิ์ยืดหยุ่น (Team & RBAC)</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">
+                                จัดการสมาชิกตามแผนก (Departments) พร้อมระบบจัดการสิทธิ์ Role-Based Access Control: ผู้บริหาร (CEO), ผู้จัดการ (Manager), และสมาชิก (Member) พร้อมกำหนด Custom Permissions รายบุคคลได้
+                            </p>
+                        </div>
+                        <ul class="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-600">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-500"></i> CEO มีสิทธิ์ Master จัดการทุกส่วนของระบบ</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-500"></i> กำหนดสิทธิ์แยกส่วน: งบประมาณ, แก้ไขงาน, จัดการทีม</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-indigo-500"></i> เพิ่ม/ลดตำแหน่งพนักงานและบันทึกลง Cloud ทันที</li>
+                        </ul>
+                    </div>
+
+                    <!-- Module 5: Real-time Communication & Notes -->
+                    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                            <div class="w-14 h-14 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl mb-6 shadow-sm">
+                                <i class="fa-solid fa-comments"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-3">5. แชททีมงานและบันทึกส่วนตัว (Team Chat & Notes)</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">
+                                สื่อสารกันในองค์กรได้อย่างรวดเร็วโดยไม่ต้องสลับแอป มีทั้งห้องแชทประจำโครงการ (Project Chat) และข้อความส่วนตัว (Direct Message) พร้อมระบบสมุดบันทึกส่วนตัว (Personal Notes) สำหรับบันทึกไอเดีย
+                            </p>
+                        </div>
+                        <ul class="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-600">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-teal-500"></i> ส่งข้อความและแจ้งเตือน Real-time</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-teal-500"></i> บันทึกโน้ตงานส่วนตัว ปลอดภัยเฉพาะคุณ</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-teal-500"></i> ลดปัญหางานและไฟล์ตกหล่นในแชทภายนอก</li>
+                        </ul>
+                    </div>
+
+                    <!-- Module 6: Executive Analytics & Reports -->
+                    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                            <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-2xl mb-6 shadow-sm">
+                                <i class="fa-solid fa-chart-pie"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-3">6. แดชบอร์ดและรายงาน KPI (Analytics & KPI)</h3>
+                            <p class="text-sm text-gray-600 leading-relaxed">
+                                วิเคราะห์ประสิทธิภาพและผลการดำเนินงานผ่าน Executive Dashboard ติดตามสถิติงานเสร็จตรงเวลา, งานค้างส่ง, และประสิทธิภาพรายบุคคล เพื่อการตัดสินใจเชิงกลยุทธ์ที่แม่นยำ
+                            </p>
+                        </div>
+                        <ul class="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-600">
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-rose-500"></i> สรุป KPI ความสำเร็จของแต่ละโครงการ</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-rose-500"></i> ออกรายงานสรุปผลงาน (Work Report) ในคลิกเดียว</li>
+                            <li class="flex items-center gap-2"><i class="fa-solid fa-check text-rose-500"></i> ติดตามความก้าวหน้าโครงการแบบองค์รวม</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= DEEP DIVE: 2-TIER APPROVAL WORKFLOW ================= -->
+        <section id="workflow" class="py-20 md:py-28 bg-white border-t border-gray-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                    <!-- Left: Text Explanations -->
+                    <div>
+                        <span class="text-xs sm:text-sm font-bold text-emerald-600 tracking-wider uppercase bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-100">
+                            Quality & Governance
+                        </span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mt-4 tracking-tight leading-tight">
+                            ระบบตรวจรับงาน 2 ระดับ <br>
+                            <span class="text-emerald-600">มั่นใจในคุณภาพ ไร้ข้อผิดพลาด</span>
+                        </h2>
+                        <p class="text-base text-gray-600 mt-4 leading-relaxed">
+                            หมดยุคสั่งงานแล้วผลงานหลุดมาตรฐาน ConWork ออกแบบกระบวนการตรวจรับงานแบบ Dual-Approval เพื่อให้งานทุกชิ้นผ่านการตรวจสอบอย่างรัดกุมก่อนส่งมอบจริง
+                        </p>
+
+                        <!-- Steps Breakdown -->
+                        <div class="mt-8 space-y-6">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm shrink-0 mt-1">
+                                    1
+                                </div>
+                                <div>
+                                    <h4 class="text-base font-bold text-gray-800">ส่งมอบผลงาน (Submit Task)</h4>
+                                    <p class="text-xs sm:text-sm text-gray-500 mt-1">ผู้ปฏิบัติงานส่งรายงานความคืบหน้า แนบไฟล์หลักฐาน หรือลิงก์ชิ้นงาน พร้อมบันทึกรายละเอียดให้ชัดเจน</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm shrink-0 mt-1">
+                                    2
+                                </div>
+                                <div>
+                                    <h4 class="text-base font-bold text-gray-800">การตรวจรอบที่ 1 โดยผู้จัดการ (Reviewer 1)</h4>
+                                    <p class="text-xs sm:text-sm text-gray-500 mt-1">หัวหน้าทีมหรือ PM ตรวจสอบความถูกต้องและข้อกำหนด หากไม่ผ่านสามารถกดส่งกลับแก้ไขได้ทันที</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0 mt-1">
+                                    3
+                                </div>
+                                <div>
+                                    <h4 class="text-base font-bold text-gray-800">การอนุมัติขั้นสุดท้ายโดยผู้บริหาร (Reviewer 2 / CEO)</h4>
+                                    <p class="text-xs sm:text-sm text-gray-500 mt-1">ผู้บริหารลงนามอนุมัติขั้นสุดท้าย สถานะงานเปลี่ยนเป็น Done สมบูรณ์ พร้อมบันทึกประวัติการตรวจ (Audit Trail)</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Visual Workflow Graphic Card -->
+                    <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden border border-slate-700">
+                        <div class="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                        <div class="flex items-center justify-between border-b border-slate-700 pb-4 mb-6">
+                            <span class="text-xs font-mono text-emerald-400 font-semibold tracking-wider uppercase">Live Workflow Engine</span>
+                            <span class="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-500/30">
+                                <i class="fa-solid fa-shield-check mr-1"></i> Dual-Tier Active
+                            </span>
+                        </div>
+
+                        <!-- Step 1 Box -->
+                        <div class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 mb-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                                    <i class="fa-solid fa-code"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-200">งาน: ออกแบบ Database Architecture</div>
+                                    <div class="text-[10px] text-slate-400">ส่งงานโดย: Developer Team</div>
+                                </div>
+                            </div>
+                            <span class="text-xs text-blue-400 font-medium">Submitted</span>
+                        </div>
+
+                        <!-- Flow Arrow -->
+                        <div class="flex justify-center -my-2 relative z-10">
+                            <div class="w-7 h-7 rounded-full bg-slate-700 text-slate-300 flex items-center justify-center text-xs shadow">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 Box -->
+                        <div class="bg-slate-800/80 rounded-2xl p-4 border border-amber-500/40 mb-4 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                                    <i class="fa-solid fa-user-check"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-amber-300">Tier 1: Reviewer 1 (Project Manager)</div>
+                                    <div class="text-[10px] text-slate-400">อนุมัติรอบแรก: "ตรวจทาน Schema ผ่านเกณฑ์แล้ว"</div>
+                                </div>
+                            </div>
+                            <span class="bg-amber-500/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded">Passed</span>
+                        </div>
+
+                        <!-- Flow Arrow -->
+                        <div class="flex justify-center -my-2 relative z-10">
+                            <div class="w-7 h-7 rounded-full bg-slate-700 text-slate-300 flex items-center justify-center text-xs shadow">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 Box -->
+                        <div class="bg-emerald-950/60 rounded-2xl p-4 border border-emerald-500/50 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                                    <i class="fa-solid fa-crown text-amber-400"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-emerald-300">Tier 2: Reviewer 2 (CEO / Super Admin)</div>
+                                    <div class="text-[10px] text-slate-400">อนุมัติขั้นสุดท้าย (Final Approval) • มีผลสมบูรณ์</div>
+                                </div>
+                            </div>
+                            <span class="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg shadow-emerald-500/30">
+                                <i class="fa-solid fa-check"></i> Approved
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= DEEP DIVE: PROJECT BUDGET & FINANCE ================= -->
+        <section id="finance" class="py-20 md:py-28 bg-[#fafafa]">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                    <!-- Left: Graphic Financial Card -->
+                    <div class="order-2 lg:order-1 bg-white rounded-3xl p-6 sm:p-8 border border-gray-100 shadow-xl">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Project Cash Flow</span>
+                                <h4 class="text-lg font-bold text-gray-800">สรุปการเงิน: โครงการ Alpha Enterprise</h4>
+                            </div>
+                            <span class="px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-100">
+                                Real-time Calc
+                            </span>
+                        </div>
+
+                        <!-- Stats Row -->
+                        <div class="grid grid-cols-3 gap-3 mb-6">
+                            <div class="bg-slate-50 p-3.5 rounded-2xl border border-gray-100">
+                                <div class="text-[11px] text-gray-500 font-medium">งบประมาณตั้งไว้</div>
+                                <div class="text-sm sm:text-base font-bold text-gray-800 mt-1">฿2,000,000</div>
+                            </div>
+                            <div class="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-100">
+                                <div class="text-[11px] text-emerald-700 font-medium">รายรับสะสม</div>
+                                <div class="text-sm sm:text-base font-bold text-emerald-900 mt-1">฿1,450,000</div>
+                            </div>
+                            <div class="bg-rose-50 p-3.5 rounded-2xl border border-rose-100">
+                                <div class="text-[11px] text-rose-700 font-medium">รายจ่ายสะสม</div>
+                                <div class="text-sm sm:text-base font-bold text-rose-900 mt-1">฿620,000</div>
+                            </div>
+                        </div>
+
+                        <!-- Budget Progress Bar -->
+                        <div class="mb-6">
+                            <div class="flex items-center justify-between text-xs font-medium text-gray-600 mb-2">
+                                <span>งบประมาณที่ใช้ไปแล้ว (Expense Ratio)</span>
+                                <span class="font-bold text-gray-800">31% ของงบทั้งหมด</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                <div class="bg-gradient-to-r from-blue-500 to-emerald-500 h-2.5 rounded-full" style="width: 31%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Transactions -->
+                        <div class="space-y-2.5">
+                            <div class="text-xs font-bold text-gray-500 uppercase tracking-wider">รายการบันทึกบัญชีล่าสุด</div>
+                            <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 text-xs">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                                        <i class="fa-solid fa-arrow-down"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-800">เงินงวดที่ 1 จากลูกค้า</div>
+                                        <div class="text-[10px] text-gray-400">แนบสลิปโอนเงิน • อนุมัติแล้ว</div>
+                                    </div>
+                                </div>
+                                <span class="font-bold text-emerald-600">+฿800,000</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 text-xs">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                                        <i class="fa-solid fa-arrow-up"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-800">ค่าเช่า Server Cloud & Domain</div>
+                                        <div class="text-[10px] text-gray-400">แนบใบเสร็จกำกับภาษี</div>
+                                    </div>
+                                </div>
+                                <span class="font-bold text-rose-600">-฿45,000</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Text Description -->
+                    <div class="order-1 lg:order-2">
+                        <span class="text-xs sm:text-sm font-bold text-amber-600 tracking-wider uppercase bg-amber-50 px-3.5 py-1.5 rounded-full border border-amber-100">
+                            Financial Control
+                        </span>
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mt-4 tracking-tight leading-tight">
+                            ควบคุมงบประมาณโครงการ <br>
+                            <span class="text-amber-600">เห็นกระแสเงินสดชัดเจนทุกบาท</span>
+                        </h2>
+                        <p class="text-base text-gray-600 mt-4 leading-relaxed">
+                            ตัดปัญหาการทำงานเสร็จแต่ไม่รู้ว่างบกำไรหรือขาดทุน ConWork มีระบบบันทึกรายรับ-รายจ่ายที่ผูกกับแต่ละโปรเจกต์โดยตรง ช่วยให้ทีมบริหารรู้สถานะการเงินได้ทันที
+                        </p>
+
+                        <div class="mt-8 space-y-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800">แนบไฟล์สลิป หลักฐานใบเสร็จ และใบเสนอราคาในแต่ละรายการ</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-scale-balanced"></i>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800">คำนวณอัตรากำไร (Net Profit Margin) แบบ Real-time ทันทีที่มีการบันทึก</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-sm">
+                                    <i class="fa-solid fa-user-lock"></i>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800">จำกัดสิทธิ์การดูข้อมูลการเงินเฉพาะผู้ที่ได้รับอนุญาตเพื่อความปลอดภัย</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SOLUTIONS BY ROLE ================= -->
+        <section id="roles" class="py-20 md:py-28 bg-white border-t border-gray-100">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-16">
+                    <span class="text-xs sm:text-sm font-bold text-indigo-600 tracking-wider uppercase bg-indigo-50 px-3.5 py-1.5 rounded-full border border-indigo-100">
+                        Tailored Experience
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mt-4 tracking-tight">
+                        ออกแบบมาเพื่อทุกบทบาทในองค์กร
+                    </h2>
+                    <p class="text-base sm:text-lg text-gray-600 mt-3">
+                        ไม่ว่าคุณจะอยู่ในตำแหน่งใด ConWork มอบเครื่องมือและหน้าจอที่เหมาะสมที่สุดสำหรับคุณ
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Role 1: CEO & Executives -->
+                    <div class="bg-slate-900 text-white rounded-3xl p-8 border border-slate-800 flex flex-col justify-between shadow-xl relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                        <div>
+                            <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl mb-6">
+                                <i class="fa-solid fa-crown"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-2">ผู้บริหาร (CEO / Executive)</h3>
+                            <p class="text-xs text-slate-400 mb-6">ควบคุมภาพรวมทั้งองค์กร และเป็นผู้อนุมัติงานขั้นสุดท้าย</p>
+                            <ul class="space-y-3 text-xs text-slate-300">
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-amber-400 mt-0.5"></i> ตรวจสอบแดชบอร์ดภาพรวมและ KPI ทุกโครงการ</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-amber-400 mt-0.5"></i> สิทธิ์ Reviewer 2 ลงนามอนุมัติงานขั้นสุดท้าย</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-amber-400 mt-0.5"></i> ดูตัวเลขงบประมาณ รายรับ-รายจ่าย และกำไร</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-amber-400 mt-0.5"></i> ปรับเปลี่ยนตำแหน่งและสิทธิ์ของสมาชิกทุกคน</li>
+                            </ul>
+                        </div>
+                        <div class="mt-8 pt-6 border-t border-slate-800 text-[11px] text-slate-400 font-mono">
+                            Master Access & Strategic Insights
+                        </div>
+                    </div>
+
+                    <!-- Role 2: Project Manager -->
+                    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-lg flex flex-col justify-between hover:border-blue-200 transition-colors">
+                        <div>
+                            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl mb-6">
+                                <i class="fa-solid fa-user-tie"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">หัวหน้าทีม (Project Manager)</h3>
+                            <p class="text-xs text-gray-500 mb-6">บริหารความคืบหน้า มอบหมายงาน และตรวจรับงานรอบแรก</p>
+                            <ul class="space-y-3 text-xs text-gray-600">
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-blue-500 mt-0.5"></i> สร้างและจัดสรรงานย่อยให้สมาชิกในทีม</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-blue-500 mt-0.5"></i> สิทธิ์ Reviewer 1 ตรวจสอบคุณภาพงานเบื้องต้น</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-blue-500 mt-0.5"></i> จัดการกระดานคันบันและติดตาม Deadline</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-blue-500 mt-0.5"></i> สื่อสารในห้องแชทโปรเจกต์และแชร์โน้ตงาน</li>
+                            </ul>
+                        </div>
+                        <div class="mt-8 pt-6 border-t border-gray-100 text-[11px] text-gray-400 font-mono">
+                            Execution & Quality Assurance
+                        </div>
+                    </div>
+
+                    <!-- Role 3: Team Member -->
+                    <div class="bg-white rounded-3xl p-8 border border-gray-100 shadow-lg flex flex-col justify-between hover:border-emerald-200 transition-colors">
+                        <div>
+                            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mb-6">
+                                <i class="fa-solid fa-laptop-code"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-2">ทีมงาน (Team Member)</h3>
+                            <p class="text-xs text-gray-500 mb-6">โฟกัสงานที่ได้รับมอบหมาย ส่งมอบงานได้ง่ายและรวดเร็ว</p>
+                            <ul class="space-y-3 text-xs text-gray-600">
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-emerald-500 mt-0.5"></i> ดูรายการงานของตนเองอย่างเป็นระเบียบ</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-emerald-500 mt-0.5"></i> ส่งงานพร้อมแนบไฟล์ผลงานและคำอธิบาย</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-emerald-500 mt-0.5"></i> รับผลการตรวจและฟีดแบ็กการแก้ไขได้ทันที</li>
+                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-check text-emerald-500 mt-0.5"></i> แชทคุยกับเพื่อนร่วมงานและผู้จัดการได้สะดวกรวดเร็ว</li>
+                            </ul>
+                        </div>
+                        <div class="mt-8 pt-6 border-t border-gray-100 text-[11px] text-gray-400 font-mono">
+                            Productivity & Seamless Delivery
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= FAQ SECTION ================= -->
+        <section id="faq" class="py-20 md:py-28 bg-[#fafafa]">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-14">
+                    <span class="text-xs sm:text-sm font-bold text-primary tracking-wider uppercase bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-100">
+                        Frequently Asked Questions
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900 mt-4 tracking-tight">
+                        คำถามที่พบบ่อยเกี่ยวกับการใช้งาน ConWork
+                    </h2>
+                    <p class="text-base text-gray-600 mt-3">
+                        รวมคำตอบสำหรับข้อสงสัยที่พบบ่อย เพื่อให้คุณเริ่มต้นใช้งานได้อย่างมั่นใจ
+                    </p>
+                </div>
+
+                <!-- Accordion List -->
+                <div class="space-y-4">
+                    <!-- Q1 -->
+                    <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden transition-all">
+                        <button onclick="toggleLandingFaq('faq-1')" class="w-full text-left px-6 py-5 flex items-center justify-between font-bold text-gray-800 hover:text-primary transition-colors">
+                            <span class="text-base sm:text-lg">1. ConWork เหมาะกับองค์กรหรือทีมประเภทใด?</span>
+                            <i id="faq-1-icon" class="fa-solid fa-chevron-down text-gray-400 text-sm transition-transform duration-300"></i>
+                        </button>
+                        <div id="faq-1-answer" class="hidden px-6 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
+                            ConWork ถูกออกแบบมาให้รองรับทั้งธุรกิจขนาดกลาง ขนาดใหญ่ (Enterprise), บริษัทพัฒนาซอฟต์แวร์, บริษัทรับเหมาก่อสร้าง/ออกแบบ, เอเจนซี่การตลาด และทีมที่ต้องการความโปร่งใสในการตรวจรับงานหลายระดับพร้อมระบบควบคุมกระแสเงินสดของโปรเจกต์
+                        </div>
+                    </div>
+
+                    <!-- Q2 -->
+                    <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden transition-all">
+                        <button onclick="toggleLandingFaq('faq-2')" class="w-full text-left px-6 py-5 flex items-center justify-between font-bold text-gray-800 hover:text-primary transition-colors">
+                            <span class="text-base sm:text-lg">2. ระบบตรวจรับงาน 2 ระดับ (2-Tier Approval) ทำงานอย่างไร?</span>
+                            <i id="faq-2-icon" class="fa-solid fa-chevron-down text-gray-400 text-sm transition-transform duration-300"></i>
+                        </button>
+                        <div id="faq-2-answer" class="hidden px-6 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
+                            เมื่อผู้ปฏิบัติงานกดส่งงาน ชิ้นงานจะย้ายเข้าสู่ขั้นตอน Review 1 เพื่อให้ผู้จัดการทีม (Reviewer 1) ตรวจสอบความถูกต้อง เมื่อผู้จัดการกดผ่าน งานจะถูกส่งต่อไปยังขั้นตอน Review 2 เพื่อให้ผู้บริหาร (Reviewer 2 / CEO) อนุมัติขั้นสุดท้าย จึงจะถือเป็นงานสำเร็จ (Done) อย่างเป็นทางการ พร้อมเก็บบันทึกประวัติและลายเซ็นดิจิทัล
+                        </div>
+                    </div>
+
+                    <!-- Q3 -->
+                    <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden transition-all">
+                        <button onclick="toggleLandingFaq('faq-3')" class="w-full text-left px-6 py-5 flex items-center justify-between font-bold text-gray-800 hover:text-primary transition-colors">
+                            <span class="text-base sm:text-lg">3. สามารถบันทึกรายรับ-รายจ่ายของโครงการและแนบหลักฐานได้หรือไม่?</span>
+                            <i id="faq-3-icon" class="fa-solid fa-chevron-down text-gray-400 text-sm transition-transform duration-300"></i>
+                        </button>
+                        <div id="faq-3-answer" class="hidden px-6 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
+                            สามารถทำได้อย่างสมบูรณ์ โดยในแต่ละโปรเจกต์จะมีแท็บ "การเงิน" ให้บันทึกรายการทั้งรายรับและรายจ่าย พร้อมแนบรูปสลิปการโอนเงินหรือไฟล์เอกสารใบเสร็จ ระบบจะคำนวณเงินคงเหลือและกำไรสุทธิให้อัตโนมัติแบบเรียลไทม์
+                        </div>
+                    </div>
+
+                    <!-- Q4 -->
+                    <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden transition-all">
+                        <button onclick="toggleLandingFaq('faq-4')" class="w-full text-left px-6 py-5 flex items-center justify-between font-bold text-gray-800 hover:text-primary transition-colors">
+                            <span class="text-base sm:text-lg">4. ผู้บริหาร (CEO) มีสิทธิ์อะไรในระบบบ้าง?</span>
+                            <i id="faq-4-icon" class="fa-solid fa-chevron-down text-gray-400 text-sm transition-transform duration-300"></i>
+                        </button>
+                        <div id="faq-4-answer" class="hidden px-6 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
+                            ผู้บริหารระดับ CEO หรือ Super Admin มีสิทธิ์ระดับ Master Access ครอบคลุมการจัดการทั้งหมด ทั้งการอนุมัติงานขั้นสุดท้าย (Reviewer 2), การปรับเปลี่ยนบทบาทและสิทธิ์ของพนักงานรายบุคคล, การเข้าถึงงบประมาณและการเงินทุกโครงการ และการตั้งค่าระบบทั้งหมด
+                        </div>
+                    </div>
+
+                    <!-- Q5 -->
+                    <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden transition-all">
+                        <button onclick="toggleLandingFaq('faq-5')" class="w-full text-left px-6 py-5 flex items-center justify-between font-bold text-gray-800 hover:text-primary transition-colors">
+                            <span class="text-base sm:text-lg">5. ต้องติดตั้งโปรแกรมลงในเครื่องหรือไม่?</span>
+                            <i id="faq-5-icon" class="fa-solid fa-chevron-down text-gray-400 text-sm transition-transform duration-300"></i>
+                        </button>
+                        <div id="faq-5-answer" class="hidden px-6 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-3">
+                            ไม่ต้องติดตั้งโปรแกรมใดๆ ConWork เป็น Web Application บนระบบคลาวด์ สามารถเปิดใช้งานผ่านเว็บบราวเซอร์ได้ทุกอุปกรณ์ ทั้งคอมพิวเตอร์, แท็บเล็ต และสมาร์ทโฟน โดยข้อมูลทั้งหมดจะซิงค์กันแบบ Real-time ทันที
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= HIGH CONVERTING CTA BANNER ================= -->
+        <section class="py-20 md:py-24 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white relative overflow-hidden">
+            <div class="absolute inset-0 pointer-events-none opacity-20" style="background-image: radial-gradient(#60a5fa 1px, transparent 1px); background-size: 24px 24px;"></div>
+            <div class="absolute top-0 right-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-blue-200 text-xs font-semibold mb-6 border border-white/10">
+                    <i class="fa-solid fa-rocket text-amber-300"></i> Ready to Transform Your Workflow?
+                </div>
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-tight">
+                    พร้อมยกระดับการทำงานขององค์กรคุณ <br class="hidden sm:block">
+                    ด้วย ConWork แล้วหรือยัง?
+                </h2>
+                <p class="mt-5 text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
+                    เริ่มต้นวันนี้ เพื่อการจัดการโครงการที่ง่ายขึ้น มีมาตรฐานการตรวจงานที่เข้มงวด และควบคุมงบประมาณได้อย่างแม่นยำ
+                </p>
+                <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button onclick="showLoginScreen('signup')" class="w-full sm:w-auto px-9 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-base font-bold shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3">
+                        <span>เริ่มต้นใช้งาน ConWork ฟรี</span>
+                        <i class="fa-solid fa-arrow-right text-sm"></i>
+                    </button>
+                    <button onclick="showLoginScreen('login')" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/10 hover:bg-white/15 text-white text-base font-semibold border border-white/15 transition-all">
+                        <span>มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= MODERN FOOTER ================= -->
+        <footer class="bg-white border-t border-gray-200 pt-16 pb-12 text-gray-600 text-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-gray-100">
+                    <!-- Brand Column -->
+                    <div class="lg:col-span-2">
+                        <div class="flex items-center gap-3 mb-4">
+                            <img src="img/logo.jpg" alt="ConWork Logo" class="h-10 w-auto rounded-xl">
+                            <span class="text-2xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">ConWork</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-gray-500 max-w-sm leading-relaxed mb-6">
+                            ระบบบริหารโครงการและงานระดับองค์กร ผสานระบบคันบันบอร์ด, ตรวจรับงาน 2 ขั้นตอน (2-Tier Approval), บันทึกงบประมาณการเงิน และการสื่อสารในทีมไว้อย่างสมบูรณ์แบบ
+                        </p>
+                        <div class="flex items-center gap-3 text-gray-400">
+                            <span class="w-8 h-8 rounded-full bg-gray-100 hover:bg-blue-50 hover:text-primary flex items-center justify-center cursor-pointer transition-colors"><i class="fa-brands fa-facebook-f text-xs"></i></span>
+                            <span class="w-8 h-8 rounded-full bg-gray-100 hover:bg-blue-50 hover:text-primary flex items-center justify-center cursor-pointer transition-colors"><i class="fa-brands fa-twitter text-xs"></i></span>
+                            <span class="w-8 h-8 rounded-full bg-gray-100 hover:bg-blue-50 hover:text-primary flex items-center justify-center cursor-pointer transition-colors"><i class="fa-brands fa-linkedin-in text-xs"></i></span>
+                            <span class="w-8 h-8 rounded-full bg-gray-100 hover:bg-blue-50 hover:text-primary flex items-center justify-center cursor-pointer transition-colors"><i class="fa-brands fa-github text-xs"></i></span>
+                        </div>
+                    </div>
+
+                    <!-- Column: ฟีเจอร์หลัก -->
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4">ฟีเจอร์หลัก</h4>
+                        <ul class="space-y-2.5 text-xs text-gray-500">
+                            <li><a href="#features" class="hover:text-primary transition-colors">ระบบคันบันและงานย่อย</a></li>
+                            <li><a href="#workflow" class="hover:text-primary transition-colors">ระบบตรวจรับงาน 2 ขั้นตอน</a></li>
+                            <li><a href="#finance" class="hover:text-primary transition-colors">ระบบการเงินและงบประมาณ</a></li>
+                            <li><a href="#roles" class="hover:text-primary transition-colors">ระบบจัดการสิทธิ์ทีมงาน</a></li>
+                            <li><a href="#features" class="hover:text-primary transition-colors">แชททีมและบันทึกส่วนตัว</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Column: บทบาทการใช้งาน -->
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4">บทบาทการใช้งาน</h4>
+                        <ul class="space-y-2.5 text-xs text-gray-500">
+                            <li><a href="#roles" class="hover:text-primary transition-colors">สำหรับผู้บริหาร (CEO)</a></li>
+                            <li><a href="#roles" class="hover:text-primary transition-colors">สำหรับหัวหน้างาน (PM)</a></li>
+                            <li><a href="#roles" class="hover:text-primary transition-colors">สำหรับทีมงาน (Member)</a></li>
+                            <li><a href="#faq" class="hover:text-primary transition-colors">คำถามที่พบบ่อย (FAQ)</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Column: ความปลอดภัยและการเข้าสู่ระบบ -->
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4">การเข้าสู่ระบบ</h4>
+                        <ul class="space-y-2.5 text-xs text-gray-500">
+                            <li><a href="javascript:void(0)" onclick="showLoginScreen('login')" class="hover:text-primary transition-colors">เข้าสู่ระบบ (Sign In)</a></li>
+                            <li><a href="javascript:void(0)" onclick="showLoginScreen('signup')" class="hover:text-primary transition-colors">สมัครสมาชิกใหม่ (Sign Up)</a></li>
+                            <li class="pt-2 text-[11px] text-gray-400">Powered by Supabase PostgreSQL Cloud Security</li>
+                        </ul>
                     </div>
                 </div>
 
-                <div class="absolute bottom-[15%] right-[20%] bg-white border border-gray-200 shadow-xl rounded-2xl p-4 flex items-center gap-3 animate-float" style="animation-delay: 1.2s;">
-                    <i class="fa-regular fa-file-lines text-gray-400 text-xl"></i>
-                    <span class="text-lg font-medium text-gray-800">Approve edits</span>
-                    <img src="https://i.pravatar.cc/150?u=9" class="w-8 h-8 rounded-full ml-4">
+                <div class="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-4">
+                    <div>
+                        &copy; 2026 ConWork Inc. All rights reserved. ออกแบบและพัฒนาเพื่อการบริหารโครงการอย่างมืออาชีพ
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <span class="hover:text-gray-600 cursor-pointer">เงื่อนไขการใช้งาน</span>
+                        <span class="hover:text-gray-600 cursor-pointer">นโยบายความเป็นส่วนตัว</span>
+                        <span class="hover:text-gray-600 cursor-pointer">ความปลอดภัย</span>
+                    </div>
                 </div>
             </div>
-            
-            <style>
-                @keyframes float {
-                    0% { transform: translateY(0px); }
-                    50% { transform: translateY(-12px); }
-                    100% { transform: translateY(0px); }
+        </footer>
+
+        <!-- Inline Floating / Pulse Keyframes & Helpers -->
+        <style>
+            @keyframes float {
+                0% { transform: translateY(0px); }
+                50% { transform: translateY(-10px); }
+                100% { transform: translateY(0px); }
+            }
+            .animate-float {
+                animation: float 4s ease-in-out infinite;
+            }
+            @keyframes bounce-subtle {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-4px); }
+            }
+            .animate-bounce-subtle {
+                animation: bounce-subtle 3s ease-in-out infinite;
+            }
+        </style>
+
+        <!-- Landing Page Interactive Scripts -->
+        <script>
+            window.authMode = 'signup';
+            function showLoginScreen(mode = 'signup') {
+                document.getElementById('landing-screen').style.display = 'none';
+                document.getElementById('login-screen').style.display = 'flex';
+                window.authMode = mode;
+                
+                const title = document.getElementById('auth-title');
+                const subtitle = document.getElementById('auth-subtitle');
+                const toggleLink = document.getElementById('auth-toggle-link');
+                
+                if (mode === 'login') {
+                    if (title) title.innerHTML = 'Welcome back';
+                    if (subtitle) subtitle.innerHTML = 'Please log in to your account.';
+                    if (toggleLink) toggleLink.innerHTML = 'Don\'t have an account? <a href="#" onclick="showLoginScreen(\'signup\')" class="text-black font-semibold hover:underline">Sign up</a>';
+                } else {
+                    if (title) title.innerHTML = 'You\'re one click away<br>from less busywork';
+                    if (subtitle) subtitle.innerHTML = 'Try ConWork for free. No credit card required.';
+                    if (toggleLink) toggleLink.innerHTML = 'Already have an account? <a href="#" onclick="showLoginScreen(\'login\')" class="text-black font-semibold hover:underline">Log in</a>';
                 }
-                .animate-float {
-                    animation: float 5s ease-in-out infinite;
-                }
-                #landing-screen {
-                    background-image: radial-gradient(#d1d5db 1px, transparent 1px);
-                    background-size: 32px 32px;
-                }
-            </style>
-            
-            <script>
-                window.authMode = 'signup';
-                function showLoginScreen(mode = 'signup') {
-                    document.getElementById('landing-screen').style.display = 'none';
-                    document.getElementById('login-screen').style.display = 'flex';
-                    window.authMode = mode;
-                    
-                    const title = document.getElementById('auth-title');
-                    const subtitle = document.getElementById('auth-subtitle');
-                    const toggleLink = document.getElementById('auth-toggle-link');
-                    
-                    if (mode === 'login') {
-                        title.innerHTML = 'Welcome back';
-                        subtitle.innerHTML = 'Please log in to your account.';
-                        toggleLink.innerHTML = 'Don\'t have an account? <a href="#" onclick="showLoginScreen(\'signup\')" class="text-black font-semibold hover:underline">Sign up</a>';
-                    } else {
-                        title.innerHTML = 'You\'re one click away<br>from less busywork';
-                        subtitle.innerHTML = 'Try ConWork for free. No credit card required.';
-                        toggleLink.innerHTML = 'Already have an account? <a href="#" onclick="showLoginScreen(\'login\')" class="text-black font-semibold hover:underline">Log in</a>';
+            }
+
+            function toggleLandingMobileMenu() {
+                const menu = document.getElementById('landing-mobile-menu');
+                const icon = document.getElementById('landing-hamburger-icon');
+                if (!menu) return;
+                if (menu.classList.contains('hidden')) {
+                    menu.classList.remove('hidden');
+                    if (icon) {
+                        icon.classList.remove('fa-bars');
+                        icon.classList.add('fa-xmark');
+                    }
+                } else {
+                    menu.classList.add('hidden');
+                    if (icon) {
+                        icon.classList.remove('fa-xmark');
+                        icon.classList.add('fa-bars');
                     }
                 }
-            </script>
-        </main>
+            }
+
+            function toggleLandingFaq(faqId) {
+                const answer = document.getElementById(faqId + '-answer');
+                const icon = document.getElementById(faqId + '-icon');
+                if (!answer) return;
+                
+                if (answer.classList.contains('hidden')) {
+                    answer.classList.remove('hidden');
+                    if (icon) icon.classList.add('rotate-180');
+                } else {
+                    answer.classList.add('hidden');
+                    if (icon) icon.classList.remove('rotate-180');
+                }
+            }
+        </script>
     </div>
 
     <!-- ================= LOGIN SCREEN ================= -->
