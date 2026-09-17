@@ -771,6 +771,24 @@ class ConWorkSupabaseService {
             return [];
         }
     }
+
+    async deleteFinanceTransaction(txId) {
+        if (!this.isAvailable()) return false;
+        try {
+            const { error } = await this.client
+                .from('finance_transactions')
+                .delete()
+                .eq('id', txId);
+            if (error) {
+                console.warn('Supabase deleteFinanceTransaction warning:', error);
+                return false;
+            }
+            return true;
+        } catch (e) {
+            console.warn('Supabase deleteFinanceTransaction error:', e);
+            return false;
+        }
+    }
 }
 
 // Global Singleton Instance

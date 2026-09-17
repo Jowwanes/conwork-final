@@ -853,10 +853,97 @@ function openFinancePanel(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
         }
     }
 
+    const deleteBtn = document.getElementById('panel-btn-delete');
+    if (deleteBtn) {
+        deleteBtn.onclick = () => {
+            confirmDeleteFinanceTransaction(tx.id, tx.title);
+        };
+    }
+
     panel.classList.remove('hidden');
     setTimeout(() => {
         content.classList.remove('translate-x-full');
     }, 10);
+}
+
+function confirmDeleteFinanceTransaction(txId, txTitle) {
+    let confirmModal = document.getElementById('finance-delete-confirm-modal');
+    if (!confirmModal) {
+        confirmModal = document.createElement('div');
+        confirmModal.id = 'finance-delete-confirm-modal';
+        confirmModal.className = 'fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4 animate-fade-in';
+        confirmModal.innerHTML = `
+            <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 text-center">
+                <div class="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-3 text-xl">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 mb-1">ยืนยันการลบรายการ</h3>
+                <p class="text-xs text-gray-500 mb-5 leading-relaxed" id="finance-delete-confirm-text">คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?</p>
+                <div class="flex gap-3 justify-center">
+                    <button id="finance-delete-btn-cancel" class="flex-1 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors border border-gray-200">ยกเลิก</button>
+                    <button id="finance-delete-btn-confirm" class="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-sm">ลบรายการ</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(confirmModal);
+    }
+
+    const confirmText = document.getElementById('finance-delete-confirm-text');
+    if (confirmText) {
+        confirmText.textContent = `คุณแน่ใจหรือไม่ว่าต้องการลบรายการ "${txTitle || 'ที่เลือก'}" ? เมื่อลบแล้วจะไม่สามารถกู้คืนได้`;
+    }
+
+    const cancelBtn = document.getElementById('finance-delete-btn-cancel');
+    if (cancelBtn) {
+        cancelBtn.onclick = () => {
+            confirmModal.classList.add('hidden');
+        };
+    }
+
+    const confirmBtn = document.getElementById('finance-delete-btn-confirm');
+    if (confirmBtn) {
+        confirmBtn.onclick = async () => {
+            confirmModal.classList.add('hidden');
+            await executeDeleteFinanceTransaction(txId);
+        };
+    }
+
+    confirmModal.classList.remove('hidden');
+}
+
+async function executeDeleteFinanceTransaction(txId) {
+    try {
+        // 1. Delete from local storage
+        let txs = getStoredTransactions();
+        txs = txs.filter(t => String(t.id) !== String(txId));
+        localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(txs));
+
+        // 2. Delete from Supabase if connected
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                await window.conworkSupabase.deleteFinanceTransaction(txId);
+            } catch (err) {
+                console.warn('Supabase delete error:', err);
+            }
+        }
+
+        // 3. Close panel if open
+        closeFinancePanel();
+
+        // 4. Reload table & recalculate all totals and charts
+        loadStoredTransactionsToTable();
+        recalculateFinanceTotals();
+
+        // 5. Show toast
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('ลบรายการการเงินสำเร็จ!', 'success');
+        }
+    } catch (e) {
+        console.error('Delete transaction error:', e);
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เกิดข้อผิดพลาดในการลบรายการ', 'error');
+        }
+    }
 }
 
 async function handleSidePanelAttachmentUpload(input, txId) {
@@ -1061,12 +1148,18 @@ function insertTransactionRow(data, isNew = false) {
                 <span class="text-xs text-gray-600">${data.author || 'คุณ (Me)'}</span>
             </div>
         </td>
-        <td class="px-6 py-4 text-center"><button class="text-gray-400 hover:text-blue-500 transition-colors" onclick="this.closest('tr').click()"><i class="fa-regular fa-comment-dots"></i></button></td>
+        <td class="px-6 py-4 text-center">
+            <div class="flex items-center justify-center gap-1.5">
+                <button class="text-gray-400 hover:text-blue-600 hover:bg-blue-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center" title="ดูรายละเอียด" onclick="event.stopPropagation(); openFinancePanel(this.closest('tr')._txData)"><i class="fa-regular fa-comment-dots text-sm"></i></button>
+                <button class="text-gray-400 hover:text-red-600 hover:bg-red-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center" title="ลบรายการ" onclick="event.stopPropagation(); confirmDeleteFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-regular fa-trash-can text-sm"></i></button>
+            </div>
+        </td>
     `;
     
+    tr._txData = data;
     // Add click event for the row to open Side panel
     tr.addEventListener('click', () => {
-        openFinancePanel(data.title, formattedAmount, typeBadge, statusBadge, tr.querySelector('td:nth-child(3)').innerHTML, formattedDate, tr.querySelector('td:nth-child(7)').innerHTML);
+        openFinancePanel(data);
     });
     
     if (isNew) {
