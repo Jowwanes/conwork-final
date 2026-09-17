@@ -8390,6 +8390,34 @@ const App = {
         return 0;
     },
 
+    filterChats(filter) {
+        this.state.chatFilter = filter;
+        ['all', 'personal', 'group'].forEach(f => {
+            const btn = document.getElementById(`chat-filter-${f}`);
+            if (btn) {
+                if (f === filter) {
+                    btn.className = 'flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs transition-all';
+                } else {
+                    btn.className = 'flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all';
+                }
+            }
+        });
+        this.renderChatList();
+    },
+
+    insertQuickNote(text) {
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.value = text;
+            input.focus();
+        }
+    },
+
+    focusChatSearch() {
+        const input = document.querySelector('#view-messages input[type="text"]');
+        if (input) input.focus();
+    },
+
     quickSearchChats(inputElement, event) {
         this.state.chatSearchQuery = inputElement.value.trim().toLowerCase();
         this.renderChatList();
@@ -8451,34 +8479,40 @@ const App = {
         }
 
         if (filteredItems.length === 0) {
-            container.innerHTML = `<div class="p-4 text-center text-sm text-gray-500">ไม่พบแชตหรือพนักงานที่ค้นหา</div>`;
+            container.innerHTML = `<div class="p-6 text-center text-xs text-slate-400">ไม่พบบทสนทนาที่ค้นหา</div>`;
             return;
         }
 
         container.innerHTML = filteredItems.map(c => {
             const isActive = this.state.currentChat === c.id;
-            const activeClasses = isActive ? 'bg-gray-200 border-l-4 border-blue-600' : 'hover:bg-gray-100';
-            const badgeHtml = c.type === 'personal'
-                ? `<span class="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">ส่วนตัว</span>`
-                : `<span class="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-600">กรุ๊ป</span>`;
-
+            const activeClasses = isActive 
+                ? 'bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200/70 dark:border-blue-900/50 shadow-xs' 
+                : 'border border-transparent hover:bg-slate-100/70 dark:hover:bg-slate-800/60';
+            
             const liveUser = c.userId ? mockUsers.find(u => String(u.id) === String(c.userId)) : null;
             const displayName = liveUser ? liveUser.name : c.name;
             const displayAvatar = (liveUser && liveUser.avatar) ? liveUser.avatar : c.avatar;
+            const isOnline = liveUser ? (liveUser.status === 'online') : (c.status === 'online');
+
+            const badgeHtml = c.type === 'personal'
+                ? `<span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">ส่วนตัว</span>`
+                : `<span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">กลุ่ม</span>`;
 
             const chatMsgs = mockMessages.filter(m => m.chatId === c.id && (c.id !== 'note' || m.senderId == myId));
             const lastMsg = chatMsgs[chatMsgs.length - 1];
             let subtitleText = liveUser ? (liveUser.department ? `${liveUser.department}` : c.subtitle) : c.subtitle;
             if (lastMsg) {
                 if (lastMsg.type === 'image') {
-                    subtitleText = '[รูปภาพ]';
+                    subtitleText = '📷 ส่งรูปภาพ';
+                } else if (lastMsg.type === 'file') {
+                    subtitleText = '📎 ส่งไฟล์แนบ';
                 } else {
                     subtitleText = lastMsg.text;
                 }
             }
 
             const unreadBadgeHtml = (c.unreadCount && c.unreadCount > 0)
-                ? `<span class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] h-[16px] flex items-center justify-center ml-auto">${c.unreadCount > 99 ? '99+' : c.unreadCount}</span>`
+                ? `<span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs shrink-0">${c.unreadCount > 99 ? '99+' : c.unreadCount}</span>`
                 : '';
 
             const safeUserId = String(c.userId || c.id).replace(/'/g, "\\'");
@@ -8486,22 +8520,48 @@ const App = {
                 ? `App.startDirectChat('${safeUserId}')`
                 : `App.switchChat('${c.id}')`;
 
-            const avatarHtml = (displayAvatar && c.id !== 'note')
-                ? `<img src="${displayAvatar}" class="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-200">`
-                : `<div class="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 ${c.color}">
-                       <i class="fa-solid ${c.icon}"></i>
-                   </div>`;
+            let avatarHtml = '';
+            if (c.id === 'note') {
+                avatarHtml = `
+                    <div class="relative shrink-0">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center text-base shadow-xs">
+                            <i class="fa-solid fa-bookmark"></i>
+                        </div>
+                        <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
+                    </div>
+                `;
+            } else if (displayAvatar) {
+                avatarHtml = `
+                    <div class="relative shrink-0">
+                        <img src="${displayAvatar}" class="w-11 h-11 rounded-full object-cover ring-2 ring-slate-100 dark:ring-slate-700">
+                        <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${isOnline ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'} border-2 border-white dark:border-slate-900 rounded-full"></span>
+                    </div>
+                `;
+            } else {
+                const initial = (displayName && displayName.length > 0) ? displayName.charAt(0) : 'U';
+                avatarHtml = `
+                    <div class="relative shrink-0">
+                        <div class="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-sm">
+                            ${initial}
+                        </div>
+                        <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${isOnline ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'} border-2 border-white dark:border-slate-900 rounded-full"></span>
+                    </div>
+                `;
+            }
 
             return `
-                <div class="p-4 cursor-pointer flex items-center space-x-3 transition-colors ${activeClasses}"
+                <div class="p-3 my-1 rounded-2xl cursor-pointer flex items-center gap-3 transition-all ${activeClasses}"
                     onclick="${clickHandler}">
                     ${avatarHtml}
                     <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-center">
-                            <h4 class="text-sm font-bold text-gray-900 truncate flex items-center">${displayName} ${badgeHtml}</h4>
+                        <div class="flex justify-between items-center mb-0.5">
+                            <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">${displayName}</h4>
                             ${unreadBadgeHtml}
                         </div>
-                        <p class="text-xs text-gray-500 truncate mt-0.5">${subtitleText}</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">${subtitleText || 'แตะเพื่อเริ่มคุย'}</p>
+                            ${badgeHtml}
+                        </div>
                     </div>
                 </div>
             `;
@@ -8534,22 +8594,22 @@ const App = {
         const iconContainer = document.getElementById('chat-header-icon-container');
         if (iconContainer) {
             if (chatAvatar && currentChat.id !== 'note') {
-                iconContainer.innerHTML = `<img src="${chatAvatar}" class="w-full h-full rounded-full object-cover border border-gray-200">`;
-                iconContainer.className = 'w-10 h-10 rounded-full flex items-center justify-center shrink-0';
+                iconContainer.innerHTML = `<img src="${chatAvatar}" class="w-full h-full rounded-2xl object-cover ring-1 ring-slate-200 dark:ring-slate-700">`;
+                iconContainer.className = 'w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-xs';
             } else {
-                iconContainer.innerHTML = `<i id="chat-header-icon" class="fa-solid ${currentChat.icon}"></i>`;
-                iconContainer.className = `w-10 h-10 rounded-full flex items-center justify-center text-white ${currentChat.color}`;
+                iconContainer.innerHTML = `<i id="chat-header-icon" class="fa-solid ${currentChat.icon || 'fa-bookmark'}"></i>`;
+                iconContainer.className = `w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-gradient-to-tr from-blue-500 to-indigo-600 shadow-xs shrink-0`;
             }
         }
 
         const statusEl = document.getElementById('chat-header-status');
         if (statusEl) {
             if (currentChat.status === 'online') {
-                statusEl.innerHTML = `<span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span> ออนไลน์`;
-                statusEl.className = 'text-xs text-green-500 flex items-center';
+                statusEl.innerHTML = `<span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-1.5"></span> ออนไลน์`;
+                statusEl.className = 'text-xs text-emerald-600 dark:text-emerald-400 flex items-center font-medium';
             } else {
-                statusEl.innerHTML = `<span class="w-1.5 h-1.5 bg-gray-400 rounded-full mr-1.5"></span> ออฟไลน์`;
-                statusEl.className = 'text-xs text-gray-400 flex items-center';
+                statusEl.innerHTML = `<span class="w-2 h-2 bg-slate-300 dark:bg-slate-600 rounded-full mr-1.5"></span> ออฟไลน์`;
+                statusEl.className = 'text-xs text-slate-400 flex items-center';
             }
         }
 
@@ -8557,10 +8617,51 @@ const App = {
         const msgs = mockMessages.filter(m => m.chatId === this.state.currentChat && (this.state.currentChat !== 'note' || m.senderId == myId));
 
         if (msgs.length === 0) {
-            container.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-gray-400">
-                <i class="fa-regular fa-comments text-4xl mb-3"></i>
-                <p>เริ่มการสนทนา</p>
-            </div>`;
+            if (this.state.currentChat === 'note') {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-center p-6 max-w-md mx-auto select-none">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 text-white flex items-center justify-center text-2xl shadow-md mb-4 ring-4 ring-blue-100 dark:ring-blue-950/40">
+                            <i class="fa-solid fa-bookmark"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">พื้นที่บันทึกส่วนตัว (Personal Notes)</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+                            จดบันทึกงานด่วน ลิงก์สำคัญ หรือบันทึกช่วยจำสำหรับตนเอง ข้อมูลจะถูกเก็บไว้อย่างปลอดภัย
+                        </p>
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            <button onclick="App.insertQuickNote('📝 บันทึกงาน: ')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-xl border border-slate-200/90 dark:border-slate-700 shadow-2xs transition-all flex items-center gap-2 cursor-pointer">
+                                <span>📝</span> <span>จดงานด่วน</span>
+                            </button>
+                            <button onclick="App.insertQuickNote('📌 To-Do List:\n1. ')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-xl border border-slate-200/90 dark:border-slate-700 shadow-2xs transition-all flex items-center gap-2 cursor-pointer">
+                                <span>📌</span> <span>To-Do วันนี้</span>
+                            </button>
+                            <button onclick="App.insertQuickNote('🔗 ลิงก์อ้างอิง: ')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3.5 py-2 rounded-xl border border-slate-200/90 dark:border-slate-700 shadow-2xs transition-all flex items-center gap-2 cursor-pointer">
+                                <span>🔗</span> <span>บันทึกลิงก์</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-center p-6 max-w-md mx-auto select-none">
+                        <div class="w-16 h-16 rounded-full bg-blue-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400 flex items-center justify-center text-2xl mb-4 border border-blue-100 dark:border-slate-700 shadow-xs ring-4 ring-blue-50/50">
+                            <i class="fa-regular fa-comments"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">เริ่มการสนทนากับ ${chatName}</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">ทักทายหรือประสานงานเพื่อเริ่มต้นการสนทนากันได้เลยครับ</p>
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            <button onclick="App.insertQuickNote('สวัสดีครับ 👋')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-xl border border-slate-200/90 dark:border-slate-700 shadow-2xs transition-all cursor-pointer">
+                                สวัสดีครับ 👋
+                            </button>
+                            <button onclick="App.insertQuickNote('ขอสอบถามเรื่องงานหน่อยครับ 📋')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-xl border border-slate-200/90 dark:border-slate-700 shadow-2xs transition-all cursor-pointer">
+                                ขอสอบถามเรื่องงานหน่อยครับ 📋
+                            </button>
+                            <button onclick="App.insertQuickNote('สะดวกคุยไหมครับ 💬')" class="text-xs bg-white dark:bg-slate-800 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-xl border border-slate-200/90 dark:border-slate-700 shadow-2xs transition-all cursor-pointer">
+                                สะดวกคุยไหมครับ 💬
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
             return;
         }
 
@@ -8659,8 +8760,8 @@ const App = {
             let timeDividerHtml = '';
             if (!prevM || prevRawDateStr !== rawDateStr) {
                 timeDividerHtml = `
-                    <div class="flex justify-center my-6 w-full">
-                        <span class="text-xs text-gray-500 font-medium">${dateStr}</span>
+                    <div class="flex justify-center my-5 w-full">
+                        <span class="text-[11px] bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium px-3.5 py-1 rounded-full shadow-2xs">${dateStr}</span>
                     </div>
                 `;
             }
@@ -8669,23 +8770,23 @@ const App = {
             const isImg = m.type === 'image' || (m.text && (m.text.startsWith('data:image/') || m.text.match(/\.(jpeg|jpg|gif|png|webp)(\?.*)?$/i)));
             const isFile = m.type === 'file' || (m.text && (m.text.startsWith('data:application/') || m.text.match(/\.(pdf|docx|xlsx|zip)(\?.*)?$/i)));
             if (isImg) {
-                contentHtml = `<img src="${m.text}" class="max-w-xs max-h-80 rounded-lg mt-1 cursor-pointer hover:opacity-90 object-cover shadow-sm" onclick="window.open('${m.text}', '_blank')">`;
+                contentHtml = `<img src="${m.text}" class="max-w-xs max-h-80 rounded-xl mt-1 cursor-pointer hover:opacity-95 object-cover shadow-xs" onclick="window.open('${m.text}', '_blank')">`;
             } else if (isFile) {
-                contentHtml = `<a href="${m.text}" download="${m.fileName || 'file'}" class="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-1 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100"><i class="fa-solid fa-file-arrow-down text-lg"></i> ดาวน์โหลดไฟล์แนบ (${m.fileName || 'เอกสาร'})</a>`;
+                contentHtml = `<a href="${m.text}" download="${m.fileName || 'file'}" class="flex items-center gap-2 text-sm text-blue-600 hover:underline mt-1 bg-blue-50/80 px-3.5 py-2 rounded-xl border border-blue-100"><i class="fa-solid fa-file-arrow-down text-lg"></i> ดาวน์โหลดไฟล์แนบ (${m.fileName || 'เอกสาร'})</a>`;
             } else {
-                contentHtml = `<p class="text-sm whitespace-pre-wrap">${m.text}</p>`;
+                contentHtml = `<p class="text-sm whitespace-pre-wrap leading-relaxed">${m.text}</p>`;
             }
 
             let forwardedHtml = '';
             let forwardedHtmlOther = '';
             if (m.isForwarded) {
                 forwardedHtml = `
-                    <div class="text-[10px] text-blue-200/80 italic mb-0.5 flex items-center gap-1">
+                    <div class="text-[10px] text-blue-200/90 italic mb-1 flex items-center gap-1">
                         <i class="fa-solid fa-share"></i> ส่งต่อข้อความ
                     </div>
                 `;
                 forwardedHtmlOther = `
-                    <div class="text-[10px] text-gray-400 italic mb-0.5 flex items-center gap-1">
+                    <div class="text-[10px] text-slate-400 italic mb-1 flex items-center gap-1">
                         <i class="fa-solid fa-share"></i> ส่งต่อข้อความ
                     </div>
                 `;
@@ -8699,13 +8800,13 @@ const App = {
                     const originalSender = mockUsers.find(u => u.id == originalMsg.senderId)?.name || 'ผู้ใช้';
                     const originalText = originalMsg.type === 'image' ? '[รูปภาพ]' : originalMsg.text;
                     replyHtml = `
-                        <div class="bg-blue-700/30 text-blue-100 text-[10px] px-2 py-1 rounded-t-lg mb-1 border-l-2 border-blue-300 truncate max-w-full">
+                        <div class="bg-blue-700/30 text-blue-100 text-[10px] px-2.5 py-1 rounded-lg mb-1.5 border-l-2 border-blue-300 truncate max-w-full">
                             <span class="font-semibold block">${originalSender}</span>
                             <span class="opacity-90 truncate block">${originalText}</span>
                         </div>
                     `;
                     replyHtmlOther = `
-                        <div class="bg-gray-100 text-gray-500 text-[10px] px-2 py-1 rounded-t-lg mb-1 border-l-2 border-gray-300 truncate max-w-full">
+                        <div class="bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-[10px] px-2.5 py-1 rounded-lg mb-1.5 border-l-2 border-slate-300 dark:border-slate-500 truncate max-w-full">
                             <span class="font-semibold block">${originalSender}</span>
                             <span class="opacity-90 truncate block">${originalText}</span>
                         </div>
@@ -8713,30 +8814,30 @@ const App = {
                 }
             }
 
-            const editedHtmlMe = m.isEdited ? `<span class="text-[10px] text-gray-400 mt-1">(แก้ไขแล้ว)</span>` : '';
+            const editedHtmlMe = m.isEdited ? `<span class="text-[10px] text-slate-400 mt-1">(แก้ไขแล้ว)</span>` : '';
             if (isMe) {
                 return `
                     ${timeDividerHtml}
-                    <div class="flex flex-col items-end mb-4 group">
+                    <div class="flex flex-col items-end mb-3.5 group">
                         <div class="flex items-end gap-2 justify-end w-full">
-                            <span class="text-[10px] text-gray-400 mb-1">${timeStr}</span>
+                            <span class="text-[10px] text-slate-400 mb-1">${timeStr}</span>
                             <!-- Menu Container -->
                             <div class="relative mb-1">
                                 <!-- Menu Button -->
-                                <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 p-1.5 rounded-full transition-opacity shrink-0 bg-white border border-gray-100 shadow-sm" onclick="App.toggleMessageMenu('${m.id}', event)" title="ตัวเลือก">
-                                    <i class="fa-solid fa-bars text-[10px]"></i>
+                                <button class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 p-1.5 rounded-xl transition-opacity shrink-0 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-xs" onclick="App.toggleMessageMenu('${m.id}', event)" title="ตัวเลือก">
+                                    <i class="fa-solid fa-ellipsis text-[11px]"></i>
                                 </button>
                                 <!-- Dropdown Menu -->
-                                <div id="msg-menu-${m.id}" class="hidden absolute right-0 top-full mt-1 w-max min-w-[9rem] bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-[60] text-left">
-                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.replyMessage('${m.id}')"><i class="fa-solid fa-reply mr-2 w-4 text-center"></i>ตอบกลับ</a>
-                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.editMessage('${m.id}')"><i class="fa-solid fa-pen mr-2 w-4 text-center"></i>แก้ไขข้อความ</a>
-                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.copyMessage('${m.id}')"><i class="fa-solid fa-copy mr-2 w-4 text-center"></i>คัดลอก</a>
-                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.forwardMessage('${m.id}')"><i class="fa-solid fa-share mr-2 w-4 text-center"></i>ส่งต่อ</a>
-                                    <a href="#" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 whitespace-nowrap" onclick="event.preventDefault(); App.deleteMessage('${m.id}')"><i class="fa-solid fa-trash mr-2 w-4 text-center"></i>ลบข้อความ</a>
+                                <div id="msg-menu-${m.id}" class="hidden absolute right-0 top-full mt-1 w-max min-w-[9rem] bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl shadow-lg py-1 z-[60] text-left">
+                                    <a href="#" class="block px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.replyMessage('${m.id}')"><i class="fa-solid fa-reply mr-2 w-4 text-center"></i>ตอบกลับ</a>
+                                    <a href="#" class="block px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.editMessage('${m.id}')"><i class="fa-solid fa-pen mr-2 w-4 text-center"></i>แก้ไขข้อความ</a>
+                                    <a href="#" class="block px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.copyMessage('${m.id}')"><i class="fa-solid fa-copy mr-2 w-4 text-center"></i>คัดลอก</a>
+                                    <a href="#" class="block px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:text-blue-600 whitespace-nowrap" onclick="event.preventDefault(); App.forwardMessage('${m.id}')"><i class="fa-solid fa-share mr-2 w-4 text-center"></i>ส่งต่อ</a>
+                                    <a href="#" class="block px-3.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 whitespace-nowrap" onclick="event.preventDefault(); App.deleteMessage('${m.id}')"><i class="fa-solid fa-trash mr-2 w-4 text-center"></i>ลบข้อความ</a>
                                 </div>
                             </div>
                             <!-- Message Content -->
-                            <div class="bg-blue-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[75%] shadow-sm flex flex-col">
+                            <div class="bg-blue-600 text-white rounded-2xl rounded-tr-xs px-4 py-2.5 max-w-[75%] shadow-xs flex flex-col">
                                 ${forwardedHtml}
                                 ${replyHtml}
                                 ${contentHtml}
@@ -8746,15 +8847,15 @@ const App = {
                     </div>
                 `;
             } else {
-                const editedHtmlOther = m.isEdited ? `<span class="text-[10px] text-gray-400 mt-1 ml-1">(แก้ไขแล้ว)</span>` : '';
+                const editedHtmlOther = m.isEdited ? `<span class="text-[10px] text-slate-400 mt-1 ml-1">(แก้ไขแล้ว)</span>` : '';
                 return `
                     ${timeDividerHtml}
-                    <div class="flex items-end space-x-2 mb-4 group">
-                        <img src="${senderAvatar}" class="w-8 h-8 rounded-full shrink-0 object-cover border border-gray-200">
+                    <div class="flex items-end space-x-2.5 mb-3.5 group">
+                        <img src="${senderAvatar}" class="w-8 h-8 rounded-full shrink-0 object-cover ring-1 ring-slate-200 dark:ring-slate-700">
                         <div class="flex flex-col items-start min-w-0 w-full">
-                            <span class="text-[10px] text-gray-500 mb-1 ml-1">${senderName}</span>
+                            <span class="text-[10px] text-slate-400 mb-1 ml-1 font-medium">${senderName}</span>
                             <div class="flex items-end gap-2 w-full">
-                                <div class="bg-white border border-gray-100 text-gray-800 rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%] shadow-sm flex flex-col">
+                                <div class="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 text-slate-800 dark:text-slate-100 rounded-2xl rounded-tl-xs px-4 py-2.5 max-w-[75%] shadow-xs flex flex-col">
                                     ${forwardedHtmlOther}
                                     ${replyHtmlOther}
                                     ${contentHtml}

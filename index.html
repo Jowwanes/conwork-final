@@ -1730,97 +1730,97 @@
 
                 <!-- 2. MESSAGES VIEW (ข้อความ) -->
                 <div id="view-messages" class="view-section hidden h-full w-full">
-                    <div class="flex h-full bg-white overflow-hidden">
+                    <div class="flex h-full bg-white dark:bg-slate-900 overflow-hidden">
                         <!-- Chat Sidebar -->
-                        <div class="w-80 border-r border-gray-200 flex flex-col bg-gray-50/50">
-                            <div class="p-4 border-b border-gray-200">
-                                <div class="relative mb-4">
-                                    <i
-                                        class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
-                                    <input type="text" placeholder="ค้นหาแชต..."
-                                        class="w-full bg-white border border-gray-200 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        <div class="w-80 md:w-88 border-r border-slate-200/80 dark:border-slate-700/60 flex flex-col bg-slate-50/40 dark:bg-slate-900/60 shrink-0">
+                            <div class="p-4 border-b border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900">
+                                <div class="relative mb-3">
+                                    <i class="fa-solid fa-search absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+                                    <input type="text" placeholder="ค้นหาบทสนทนา หรือชื่อพนักงาน..."
+                                        class="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/70 rounded-xl py-2 pl-9 pr-3.5 text-xs text-slate-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                         onkeyup="App.quickSearchChats(this, event)">
                                 </div>
                                 <!-- Segmented Filter -->
-                                <div class="flex bg-gray-100 p-1 rounded-lg">
+                                <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1">
                                     <button id="chat-filter-all"
-                                        class="flex-1 py-1.5 text-sm font-medium rounded-md bg-blue-600 shadow-sm text-white transition-colors"
+                                        class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs transition-all"
                                         onclick="App.filterChats('all')">ทั้งหมด</button>
                                     <button id="chat-filter-personal"
-                                        class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 transition-colors"
+                                        class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all"
                                         onclick="App.filterChats('personal')">ส่วนตัว</button>
                                     <button id="chat-filter-group"
-                                        class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-200 transition-colors"
+                                        class="flex-1 py-1.5 text-xs font-medium rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-all"
                                         onclick="App.filterChats('group')">กรุ๊ป</button>
                                 </div>
                             </div>
-                            <div class="flex-1 overflow-y-auto" id="chat-list-container">
+                            <div class="flex-1 overflow-y-auto p-2 custom-scrollbar space-y-0.5" id="chat-list-container">
                                 <!-- Rendered by JS -->
                             </div>
                         </div>
                         <!-- Chat Main -->
-                        <div class="flex-1 flex flex-col bg-white">
-                            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
-                                <div class="flex items-center space-x-3">
+                        <div class="flex-1 flex flex-col bg-white dark:bg-slate-900 min-w-0">
+                            <div class="p-3.5 px-6 border-b border-slate-200/80 dark:border-slate-700/60 flex justify-between items-center bg-white dark:bg-slate-900">
+                                <div class="flex items-center space-x-3.5">
                                     <div id="chat-header-icon-container"
-                                        class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                                        class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
                                         <i id="chat-header-icon" class="fa-solid fa-bookmark"></i>
                                     </div>
                                     <div>
-                                        <h3 id="chat-header-title" class="font-bold text-gray-800">พื้นที่ส่วนตัว ( Note
-                                            )
-                                        </h3>
-                                        <div id="chat-header-status" class="text-xs text-green-500 flex items-center">
-                                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span> ออนไลน์
+                                        <h3 id="chat-header-title" class="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight">พื้นที่ส่วนตัว (Note)</h3>
+                                        <div id="chat-header-status" class="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 mt-0.5 font-medium">
+                                            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> ออนไลน์
                                         </div>
                                     </div>
                                 </div>
-                                <div class="flex space-x-2 text-gray-400">
-                                    <!-- Call icons removed per request -->
+                                <div class="flex items-center gap-2">
+                                    <button onclick="App.focusChatSearch()" class="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 flex items-center justify-center transition-colors" title="ค้นหาในแชต">
+                                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                    </button>
                                 </div>
                             </div>
-                            <div class="flex-1 overflow-y-auto p-6 bg-[#f8fafc]" id="chat-messages-container">
+                            <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50 dark:bg-slate-900/60 custom-scrollbar" id="chat-messages-container">
                                 <!-- Rendered by JS -->
                             </div>
-                            <div class="p-4 bg-white border-t border-gray-200 flex flex-col">
+                            <div class="p-3.5 px-6 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-700/60 flex flex-col">
                                 <!-- Reply Preview Banner -->
                                 <div id="chat-reply-preview"
-                                    class="hidden flex items-center justify-between bg-gray-50 border-l-4 border-blue-500 p-2 mb-2 rounded-r-lg">
+                                    class="hidden flex items-center justify-between bg-blue-50/80 dark:bg-slate-800 border-l-4 border-blue-500 p-2.5 mb-2 rounded-r-xl">
                                     <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-semibold text-blue-600"
+                                        <span class="text-xs font-semibold text-blue-600 dark:text-blue-400"
                                             id="chat-reply-sender">กำลังตอบกลับ...</span>
-                                        <span class="text-xs text-gray-500 truncate" id="chat-reply-text"></span>
+                                        <span class="text-xs text-slate-500 dark:text-slate-400 truncate" id="chat-reply-text"></span>
                                     </div>
-                                    <button class="text-gray-400 hover:text-gray-600 p-1 shrink-0"
+                                    <button class="text-slate-400 hover:text-slate-600 p-1 shrink-0"
                                         onclick="App.cancelReply()">
                                         <i class="fa-solid fa-xmark text-sm"></i>
                                     </button>
                                 </div>
                                 <!-- Edit Preview Banner -->
                                 <div id="chat-edit-preview"
-                                    class="hidden flex items-center justify-between bg-yellow-50 border-l-4 border-yellow-500 p-2 mb-2 rounded-r-lg">
+                                    class="hidden flex items-center justify-between bg-amber-50/80 dark:bg-slate-800 border-l-4 border-amber-500 p-2.5 mb-2 rounded-r-xl">
                                     <div class="flex flex-col min-w-0 pr-2">
-                                        <span class="text-xs font-semibold text-yellow-600">กำลังแก้ไขข้อความ...</span>
-                                        <span class="text-xs text-gray-500 truncate" id="chat-edit-text"></span>
+                                        <span class="text-xs font-semibold text-amber-600 dark:text-amber-400">กำลังแก้ไขข้อความ...</span>
+                                        <span class="text-xs text-slate-500 dark:text-slate-400 truncate" id="chat-edit-text"></span>
                                     </div>
-                                    <button class="text-gray-400 hover:text-gray-600 p-1 shrink-0"
+                                    <button class="text-slate-400 hover:text-slate-600 p-1 shrink-0"
                                         onclick="App.cancelEdit()">
                                         <i class="fa-solid fa-xmark text-sm"></i>
                                     </button>
                                 </div>
-                                <div class="flex items-center bg-gray-100 rounded-full px-4 py-2">
+                                <div class="flex items-center bg-slate-50 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/70 rounded-2xl px-3 py-1.5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 shadow-xs transition-all">
                                     <input type="file" id="chat-attachment" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" class="hidden"
                                         onchange="App.handleAttachment(event)">
-                                    <button class="text-gray-400 hover:text-gray-600 p-2"
-                                        onclick="document.getElementById('chat-attachment').click()"><i
-                                            class="fa-solid fa-paperclip"></i></button>
+                                    <button class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-700 w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+                                        onclick="document.getElementById('chat-attachment').click()" title="แนบไฟล์หรือรูปภาพ">
+                                        <i class="fa-solid fa-paperclip text-sm"></i>
+                                    </button>
                                     <input type="text" id="chat-input"
-                                        class="flex-1 bg-transparent border-none focus:outline-none px-4 text-sm"
-                                        placeholder="พิมพ์ข้อความที่นี่..."
+                                        class="flex-1 bg-transparent border-none focus:outline-none px-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400"
+                                        placeholder="พิมพ์ข้อความที่นี่... (กด Enter เพื่อส่ง)"
                                         onkeypress="if(event.key === 'Enter') App.sendMessage()">
                                     <button
-                                        class="bg-blue-600 hover:bg-blue-700 text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-                                        onclick="App.sendMessage()">
+                                        class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-xs shrink-0"
+                                        onclick="App.sendMessage()" title="ส่งข้อความ">
                                         <i class="fa-solid fa-paper-plane text-xs"></i>
                                     </button>
                                 </div>
@@ -5716,7 +5716,7 @@
     <script src="js/i18n.js?v=7"></script>
     <script src="js/workReport.js?v=7"></script>
     <script src="js/finance.js?v=2"></script>
-    <script src="js/app.js?v=39"></script>
+    <script src="js/app.js?v=40"></script>
     <script src="js/login-flow.js?v=5"></script>
 
 </body>
