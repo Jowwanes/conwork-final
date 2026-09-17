@@ -25,8 +25,18 @@ const App = {
 
     async init() {
         this._loadSettings();
+        // Preload cached users immediately to avoid 0-employee flash on page load/refresh
+        try {
+            const cachedUsers = JSON.parse(localStorage.getItem('conwork_cached_users') || '[]');
+            if (cachedUsers && cachedUsers.length > 0 && mockUsers.length === 0) {
+                mockUsers.push(...cachedUsers);
+            }
+        } catch(e){}
         this.checkAuth();
         await this._loadData();
+        if (this.state.currentView) {
+            this.switchView(this.state.currentView);
+        }
         this.bindEvents();
         this._initRichTextEditor();
         this.renderNotifications();
@@ -647,12 +657,39 @@ const App = {
             if (window.conworkSupabase && window.conworkSupabase.isAvailable() && this.state.currentUser) {
                 try {
                     // Fetch user's company memberships
-                    const { data: membersData, error: memErr } = await window.conworkSupabase.client
+                    let { data: membersData, error: memErr } = await window.conworkSupabase.client
                         .from('company_members')
                         .select('*')
                         .eq('user_id', this.state.currentUser.id);
                     
                     if (memErr) console.error("Error loading members:", memErr);
+
+                    // If not found by user_id, fallback to search by email in profiles
+                    if ((!membersData || membersData.length === 0) && this.state.currentUser.email) {
+                        try {
+                            const { data: prof } = await window.conworkSupabase.client
+                                .from('profiles')
+                                .select('id')
+                                .eq('email', this.state.currentUser.email)
+                                .maybeSingle();
+                            if (prof && prof.id) {
+                                this.state.currentUser.id = prof.id;
+                                try {
+                                    sessionStorage.setItem('conwork_user', JSON.stringify(this.state.currentUser));
+                                    localStorage.setItem('conwork_user', JSON.stringify(this.state.currentUser));
+                                } catch (e) {}
+                                const { data: fbMem } = await window.conworkSupabase.client
+                                    .from('company_members')
+                                    .select('*')
+                                    .eq('user_id', prof.id);
+                                if (fbMem && fbMem.length > 0) {
+                                    membersData = fbMem;
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Error finding profile by email:", e);
+                        }
+                    }
 
                     this.state.members = (membersData || []).map(m => ({
                         id: m.id,
@@ -723,6 +760,16 @@ const App = {
                                 const mRole = memberObj?.company_role;
                                 const savedPos = savedPositions[uid] || {};
                                 
+                                const isCurrentUser = this.state.currentUser && (
+                                    String(uid) === String(this.state.currentUser.id) ||
+                                    (this.state.currentUser.email && p && p.email && this.state.currentUser.email.toLowerCase() === p.email.toLowerCase())
+                                );
+                                const defaultName = isCurrentUser ? (this.state.currentUser.name || this.state.currentUser.username) : `พนักงาน (${uid.substring(0, 5)})`;
+                                const defaultEmail = isCurrentUser ? this.state.currentUser.email : '';
+                                const name = (p && p.full_name) ? p.full_name : (isCurrentUser && this.state.currentUser?.name ? this.state.currentUser.name : defaultName);
+                                const email = (p && p.email) ? p.email : defaultEmail;
+                                const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
+
                                 // Check if user is company creator or first user registered in company
                                 const isCompanyCreator = (companiesData || []).some(c => String(c.created_by) === String(uid));
                                 const isFirstUserInCompany = teamMembersData.length > 0 && String(teamMembersData[0].user_id) === String(uid);
@@ -783,6 +830,7 @@ const App = {
                             });
                             try {
                                 localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
+                                localStorage.setItem('conwork_cached_users', JSON.stringify(mockUsers));
                             } catch (e) {}
                             this.updateProfile();
                             await this.loadUserChats();
@@ -1014,9 +1062,22 @@ const App = {
                 // If Supabase is not active, we clear the core data so it doesn't show ghost data
                 mockProjects.splice(0, mockProjects.length);
                 mockTasks.splice(0, mockTasks.length);
-                mockUsers.length = 0;
+                if (mockUsers.length === 0) {
+                    try {
+                        const cached = JSON.parse(localStorage.getItem('conwork_cached_users') || '[]');
+                        if (cached && cached.length > 0) mockUsers.push(...cached);
+                    } catch(e){}
+                }
                 mockEvents.splice(0, mockEvents.length);
                 mockTaskSections.splice(0, mockTaskSections.length);
+            }
+
+            // Always ensure mockUsers falls back to cached data if empty
+            if (mockUsers.length === 0) {
+                try {
+                    const cached = JSON.parse(localStorage.getItem('conwork_cached_users') || '[]');
+                    if (cached && cached.length > 0) mockUsers.push(...cached);
+                } catch(e){}
             }
 
             if (savedNotifs) {
