@@ -917,180 +917,248 @@
     </div>
 
     <!-- ================= LOGIN SCREEN ================= -->
-    <div id="login-screen" class="auth-flow-wrapper absolute inset-0 z-50 items-center justify-center" style="display: none;">
-        <!-- Background Elements Removed for Clean Look -->
+    <div id="login-screen" class="auth-flow-wrapper fixed inset-0 z-50 overflow-y-auto flex flex-col justify-center items-center p-4 sm:p-6 bg-[#fafcfb]" style="display: none;">
+        
+        <!-- Animated Ambient Glows -->
+        <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+            <div class="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[#438aed]/15 blur-[100px] animate-pulse-slow"></div>
+            <div class="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-[#6cc59f]/18 blur-[100px] animate-float-slow"></div>
+            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-blue-50/50 blur-[120px] pointer-events-none"></div>
+        </div>
 
-        <div class="app-container">
+        <!-- Top Bar Navigation (Back to Landing) -->
+        <div class="w-full max-w-lg mx-auto flex items-center justify-between mb-5 relative z-10">
+            <button type="button" onclick="backToLanding()" class="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-[#438aed] bg-white/90 backdrop-blur-md px-3.5 py-2 rounded-full border border-slate-200/80 shadow-2xs hover:shadow-xs transition-all cursor-pointer group">
+                <i class="fa-solid fa-arrow-left text-[11px] group-hover:-translate-x-0.5 transition-transform"></i>
+                <span>กลับสู่หน้าหลัก</span>
+            </button>
+            <div class="flex items-center gap-2 cursor-pointer" onclick="backToLanding()">
+                <img src="img/logo.jpg" alt="ConWork" class="h-6 w-auto rounded-lg">
+                <span class="text-sm font-bold bg-gradient-to-r from-[#438aed] to-[#6cc59f] bg-clip-text text-transparent">ConWork</span>
+            </div>
+        </div>
+
+        <div class="app-container w-full max-w-lg relative z-10">
             
-            <!-- Screen 1: Auth Base -->
-            <div id="screen-auth" class="screen active text-center">
-                <div class="screen-header mb-8">
-                    <h2 id="auth-title" class="text-3xl font-medium tracking-tight text-gray-900 mb-2">You're one click away<br>from less busywork</h2>
-                    <p id="auth-subtitle" class="text-sm text-gray-600">Try ConWork for free. No credit card required.</p>
+            <!-- Screen 1: Auth Base (Login / Signup) -->
+            <div id="screen-auth" class="screen active bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-[#438aed]/5 text-center transition-all">
+                <!-- Header Icon & Titles -->
+                <div class="screen-header mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-50 to-emerald-50 border border-blue-100 text-[#438aed] flex items-center justify-center mx-auto mb-4 text-xl shadow-2xs">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h2 id="auth-title" class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1.5">
+                        ยินดีต้อนรับสู่ ConWork 👋
+                    </h2>
+                    <p id="auth-subtitle" class="text-xs sm:text-sm text-slate-500 font-normal">
+                        ระบบจัดการโปรเจกต์ ตรวจรับงาน 2 ระดับ และงบประมาณ
+                    </p>
                 </div>
                 
-                <div class="mb-6">
-                    <button type="button" class="w-full btn flex items-center justify-center gap-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 bg-white" onclick="loginWithGoogle()">
-                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5"> Continue with Google
+                <!-- Google Login Button -->
+                <div class="mb-5">
+                    <button type="button" class="w-full py-3 px-4 rounded-xl border border-slate-200/90 bg-white hover:bg-slate-50/80 text-slate-700 text-xs sm:text-sm font-semibold flex items-center justify-center gap-3 shadow-2xs hover:shadow-xs transition-all group cursor-pointer" onclick="loginWithGoogle()">
+                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-105 transition-transform" alt="Google">
+                        <span>ดำเนินการต่อด้วย Google</span>
                     </button>
                 </div>
 
-                <div class="flex items-center gap-4 mb-6">
-                    <hr class="flex-1 border-gray-200">
-                    <span class="text-xs font-semibold text-gray-400">OR</span>
-                    <hr class="flex-1 border-gray-200">
+                <!-- Divider -->
+                <div class="flex items-center gap-3 mb-5">
+                    <hr class="flex-1 border-slate-200">
+                    <span class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">หรือใช้อีเมลของคุณ</span>
+                    <hr class="flex-1 border-slate-200">
                 </div>
 
+                <!-- Auth Form -->
                 <form id="form-auth" class="mb-4 text-left">
                     <div class="mb-4">
-                        <label class="text-sm font-semibold text-gray-600 block mb-1">Work email</label>
-                        <input type="email" id="auth-email" required placeholder="name@company.com" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black text-gray-900 text-sm">
+                        <label class="text-xs font-semibold text-slate-700 block mb-1.5 flex items-center gap-1.5">
+                            <i class="fa-regular fa-envelope text-slate-400 text-xs"></i>
+                            <span>อีเมลที่ทำงาน (Work Email)</span>
+                        </label>
+                        <input type="email" id="auth-email" required placeholder="name@company.com" class="w-full px-4 py-2.5 sm:py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-[#438aed] focus:ring-4 focus:ring-[#438aed]/10 text-slate-800 text-xs sm:text-sm transition-all bg-slate-50/40 focus:bg-white">
                     </div>
                     
                     <div id="auth-password-group" class="mb-4" style="display: none;">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="text-sm font-semibold text-gray-600">Password</label>
-                            <a href="#" onclick="forgotPassword()" class="text-sm text-blue-600 hover:underline">Forgot password?</a>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label class="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                <i class="fa-solid fa-lock text-slate-400 text-xs"></i>
+                                <span>รหัสผ่าน (Password)</span>
+                            </label>
+                            <a href="javascript:void(0)" onclick="forgotPassword()" class="text-xs text-[#438aed] hover:underline font-medium">ลืมรหัสผ่าน?</a>
                         </div>
                         <div class="password-wrapper relative">
-                            <input type="password" id="auth-password" placeholder="Enter your password" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black text-gray-900 text-sm">
-                            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="togglePassword('auth-password', this)">
-                                <i class="fa-solid fa-eye"></i>
+                            <input type="password" id="auth-password" placeholder="กรอกรหัสผ่านของคุณ" class="w-full px-4 py-2.5 sm:py-3 pr-10 border border-slate-200 rounded-xl focus:outline-none focus:border-[#438aed] focus:ring-4 focus:ring-[#438aed]/10 text-slate-800 text-xs sm:text-sm transition-all bg-slate-50/40 focus:bg-white">
+                            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer" onclick="togglePassword('auth-password', this)">
+                                <i class="fa-solid fa-eye text-xs"></i>
                             </button>
                         </div>
                     </div>
-                    <div id="auth-error" class="error-text text-red-500 text-sm mb-4" style="display: none;"></div>
+
+                    <!-- Error Display -->
+                    <div id="auth-error" class="error-text p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs mb-4 flex items-center gap-2" style="display: none;">
+                        <i class="fa-solid fa-circle-exclamation shrink-0 text-sm"></i>
+                        <span class="error-msg">เกิดข้อผิดพลาด</span>
+                    </div>
                     
-                    <button type="submit" id="btn-auth-continue" class="w-full bg-primary hover:bg-blue-600 text-white px-4 py-3 rounded-md font-medium text-sm transition-colors">Continue</button>
+                    <!-- Submit Button -->
+                    <button type="submit" id="btn-auth-continue" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#438aed] to-[#6cc59f] hover:from-[#357adb] hover:to-[#5ab790] text-white font-semibold text-xs sm:text-sm shadow-md shadow-[#438aed]/20 hover:shadow-lg hover:shadow-[#438aed]/30 transform active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer">
+                        <span>ดำเนินการต่อ</span>
+                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </button>
                 </form>
 
-                <div class="text-left mb-10">
-                    <p id="auth-toggle-link" class="text-sm text-gray-600">Already have an account? <a href="#" onclick="showLoginScreen('login')" class="text-black font-semibold hover:underline">Log in</a></p>
+                <!-- Toggle Mode Link -->
+                <div class="text-center mt-5 mb-2">
+                    <p id="auth-toggle-link" class="text-xs text-slate-500">
+                        ยังไม่มีบัญชีใช่ไหม? <a href="javascript:void(0)" onclick="showLoginScreen('signup')" class="text-[#438aed] font-semibold hover:underline">สมัครใช้งานฟรี</a>
+                    </p>
                 </div>
 
-                <p class="text-xs text-gray-500 mt-8">
-                    By signing up, you agree to ConWork's <a href="#" class="font-medium text-gray-600 hover:underline">Terms of Service</a> and<br>acknowledge the ConWork <a href="#" class="font-medium text-gray-600 hover:underline">Privacy Statement</a>.
+                <!-- Privacy & Terms -->
+                <p class="text-[11px] text-slate-400 mt-6 pt-4 border-t border-slate-100 leading-relaxed">
+                    การเข้าใช้งานถือว่าคุณยอมรับ <a href="#" class="text-slate-600 hover:underline">ข้อกำหนดการให้บริการ</a> และ <a href="#" class="text-slate-600 hover:underline">นโยบายความเป็นส่วนตัว</a> ของ ConWork
                 </p>
-                
-                <div class="mt-12 text-xs text-gray-500 flex justify-center gap-6">
-                    <a href="#" class="hover:text-gray-800 flex items-center gap-1"><i class="fa-solid fa-globe"></i> English</a>
-                    <a href="#" class="hover:text-gray-800">Terms & Privacy</a>
-                </div>
             </div>
 
             <!-- Screen 1.5: Update Password (For Password Recovery) -->
-            <div id="screen-update-password" class="screen text-center">
-                <div class="screen-header mb-8">
-                    <h2 class="text-3xl font-medium tracking-tight text-gray-900 mb-2">Reset Password</h2>
-                    <p class="text-sm text-gray-600">Enter your new password below.</p>
+            <div id="screen-update-password" class="screen bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-[#438aed]/5 text-center transition-all">
+                <div class="screen-header mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 text-amber-500 flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1.5">ตั้งรหัสผ่านใหม่</h2>
+                    <p class="text-xs sm:text-sm text-slate-500">กรุณาระบุรหัสผ่านใหม่ที่คุณต้องการใช้งาน</p>
                 </div>
                 
                 <form id="form-update-password" class="text-left mb-4">
                     <div class="mb-4">
-                        <label class="text-sm font-semibold text-gray-600 block mb-1">New Password</label>
+                        <label class="text-xs font-semibold text-slate-700 block mb-1.5">รหัสผ่านใหม่ (New Password)</label>
                         <div class="password-wrapper relative">
-                            <input type="password" id="new-password" required placeholder="Enter new password" class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black text-gray-900 text-sm">
-                            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="togglePassword('new-password', this)">
-                                <i class="fa-solid fa-eye"></i>
+                            <input type="password" id="new-password" required placeholder="กรอกรหัสผ่านใหม่" class="w-full px-4 py-3 pr-10 border border-slate-200 rounded-xl focus:outline-none focus:border-[#438aed] focus:ring-4 focus:ring-[#438aed]/10 text-slate-800 text-xs sm:text-sm transition-all bg-slate-50/40 focus:bg-white">
+                            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer" onclick="togglePassword('new-password', this)">
+                                <i class="fa-solid fa-eye text-xs"></i>
                             </button>
                         </div>
                     </div>
-                    <div id="update-password-error" class="error-text text-red-500 text-sm mb-4" style="display: none;"></div>
+                    <div id="update-password-error" class="error-text p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs mb-4" style="display: none;"></div>
                     
-                    <button type="submit" class="w-full bg-[#1e1e24] hover:bg-black text-white px-4 py-3 rounded-md font-medium text-sm transition-colors">Update Password</button>
+                    <button type="submit" class="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-black text-white font-semibold text-xs sm:text-sm transition-all cursor-pointer">
+                        อัปเดตรหัสผ่านใหม่
+                    </button>
                 </form>
             </div>
 
             <!-- Screen 2: Profile Setup (For New Users) -->
-            <div id="screen-profile-setup" class="screen">
-                <div class="screen-header">
-                    <h2>Set Up Your Profile</h2>
-                    <p>Tell us a bit about yourself.</p>
+            <div id="screen-profile-setup" class="screen bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-[#438aed]/5 text-center transition-all">
+                <div class="screen-header mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-[#6cc59f] flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-id-card"></i>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1.5">สร้างโปรไฟล์ของคุณ</h2>
+                    <p class="text-xs sm:text-sm text-slate-500">กรอกข้อมูลเบื้องต้นเพื่อเริ่มใช้งาน ConWork</p>
                 </div>
-                <form id="form-profile-setup">
+                <form id="form-profile-setup" class="text-left">
                     <div class="flex justify-center mb-6">
-                        <div class="relative w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 overflow-hidden" onclick="document.getElementById('profile-avatar-upload').click()">
+                        <div class="relative w-24 h-24 rounded-2xl bg-slate-50 flex items-center justify-center border-2 border-dashed border-slate-300 cursor-pointer hover:bg-slate-100/80 hover:border-[#438aed] transition-all overflow-hidden group" onclick="document.getElementById('profile-avatar-upload').click()">
                             <img id="profile-avatar-preview" src="" class="hidden w-full h-full object-cover">
-                            <i id="profile-avatar-icon" class="fa-solid fa-camera text-2xl text-gray-400"></i>
+                            <div class="text-center group-hover:scale-110 transition-transform">
+                                <i id="profile-avatar-icon" class="fa-solid fa-camera text-xl text-slate-400 group-hover:text-[#438aed] transition-colors"></i>
+                                <span class="block text-[9px] text-slate-400 font-medium mt-1">รูปโปรไฟล์</span>
+                            </div>
                             <input type="file" id="profile-avatar-upload" class="hidden" accept="image/*" onchange="previewAvatar(this)">
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label>First Name</label>
-                            <input type="text" id="profile-first-name" required placeholder="John">
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-700 block mb-1">ชื่อจริง</label>
+                            <input type="text" id="profile-first-name" required placeholder="สมชาย" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#438aed] focus:ring-4 focus:ring-[#438aed]/10">
                         </div>
-                        <div class="input-group">
-                            <label>Last Name</label>
-                            <input type="text" id="profile-last-name" required placeholder="Doe">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-700 block mb-1">นามสกุล</label>
+                            <input type="text" id="profile-last-name" required placeholder="ใจดี" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#438aed] focus:ring-4 focus:ring-[#438aed]/10">
                         </div>
                     </div>
-                    <div class="input-group">
-                        <label>Create Password</label>
-                        <div class="password-wrapper">
-                            <input type="password" id="profile-password" required placeholder="Create a password">
-                            <button type="button" class="btn-toggle-password" onclick="togglePassword('profile-password', this)">
-                                <i class="fa-solid fa-eye"></i>
+                    <div class="mb-4">
+                        <label class="text-xs font-semibold text-slate-700 block mb-1">สร้างรหัสผ่าน</label>
+                        <div class="password-wrapper relative">
+                            <input type="password" id="profile-password" required placeholder="กำหนดรหัสผ่านอย่างน้อย 6 ตัวอักษร" class="w-full px-3.5 py-2.5 pr-10 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#438aed] focus:ring-4 focus:ring-[#438aed]/10">
+                            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer" onclick="togglePassword('profile-password', this)">
+                                <i class="fa-solid fa-eye text-xs"></i>
                             </button>
                         </div>
                     </div>
-                    <div id="profile-error" class="error-text" style="display: none;"></div>
-                    <button type="submit" class="btn btn-primary w-full mt-4">Continue</button>
+                    <div id="profile-error" class="error-text p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs mb-4" style="display: none;"></div>
+                    <button type="submit" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#438aed] to-[#6cc59f] hover:from-[#357adb] hover:to-[#5ab790] text-white font-semibold text-xs sm:text-sm shadow-md transition-all mt-2 cursor-pointer">
+                        ดำเนินการต่อ
+                    </button>
                 </form>
             </div>
 
             <!-- Screen 3: Action Selection -->
-            <div id="screen-action-select" class="screen">
-                <div class="screen-header">
-                    <h2>How will you use ConWork?</h2>
-                    <p>Choose your workspace type.</p>
+            <div id="screen-action-select" class="screen bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-[#438aed]/5 text-center transition-all">
+                <div class="screen-header mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-50 text-[#438aed] flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fa-solid fa-building-user"></i>
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1.5">คุณต้องการใช้งานอย่างไร?</h2>
+                    <p class="text-xs sm:text-sm text-slate-500">เลือกรูปแบบพื้นที่การทำงานที่เหมาะกับคุณ</p>
                 </div>
-                <div class="flex flex-col gap-4 mt-6">
-                    <div class="border border-gray-200 rounded-xl p-5 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all flex items-start gap-4" onclick="selectAction('personal')">
-                        <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-xl">
+                <div class="flex flex-col gap-3.5 mt-4 text-left">
+                    <div class="border border-slate-200 hover:border-[#438aed] rounded-2xl p-4 sm:p-5 cursor-pointer hover:bg-blue-50/40 transition-all flex items-start gap-4 group" onclick="selectAction('personal')">
+                        <div class="w-11 h-11 rounded-xl bg-blue-50 text-[#438aed] flex items-center justify-center shrink-0 text-lg group-hover:scale-110 transition-transform">
                             <i class="fa-solid fa-user"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-lg">Use For Myself</h3>
-                            <p class="text-sm text-gray-500 mt-1">For individuals. Track your own projects and tasks privately.</p>
+                            <h3 class="font-bold text-slate-800 text-sm sm:text-base">ใช้งานส่วนบุคคล (Personal)</h3>
+                            <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">สำหรับคนทำงานเดี่ยว ติดตามงานและโปรเจกต์ส่วนตัวอย่างเป็นระเบียบ</p>
                         </div>
                     </div>
-                    <div class="border border-gray-200 rounded-xl p-5 cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition-all flex items-start gap-4" onclick="selectAction('team')">
-                        <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shrink-0 text-xl">
+                    <div class="border border-slate-200 hover:border-[#6cc59f] rounded-2xl p-4 sm:p-5 cursor-pointer hover:bg-emerald-50/40 transition-all flex items-start gap-4 group" onclick="selectAction('team')">
+                        <div class="w-11 h-11 rounded-xl bg-emerald-50 text-[#6cc59f] flex items-center justify-center shrink-0 text-lg group-hover:scale-110 transition-transform">
                             <i class="fa-solid fa-users"></i>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-lg">Join or Create a Team</h3>
-                            <p class="text-sm text-gray-500 mt-1">Work together, manage company tasks, and collaborate.</p>
+                            <h3 class="font-bold text-slate-800 text-sm sm:text-base">เข้าร่วมหรือสร้างทีม (Team / Enterprise)</h3>
+                            <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">ทำงานร่วมกันในองค์กร ตรวจรับงาน 2 ระดับ คุมงบประมาณ และแชททีม</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Screen 4: Team Setup (Join or Create) -->
-            <div id="screen-team-setup" class="screen">
-                <div class="back-btn" onclick="showScreen('screen-action-select')">← Back</div>
-                <div class="screen-header">
-                    <h2>Team Setup</h2>
-                    <p>Join an existing team or create a new one.</p>
+            <div id="screen-team-setup" class="screen bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-[#438aed]/5 transition-all text-left">
+                <button type="button" class="back-btn inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-4 cursor-pointer" onclick="showScreen('screen-action-select')">
+                    <i class="fa-solid fa-arrow-left text-[10px]"></i> ย้อนกลับ
+                </button>
+                <div class="screen-header text-center mb-6">
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1.5">ตั้งค่าทีมงาน</h2>
+                    <p class="text-xs sm:text-sm text-slate-500">เข้าร่วมทีมที่มีอยู่แล้ว หรือสร้างทีมใหม่สำหรับองค์กรของคุณ</p>
                 </div>
                 
                 <!-- Custom Tabs -->
-                <div class="flex p-1 bg-gray-100 rounded-lg mb-6">
-                    <button id="tab-join-team" class="flex-1 py-2 text-sm font-medium rounded-md bg-white shadow-sm text-gray-800" onclick="switchTeamTab('join')">Join Team</button>
-                    <button id="tab-create-team" class="flex-1 py-2 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700" onclick="switchTeamTab('create')">Create Team</button>
+                <div class="flex p-1 bg-slate-100 rounded-xl mb-5">
+                    <button id="tab-join-team" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-white shadow-xs text-slate-800 transition-all cursor-pointer" onclick="switchTeamTab('join')">
+                        เข้าร่วมทีม (Join Team)
+                    </button>
+                    <button id="tab-create-team" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition-all cursor-pointer" onclick="switchTeamTab('create')">
+                        สร้างทีมใหม่ (Create Team)
+                    </button>
                 </div>
 
                 <!-- Tab A: Join Team -->
                 <div id="panel-join-team">
                     <form id="form-join-team">
-                        <div class="input-group">
-                            <label>Have an Invite Code?</label>
-                            <input type="text" id="join-invite-code" class="uppercase-input font-mono text-center tracking-widest text-lg" placeholder="e.g. COMP-1234" required>
-                            <div id="join-code-feedback" class="feedback-text mt-2 text-sm text-center"></div>
+                        <div class="mb-4">
+                            <label class="text-xs font-semibold text-slate-700 block mb-1">รหัสเชิญเข้าร่วมทีม (Invite Code)</label>
+                            <input type="text" id="join-invite-code" class="uppercase-input font-mono text-center tracking-widest text-base sm:text-lg w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-[#438aed] focus:ring-4 focus:ring-[#438aed]/10" placeholder="เช่น COMP-1234" required>
+                            <div id="join-code-feedback" class="feedback-text mt-2 text-xs text-center font-medium"></div>
                         </div>
-                        <div id="join-error" class="error-text" style="display: none;"></div>
-                        <button type="submit" id="btn-join-team" class="btn btn-primary w-full mt-4" disabled>Join Team</button>
+                        <div id="join-error" class="error-text p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs mb-4" style="display: none;"></div>
+                        <button type="submit" id="btn-join-team" class="w-full py-3 px-4 rounded-xl bg-[#438aed] hover:bg-[#357adb] disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-md transition-all mt-2 cursor-pointer" disabled>
+                            เข้าร่วมทีมทันที
+                        </button>
                     </form>
                 </div>
 
@@ -1098,50 +1166,57 @@
                 <div id="panel-create-team" class="hidden">
                     <form id="form-create-team">
                         <div class="flex justify-center mb-4">
-                            <div class="relative w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 overflow-hidden" onclick="document.getElementById('team-logo-upload').click()">
+                            <div class="relative w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center border-2 border-dashed border-slate-300 cursor-pointer hover:bg-slate-100 hover:border-[#6cc59f] transition-all overflow-hidden group" onclick="document.getElementById('team-logo-upload').click()">
                                 <img id="team-logo-preview" src="" class="hidden w-full h-full object-cover">
-                                <i id="team-logo-icon" class="fa-solid fa-building text-xl text-gray-400"></i>
+                                <div class="text-center group-hover:scale-110 transition-transform">
+                                    <i id="team-logo-icon" class="fa-solid fa-building text-lg text-slate-400 group-hover:text-[#6cc59f] transition-colors"></i>
+                                    <span class="block text-[8px] text-slate-400 font-medium mt-1">โลโก้ทีม</span>
+                                </div>
                                 <input type="file" id="team-logo-upload" class="hidden" accept="image/*" onchange="previewTeamLogo(this)">
                             </div>
                         </div>
-                        <div class="input-group">
-                            <label>Company/Team Name</label>
-                            <input type="text" id="create-team-name" required placeholder="Acme Corp">
+                        <div class="mb-3">
+                            <label class="text-xs font-semibold text-slate-700 block mb-1">ชื่อบริษัท / ทีมงาน</label>
+                            <input type="text" id="create-team-name" required placeholder="เช่น Acme Corporation" class="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#6cc59f] focus:ring-4 focus:ring-[#6cc59f]/10">
                         </div>
-                        <div class="input-group">
-                            <label>Corporate Domain (Optional)</label>
+                        <div class="mb-4">
+                            <label class="text-xs font-semibold text-slate-700 block mb-1">โดเมนองค์กร (Optional)</label>
                             <div class="relative">
-                                <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">@</span>
-                                <input type="text" id="create-team-domain" class="pl-8" placeholder="company.com">
+                                <span class="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs">@</span>
+                                <input type="text" id="create-team-domain" class="w-full pl-8 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#6cc59f] focus:ring-4 focus:ring-[#6cc59f]/10" placeholder="company.com">
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Users with this email domain will auto-join your team.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">ผู้ใช้อีเมลโดเมนนี้จะเข้าร่วมทีมได้โดยอัตโนมัติ</p>
                         </div>
-                        <div id="create-team-error" class="error-text" style="display: none;"></div>
-                        <button type="submit" class="btn btn-primary w-full mt-4">Create Team</button>
+                        <div id="create-team-error" class="error-text p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 text-xs mb-4" style="display: none;"></div>
+                        <button type="submit" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#438aed] to-[#6cc59f] hover:from-[#357adb] hover:to-[#5ab790] text-white font-semibold text-xs sm:text-sm shadow-md transition-all mt-2 cursor-pointer">
+                            สร้างทีมและเริ่มต้นใช้งาน
+                        </button>
                     </form>
                 </div>
             </div>
 
             <!-- Screen 5: Success / Auto-Join -->
-            <div id="screen-success" class="screen text-center">
-                <div class="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+            <div id="screen-success" class="screen bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-[#438aed]/5 text-center transition-all">
+                <div class="w-16 h-16 bg-emerald-50 text-[#6cc59f] border border-emerald-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-5 shadow-xs animate-bounce-gentle">
                     <i class="fa-solid fa-check"></i>
                 </div>
-                <div class="screen-header">
-                    <h2 id="success-title">Welcome!</h2>
-                    <p id="success-message">You are all set.</p>
+                <div class="screen-header mb-4">
+                    <h2 id="success-title" class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-1.5">ยินดีต้อนรับ!</h2>
+                    <p id="success-message" class="text-xs sm:text-sm text-slate-500">บัญชีของคุณพร้อมใช้งานแล้ว</p>
                 </div>
                 
-                <div id="success-team-info" class="hidden bg-gray-50 rounded-xl p-4 mt-6 mb-6 text-left border border-gray-200">
-                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Your Invite Code</p>
-                    <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3">
-                        <span id="success-invite-code" class="font-mono text-lg font-bold text-gray-800">COMP-XXXX</span>
-                        <button class="text-blue-600 hover:text-blue-800 p-2" onclick="copyInviteCode()" title="Copy Code"><i class="fa-solid fa-copy"></i></button>
+                <div id="success-team-info" class="hidden bg-slate-50/80 rounded-2xl p-4 mt-5 mb-5 text-left border border-slate-200/80">
+                    <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1.5">รหัสเชิญสำหรับสมาชิกในทีม (Invite Code)</p>
+                    <div class="flex items-center justify-between bg-white border border-slate-200 rounded-xl p-3">
+                        <span id="success-invite-code" class="font-mono text-base sm:text-lg font-bold text-slate-800 tracking-wider">COMP-XXXX</span>
+                        <button class="text-[#438aed] hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer" onclick="copyInviteCode()" title="คัดลอกรหัส"><i class="fa-solid fa-copy"></i></button>
                     </div>
-                    <p class="text-xs text-gray-500 mt-2">Share this code with your team to invite them.</p>
+                    <p class="text-[11px] text-slate-400 mt-2">แชร์รหัสนี้ให้เพื่อนร่วมทีม เพื่อให้ทุกคนเข้าร่วมพื้นที่การทำงานเดียวกัน</p>
                 </div>
 
-                <button class="btn btn-primary w-full mt-6" onclick="goToDashboard()">Go to Dashboard</button>
+                <button class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#438aed] to-[#6cc59f] hover:from-[#357adb] hover:to-[#5ab790] text-white font-semibold text-xs sm:text-sm shadow-md transition-all mt-4 cursor-pointer" onclick="goToDashboard()">
+                    เข้าสู่ระบบ ConWork Workspace
+                </button>
             </div>
             
         </div>
