@@ -23,8 +23,105 @@ const STATUS_TO_DB = {
     'ปฏิเสธ': 'rejected',
     'pending': 'pending',
     'approved': 'approved',
-    'paid': 'paid'
 };
+
+const FINANCE_MASTER_BUDGET_KEY = 'conwork_master_budget';
+
+const DEFAULT_MASTER_BUDGET = {
+    totalBudget: 200000,
+    initialCash: 50000,
+    projectAllocations: {}
+};
+
+function getMasterBudget() {
+    try {
+        const saved = localStorage.getItem(FINANCE_MASTER_BUDGET_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && typeof parsed === 'object') {
+                return {
+                    totalBudget: typeof parsed.totalBudget === 'number' ? parsed.totalBudget : (parseFloat(parsed.totalBudget) || DEFAULT_MASTER_BUDGET.totalBudget),
+                    initialCash: typeof parsed.initialCash === 'number' ? parsed.initialCash : (parseFloat(parsed.initialCash) || DEFAULT_MASTER_BUDGET.initialCash),
+                    projectAllocations: (parsed.projectAllocations && typeof parsed.projectAllocations === 'object') ? parsed.projectAllocations : {}
+                };
+            }
+        }
+    } catch (e) {}
+    return { ...DEFAULT_MASTER_BUDGET, projectAllocations: {} };
+}
+
+function saveMasterBudget(budgetData) {
+    try {
+        localStorage.setItem(FINANCE_MASTER_BUDGET_KEY, JSON.stringify(budgetData));
+    } catch (e) {}
+
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            const currentUser = (window.App && App.state && App.state.currentUser) ? App.state.currentUser : null;
+            const companyId = (currentUser && currentUser.workspaceId) 
+                ? currentUser.workspaceId 
+                : ((window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null);
+            if (companyId) {
+                window.conworkSupabase.client
+                    .from('companies')
+                    .select('settings')
+                    .eq('id', companyId)
+                    .maybeSingle()
+                    .then(({ data }) => {
+                        const curSettings = (data && data.settings && typeof data.settings === 'object') ? data.settings : {};
+                        curSettings.master_budget = budgetData;
+                        return window.conworkSupabase.client
+                            .from('companies')
+                            .update({ settings: curSettings })
+                            .eq('id', companyId);
+                    })
+                    .catch(e => console.warn('Supabase save master budget warning:', e));
+            }
+        } catch (e) {
+            console.warn('Supabase master budget sync error:', e);
+        }
+    }
+}
+
+function getFinanceProjects() {
+    let projs = [];
+    if (typeof mockProjects !== 'undefined' && Array.isArray(mockProjects) && mockProjects.length > 0) {
+        projs = mockProjects.filter(p => p.status !== 'deleted');
+    } else if (window.App && App.state && Array.isArray(App.state.projects) && App.state.projects.length > 0) {
+        projs = App.state.projects.filter(p => p.status !== 'deleted');
+    }
+
+    if (projs.length === 0) {
+        projs = [
+            { id: 'proj-1', name: 'ระบบการตลาดออนไลน์ (Digital Campaign)', status: 'active', color: 'bg-blue-500' },
+            { id: 'proj-2', name: 'พัฒนาแอปพลิเคชันเวอร์ชัน 2.0 (Mobile App)', status: 'active', color: 'bg-indigo-500' },
+            { id: 'proj-3', name: 'งานปรับปรุงและตกแต่งสำนักงานใหม่', status: 'active', color: 'bg-emerald-500' },
+            { id: 'proj-4', name: 'จัดอบรมสัมมนาประจำปีบุคลากร (Annual Seminar)', status: 'active', color: 'bg-amber-500' }
+        ];
+    }
+    return projs;
+}
+
+function renderFinanceProjectSelects(selectedProjectId = null) {
+    const projects = getFinanceProjects();
+    const selects = [
+        document.getElementById('finance-add-project-select'),
+        document.getElementById('finance-request-project-select')
+    ];
+
+    selects.forEach(sel => {
+        if (!sel) return;
+        const prev = selectedProjectId || sel.value;
+        sel.innerHTML = '<option value="">-- ส่วนกลาง / ไม่ระบุโครงการ --</option>';
+        projects.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (prev && String(prev) === String(p.id)) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    });
+}
 
 const FINANCE_CATEGORIES_STORAGE_KEY = 'conwork_finance_categories';
 
@@ -356,7 +453,9 @@ async function syncFinanceWithSupabase() {
 
 function recalculateFinanceTotals() {
     const txs = getStoredTransactions();
-    const initialCash = 10000;
+    const masterBudget = getMasterBudget();
+    const totalMasterBudget = parseFloat(masterBudget.totalBudget) || 200000;
+    const initialCash = parseFloat(masterBudget.initialCash) || 50000;
 
     let cashUsed = 0;
     let pendingAmount = 0;
@@ -382,7 +481,41 @@ function recalculateFinanceTotals() {
 
     const cashRemaining = Math.max(0, initialCash + cashInflow - cashUsed);
 
-    // 1. Calculate per-category metrics for Credit & Cash
+    // --- 1. Project-Based Budget Computations ---
+    const projects = getFinanceProjects();
+    const allocations = masterBudget.projectAllocations || {};
+    let sumAllocated = 0;
+    const projectData = [];
+
+    projects.forEach(p => {
+        const allocated = parseFloat(allocations[p.id]) || 0;
+        sumAllocated += allocated;
+        
+        const projTxs = txs.filter(t => t.project_id && String(t.project_id) === String(p.id));
+        const projSpent = projTxs.filter(t => t.transaction_type === 'cash' && !t.is_inflow)
+                                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const projCredit = projTxs.filter(t => t.transaction_type === 'credit')
+                                 .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const projRemaining = Math.max(0, allocated - projSpent);
+        const projUsedPct = allocated > 0 ? Math.min(100, Math.round((projSpent / allocated) * 100)) : 0;
+
+        projectData.push({
+            id: p.id,
+            name: p.name,
+            status: p.status || 'active',
+            color: p.color || 'bg-blue-500',
+            allocated: allocated,
+            spent: projSpent,
+            credit: projCredit,
+            remaining: projRemaining,
+            usedPct: projUsedPct,
+            txs: projTxs
+        });
+    });
+
+    const unallocatedReserve = Math.max(0, totalMasterBudget - sumAllocated);
+
+    // --- 2. Category Computations ---
     const categories = getFinanceCategories();
     const catKeys = Object.keys(categories);
     let totalPlannedCredit = 0;
@@ -435,67 +568,118 @@ function recalculateFinanceTotals() {
         }
     }
 
-    // 2. Summary Cards (5 Cards)
+    // --- 3. Summary Cards (5 Cards) ---
+    const c1El = document.getElementById('finance-card-total-budget');
+    if (c1El) c1El.textContent = '฿' + totalMasterBudget.toLocaleString();
+    const c1Sub = document.getElementById('finance-card-budget-subtext');
+    if (c1Sub) c1Sub.textContent = `จัดสรรแล้ว ฿${sumAllocated.toLocaleString()} (คงเหลือยังไม่จัดสรร ฿${unallocatedReserve.toLocaleString()})`;
+
+    const c2El = document.getElementById('finance-card-cash-used');
+    if (c2El) c2El.textContent = '฿' + cashUsed.toLocaleString();
+
+    const c3El = document.getElementById('finance-card-cash-remaining');
+    if (c3El) c3El.textContent = '฿' + cashRemaining.toLocaleString();
+
+    const c4El = document.getElementById('finance-card-pending');
+    if (c4El) c4El.textContent = '฿' + pendingAmount.toLocaleString();
+
+    const c5El = document.getElementById('finance-card-approved');
+    if (c5El) c5El.textContent = '฿' + approvedAmount.toLocaleString();
+
+    // Fallback for card queries
     const cards = document.querySelectorAll('#view-accounting .grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5 > div');
     if (cards.length >= 5) {
-        const c1Val = cards[0].querySelector('.text-2xl');
-        if (c1Val) c1Val.textContent = '฿' + totalPlannedCredit.toLocaleString();
-
-        const c2Val = cards[1].querySelector('.text-2xl');
-        if (c2Val) c2Val.textContent = '฿' + cashUsed.toLocaleString();
-
-        const c3Val = cards[2].querySelector('.text-2xl');
-        if (c3Val) c3Val.textContent = '฿' + cashRemaining.toLocaleString();
-
-        const c4Val = cards[3].querySelector('.text-2xl');
-        if (c4Val) c4Val.textContent = '฿' + pendingAmount.toLocaleString();
-
-        const c5Val = cards[4].querySelector('.text-2xl');
-        if (c5Val) c5Val.textContent = '฿' + approvedAmount.toLocaleString();
+        if (!c1El) {
+            const v = cards[0].querySelector('.text-2xl');
+            if (v) v.textContent = '฿' + totalMasterBudget.toLocaleString();
+        }
+        if (!c2El) {
+            const v = cards[1].querySelector('.text-2xl');
+            if (v) v.textContent = '฿' + cashUsed.toLocaleString();
+        }
+        if (!c3El) {
+            const v = cards[2].querySelector('.text-2xl');
+            if (v) v.textContent = '฿' + cashRemaining.toLocaleString();
+        }
+        if (!c4El) {
+            const v = cards[3].querySelector('.text-2xl');
+            if (v) v.textContent = '฿' + pendingAmount.toLocaleString();
+        }
+        if (!c5El) {
+            const v = cards[4].querySelector('.text-2xl');
+            if (v) v.textContent = '฿' + approvedAmount.toLocaleString();
+        }
     }
 
-    // 3. Comparison Progress Bar
-    const remainingCreditBudget = Math.max(0, totalPlannedCredit - cashUsed);
-    const creditUsedPct = totalPlannedCredit > 0 ? Math.min(100, Math.round((cashUsed / totalPlannedCredit) * 100)) : 0;
-    const creditRemainingPct = 100 - creditUsedPct;
+    // --- 4. Comparison Progress Bar ---
+    const pAllocText = document.getElementById('finance-progress-allocated-text');
+    if (pAllocText) pAllocText.textContent = '฿' + sumAllocated.toLocaleString();
 
-    const progressRemainText = document.getElementById('finance-progress-remaining-text');
-    if (progressRemainText) {
-        progressRemainText.textContent = '฿' + remainingCreditBudget.toLocaleString();
-    }
+    const pRemainText = document.getElementById('finance-progress-remaining-text');
+    if (pRemainText) pRemainText.textContent = '฿' + unallocatedReserve.toLocaleString();
+
+    const spentPct = totalMasterBudget > 0 ? Math.min(100, Math.round((cashUsed / totalMasterBudget) * 100)) : 0;
+    const allocPct = totalMasterBudget > 0 ? Math.min(100, Math.round((sumAllocated / totalMasterBudget) * 100)) : 0;
+    const unallocPct = Math.max(0, 100 - allocPct);
+
     const spentBar = document.getElementById('finance-progress-spent-bar');
     if (spentBar) {
-        spentBar.style.width = `${creditUsedPct}%`;
-        spentBar.textContent = `ใช้จริง ${creditUsedPct}% (฿${cashUsed.toLocaleString()})`;
+        spentBar.style.width = `${spentPct}%`;
+        spentBar.textContent = `ใช้จริง ${spentPct}% (฿${cashUsed.toLocaleString()})`;
+    }
+    const allocBar = document.getElementById('finance-progress-allocated-bar');
+    if (allocBar) {
+        const extraAllocWidth = Math.max(0, allocPct - spentPct);
+        allocBar.style.width = `${extraAllocWidth}%`;
+        allocBar.textContent = extraAllocWidth > 12 ? `จัดสรรแล้ว ${allocPct}%` : '';
     }
     const remainingBar = document.getElementById('finance-progress-remaining-bar');
     if (remainingBar) {
-        remainingBar.style.width = `${creditRemainingPct}%`;
-        remainingBar.textContent = `คงเหลือ ${creditRemainingPct}% (฿${remainingCreditBudget.toLocaleString()})`;
+        remainingBar.style.width = `${unallocPct}%`;
+        remainingBar.textContent = `คงเหลือยังไม่จัดสรร ${unallocPct}% (฿${unallocatedReserve.toLocaleString()})`;
     }
 
-    // 4. Col 1: Credit Donut Chart & Legends
+    // --- 5. Col 1: Credit Donut Chart & Legends (Master Budget & Project Allocations) ---
     let currentPct = 0;
     const gradientSlices = [];
     const creditLegendItems = [];
+    const projectColorList = ['#6366f1', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
 
-    catKeys.forEach(k => {
-        const d = catData[k];
-        const pct = totalPlannedCredit > 0 ? (d.planned / totalPlannedCredit) * 100 : 0;
-        const start = currentPct;
-        currentPct += pct;
-        gradientSlices.push(`${d.color} ${start.toFixed(1)}% ${currentPct.toFixed(1)}%`);
+    projectData.forEach((p, idx) => {
+        const color = projectColorList[idx % projectColorList.length];
+        const pct = totalMasterBudget > 0 ? (p.allocated / totalMasterBudget) * 100 : 0;
+        if (pct > 0) {
+            const start = currentPct;
+            currentPct += pct;
+            gradientSlices.push(`${color} ${start.toFixed(1)}% ${currentPct.toFixed(1)}%`);
+        }
 
         creditLegendItems.push(`
-            <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1 -mx-1 rounded transition-colors cursor-pointer" onclick="filterTransactionsByCategory('${k}')" title="คลิกเพื่อกรองรายการ">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color};"></div>
-                    <span class="text-gray-700 truncate max-w-[140px]">${d.name}</span>
+            <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1 -mx-1 rounded transition-colors cursor-pointer" onclick="filterTransactionsByProject('${p.id}')" title="คลิกเพื่อกรองรายการของโครงการนี้">
+                <div class="flex items-center gap-2.5 truncate max-w-[150px]">
+                    <div class="w-3 h-3 rounded-full shrink-0" style="background-color: ${color};"></div>
+                    <span class="text-gray-700 truncate font-medium">${p.name}</span>
                 </div>
-                <span class="font-medium text-gray-800">฿${d.planned.toLocaleString()} <span class="text-gray-400 font-normal ml-1 w-8 inline-block text-right">(${pct.toFixed(0)}%)</span></span>
+                <span class="font-medium text-gray-800 text-right">฿${p.allocated.toLocaleString()} <span class="text-gray-400 font-normal ml-1 w-8 inline-block text-right">(${pct.toFixed(0)}%)</span></span>
             </div>
         `);
     });
+
+    if (unallocatedReserve > 0) {
+        const unallocPctFloat = totalMasterBudget > 0 ? (unallocatedReserve / totalMasterBudget) * 100 : 0;
+        gradientSlices.push(`#e2e8f0 ${currentPct.toFixed(1)}% 100%`);
+        creditLegendItems.push(`
+            <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1 -mx-1 rounded transition-colors cursor-pointer border-t border-dashed border-gray-100 pt-2 mt-1" onclick="openAllocateBudgetModal()" title="คลิกเพื่อจัดสรรงบที่เหลือ">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-3 h-3 rounded-full shrink-0 bg-slate-300"></div>
+                    <span class="text-gray-500 font-medium">ยังไม่จัดสรร</span>
+                </div>
+                <span class="font-semibold text-emerald-600">฿${unallocatedReserve.toLocaleString()} <span class="text-gray-400 font-normal ml-1 w-8 inline-block text-right">(${unallocPctFloat.toFixed(0)}%)</span></span>
+            </div>
+        `);
+    }
+
+    if (gradientSlices.length === 0) gradientSlices.push('#cbd5e1 0% 100%');
 
     const creditChartEl = document.getElementById('finance-credit-donut-chart');
     if (creditChartEl) {
@@ -503,14 +687,14 @@ function recalculateFinanceTotals() {
     }
     const creditTotalEl = document.getElementById('finance-credit-donut-total');
     if (creditTotalEl) {
-        creditTotalEl.textContent = '฿' + totalPlannedCredit.toLocaleString();
+        creditTotalEl.textContent = '฿' + totalMasterBudget.toLocaleString();
     }
     const creditLegendEl = document.getElementById('finance-credit-donut-legend');
     if (creditLegendEl) {
         creditLegendEl.innerHTML = creditLegendItems.join('');
     }
 
-    // 5. Col 2: Cash Donut Chart & Legend
+    // --- 6. Col 2: Cash Donut Chart & Legend ---
     const totalCashPool = initialCash + cashInflow;
     const cashRemainingPct = totalCashPool > 0 ? Math.max(0, Math.min(100, Math.round((cashRemaining / totalCashPool) * 100))) : 0;
 
@@ -544,66 +728,453 @@ function recalculateFinanceTotals() {
         `;
     }
 
-    // 6. Col 3: Category Breakdown List
-    const breakdownListEl = document.getElementById('finance-category-breakdown-list');
-    if (breakdownListEl) {
-        const breakdownHTML = catKeys.map((k, idx) => {
-            const d = catData[k];
-            const collapseId = `cat-breakdown-details-${idx}`;
-            const hasTxs = d.txs && d.txs.length > 0;
-            
-            const subItemsHTML = hasTxs ? d.txs.map(tx => {
-                const isCash = tx.transaction_type === 'cash';
-                return `
-                    <div class="flex justify-between text-[10px] text-gray-600 py-1 hover:bg-white px-2 rounded transition-colors">
-                        <span class="truncate max-w-[150px] font-medium">${tx.title}</span>
-                        <div class="flex gap-3 shrink-0 text-right">
-                            <span class="${isCash ? 'text-gray-300' : 'text-blue-600 font-semibold'} w-14">${isCash ? '-' : '฿' + (parseFloat(tx.amount)||0).toLocaleString()}</span>
-                            <span class="${isCash ? 'text-green-600 font-semibold' : 'text-gray-300'} w-14">${isCash ? '฿' + (parseFloat(tx.amount)||0).toLocaleString() : '-'}</span>
-                            <span class="text-gray-400 w-12">${tx.status || 'เสร็จสิ้น'}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('') : `<div class="text-[10px] text-gray-400 py-1 pl-2 italic">ยังไม่มีรายการย่อยในหมวดนี้</div>`;
+    // --- 7. Col 3: Render Both Breakdown Views ---
+    renderProjectBudgetBreakdown(projectData, totalMasterBudget, sumAllocated, cashUsed);
+    renderCategoryBreakdown(catKeys, catData, totalPlannedCredit, cashUsed);
+}
 
+function renderProjectBudgetBreakdown(projectData, totalMasterBudget, sumAllocated, totalCashUsed) {
+    const listEl = document.getElementById('finance-project-breakdown-list');
+    if (!listEl) return;
+
+    if (!projectData || projectData.length === 0) {
+        listEl.innerHTML = `
+            <div class="text-center py-6 text-gray-400 text-xs">
+                <i class="fa-solid fa-folder-open text-2xl mb-2 text-gray-300"></i>
+                <p>ยังไม่มีข้อมูลโครงการ</p>
+                <button type="button" onclick="openAllocateBudgetModal()" class="mt-2 text-indigo-600 font-bold hover:underline">คลิกเพื่อจัดสรรงบ</button>
+            </div>
+        `;
+        return;
+    }
+
+    const html = projectData.map((p, idx) => {
+        const collapseId = `proj-breakdown-details-${idx}`;
+        const hasTxs = p.txs && p.txs.length > 0;
+        const subItemsHTML = hasTxs ? p.txs.map(tx => {
+            const isCash = tx.transaction_type === 'cash';
             return `
-                <div>
-                    <div class="flex items-center justify-between text-[11px] mb-2 cursor-pointer group hover:bg-gray-50 p-1 -mx-1 rounded transition-colors" onclick="document.getElementById('${collapseId}').classList.toggle('hidden');">
-                        <div class="w-2/5 flex items-center gap-2.5 font-medium text-gray-700">
-                            <div class="w-6 h-6 rounded ${d.bgClass} flex items-center justify-center shrink-0">
-                                <i class="fa-solid ${d.icon} ${d.textClass} text-[10px]"></i>
-                            </div>
-                            <span class="truncate">${d.name}</span>
-                            <i class="fa-solid fa-angle-down text-gray-300 ml-auto text-[10px] group-hover:text-gray-500 transition-transform"></i>
-                        </div>
-                        <div class="w-1/5 text-right text-gray-500">฿${d.planned.toLocaleString()}</div>
-                        <div class="w-1/5 text-right text-gray-500">฿${d.cashSum.toLocaleString()}</div>
-                        <div class="w-1/5 text-right font-bold text-gray-800">฿${d.remaining.toLocaleString()}</div>
-                    </div>
-                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
-                        <div class="bg-green-500 h-full transition-all duration-500" style="width: ${d.usedPct}%;"></div>
-                        <div class="bg-blue-400 h-full opacity-30 transition-all duration-500" style="width: ${100 - d.usedPct}%;"></div>
-                    </div>
-                    <div class="text-[9px] text-gray-400 text-right mt-1">ใช้ไปแล้ว ${d.usedPct}%</div>
-                    
-                    <!-- Expandable Details -->
-                    <div id="${collapseId}" class="hidden mt-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
-                        <div class="flex justify-between text-[9px] font-bold text-gray-400 border-b border-gray-200/60 pb-1 mb-1 px-2">
-                            <span>รายการ</span>
-                            <div class="flex gap-3 text-right">
-                                <span class="w-14">Credit</span>
-                                <span class="w-14">Cash</span>
-                                <span class="w-12">สถานะ</span>
-                            </div>
-                        </div>
-                        ${subItemsHTML}
+                <div class="flex justify-between text-[10px] text-gray-600 py-1 hover:bg-white px-2 rounded transition-colors">
+                    <span class="truncate max-w-[140px] font-medium">${tx.title}</span>
+                    <div class="flex gap-2.5 shrink-0 text-right">
+                        <span class="${isCash ? 'text-gray-300' : 'text-blue-600 font-semibold'} w-14">${isCash ? '-' : '฿' + (parseFloat(tx.amount)||0).toLocaleString()}</span>
+                        <span class="${isCash ? 'text-green-600 font-semibold' : 'text-gray-300'} w-14">${isCash ? '฿' + (parseFloat(tx.amount)||0).toLocaleString() : '-'}</span>
+                        <span class="text-gray-400 w-12">${tx.status || 'เสร็จสิ้น'}</span>
                     </div>
                 </div>
             `;
-        }).join('');
+        }).join('') : `<div class="text-[10px] text-gray-400 py-1 pl-2 italic">ยังไม่มีรายการค่าใช้จ่ายในโครงการนี้</div>`;
 
-        breakdownListEl.innerHTML = breakdownHTML;
+        return `
+            <div>
+                <div class="flex items-center justify-between text-[11px] mb-2 cursor-pointer group hover:bg-gray-50 p-1 -mx-1 rounded transition-colors" onclick="document.getElementById('${collapseId}').classList.toggle('hidden');">
+                    <div class="w-2/5 flex items-center gap-2 font-medium text-gray-700 truncate pr-1">
+                        <div class="w-6 h-6 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-diagram-project text-[10px]"></i>
+                        </div>
+                        <span class="truncate font-semibold">${p.name}</span>
+                        <i class="fa-solid fa-angle-down text-gray-300 ml-auto text-[10px] group-hover:text-gray-500 transition-transform"></i>
+                    </div>
+                    <div class="w-1/5 text-right font-medium text-indigo-700">฿${p.allocated.toLocaleString()}</div>
+                    <div class="w-1/5 text-right font-medium text-gray-600">฿${p.spent.toLocaleString()}</div>
+                    <div class="w-1/5 text-right font-bold ${p.remaining > 0 ? 'text-gray-800' : 'text-red-500'}">฿${p.remaining.toLocaleString()}</div>
+                </div>
+                <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
+                    <div class="bg-indigo-500 h-full transition-all duration-500" style="width: ${p.usedPct}%;"></div>
+                    <div class="bg-blue-300 h-full opacity-40 transition-all duration-500" style="width: ${100 - p.usedPct}%;"></div>
+                </div>
+                <div class="flex items-center justify-between text-[9px] text-gray-400 mt-1 px-0.5">
+                    <span>${p.txs ? p.txs.length : 0} รายการ</span>
+                    <span>ใช้งบไปแล้ว ${p.usedPct}%</span>
+                </div>
+
+                <div id="${collapseId}" class="hidden mt-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
+                    <div class="flex justify-between text-[9px] font-bold text-gray-400 border-b border-gray-200/60 pb-1 mb-1 px-2">
+                        <span>รายการของโครงการ</span>
+                        <div class="flex gap-2.5 text-right">
+                            <span class="w-14">Credit</span>
+                            <span class="w-14">Cash</span>
+                            <span class="w-12">สถานะ</span>
+                        </div>
+                    </div>
+                    ${subItemsHTML}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    listEl.innerHTML = html;
+
+    const sumAllocEl = document.getElementById('finance-project-sum-allocated');
+    if (sumAllocEl) sumAllocEl.textContent = '฿' + sumAllocated.toLocaleString();
+
+    const sumSpentEl = document.getElementById('finance-project-sum-spent');
+    if (sumSpentEl) sumSpentEl.textContent = '฿' + totalCashUsed.toLocaleString();
+
+    const sumRemEl = document.getElementById('finance-project-sum-remaining');
+    if (sumRemEl) sumRemEl.textContent = '฿' + Math.max(0, sumAllocated - totalCashUsed).toLocaleString();
+}
+
+function renderCategoryBreakdown(catKeys, catData, totalPlannedCredit, totalCashUsed) {
+    const breakdownListEl = document.getElementById('finance-category-breakdown-list');
+    if (!breakdownListEl) return;
+
+    let totalCatCash = 0;
+    const breakdownHTML = catKeys.map((k, idx) => {
+        const d = catData[k];
+        totalCatCash += (d.cashSum || 0);
+        const collapseId = `cat-breakdown-details-${idx}`;
+        const hasTxs = d.txs && d.txs.length > 0;
+        
+        const subItemsHTML = hasTxs ? d.txs.map(tx => {
+            const isCash = tx.transaction_type === 'cash';
+            return `
+                <div class="flex justify-between text-[10px] text-gray-600 py-1 hover:bg-white px-2 rounded transition-colors">
+                    <span class="truncate max-w-[150px] font-medium">${tx.title}</span>
+                    <div class="flex gap-3 shrink-0 text-right">
+                        <span class="${isCash ? 'text-gray-300' : 'text-blue-600 font-semibold'} w-14">${isCash ? '-' : '฿' + (parseFloat(tx.amount)||0).toLocaleString()}</span>
+                        <span class="${isCash ? 'text-green-600 font-semibold' : 'text-gray-300'} w-14">${isCash ? '฿' + (parseFloat(tx.amount)||0).toLocaleString() : '-'}</span>
+                        <span class="text-gray-400 w-12">${tx.status || 'เสร็จสิ้น'}</span>
+                    </div>
+                </div>
+            `;
+        }).join('') : `<div class="text-[10px] text-gray-400 py-1 pl-2 italic">ยังไม่มีรายการย่อยในหมวดนี้</div>`;
+
+        return `
+            <div>
+                <div class="flex items-center justify-between text-[11px] mb-2 cursor-pointer group hover:bg-gray-50 p-1 -mx-1 rounded transition-colors" onclick="document.getElementById('${collapseId}').classList.toggle('hidden');">
+                    <div class="w-2/5 flex items-center gap-2.5 font-medium text-gray-700">
+                        <div class="w-6 h-6 rounded ${d.bgClass} flex items-center justify-center shrink-0">
+                            <i class="fa-solid ${d.icon} ${d.textClass} text-[10px]"></i>
+                        </div>
+                        <span class="truncate">${d.name}</span>
+                        <i class="fa-solid fa-angle-down text-gray-300 ml-auto text-[10px] group-hover:text-gray-500 transition-transform"></i>
+                    </div>
+                    <div class="w-1/5 text-right text-gray-500">฿${d.planned.toLocaleString()}</div>
+                    <div class="w-1/5 text-right text-gray-500">฿${d.cashSum.toLocaleString()}</div>
+                    <div class="w-1/5 text-right font-bold text-gray-800">฿${d.remaining.toLocaleString()}</div>
+                </div>
+                <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
+                    <div class="bg-green-500 h-full transition-all duration-500" style="width: ${d.usedPct}%;"></div>
+                    <div class="bg-blue-400 h-full opacity-30 transition-all duration-500" style="width: ${100 - d.usedPct}%;"></div>
+                </div>
+                <div class="text-[9px] text-gray-400 text-right mt-1">ใช้ไปแล้ว ${d.usedPct}%</div>
+                
+                <div id="${collapseId}" class="hidden mt-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
+                    <div class="flex justify-between text-[9px] font-bold text-gray-400 border-b border-gray-200/60 pb-1 mb-1 px-2">
+                        <span>รายการ</span>
+                        <div class="flex gap-3 text-right">
+                            <span class="w-14">Credit</span>
+                            <span class="w-14">Cash</span>
+                            <span class="w-12">สถานะ</span>
+                        </div>
+                    </div>
+                    ${subItemsHTML}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    breakdownListEl.innerHTML = breakdownHTML;
+
+    const plannedEl = document.getElementById('finance-cat-sum-planned');
+    if (plannedEl) plannedEl.textContent = '฿' + totalPlannedCredit.toLocaleString();
+
+    const cashEl = document.getElementById('finance-cat-sum-cash');
+    if (cashEl) cashEl.textContent = '฿' + totalCatCash.toLocaleString();
+
+    const remEl = document.getElementById('finance-cat-sum-remaining');
+    if (remEl) remEl.textContent = '฿' + Math.max(0, totalPlannedCredit - totalCatCash).toLocaleString();
+}
+
+function switchBreakdownView(mode) {
+    const projTabBtn = document.getElementById('btn-breakdown-tab-project');
+    const catTabBtn = document.getElementById('btn-breakdown-tab-category');
+    const projView = document.getElementById('finance-project-breakdown-view');
+    const catView = document.getElementById('finance-category-breakdown-view');
+    const allocActionBtn = document.getElementById('btn-col3-action-alloc');
+    const catActionBtn = document.getElementById('btn-col3-action-cat');
+
+    if (mode === 'category') {
+        if (projTabBtn) {
+            projTabBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 transition-all flex items-center gap-1.5';
+        }
+        if (catTabBtn) {
+            catTabBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-blue-600 shadow-xs flex items-center gap-1.5';
+        }
+        if (projView) projView.classList.add('hidden');
+        if (catView) catView.classList.remove('hidden');
+        if (allocActionBtn) allocActionBtn.classList.add('hidden');
+        if (catActionBtn) catActionBtn.classList.remove('hidden');
+    } else {
+        if (projTabBtn) {
+            projTabBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-indigo-700 shadow-xs flex items-center gap-1.5';
+        }
+        if (catTabBtn) {
+            catTabBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 transition-all flex items-center gap-1.5';
+        }
+        if (projView) projView.classList.remove('hidden');
+        if (catView) catView.classList.add('hidden');
+        if (allocActionBtn) allocActionBtn.classList.remove('hidden');
+        if (catActionBtn) catActionBtn.classList.add('hidden');
     }
+}
+
+// Master Budget Adjust Modal Handlers
+function openAdjustBudgetModal() {
+    const mb = getMasterBudget();
+    const inputBudget = document.getElementById('input-adjust-master-budget');
+    const inputCash = document.getElementById('input-adjust-initial-cash');
+
+    if (inputBudget) inputBudget.value = mb.totalBudget || 0;
+    if (inputCash) inputCash.value = mb.initialCash || 0;
+
+    calculateAdjustModalPreview();
+    openFinanceModal('finance-adjust-budget-modal');
+}
+
+function calculateAdjustModalPreview() {
+    const inputBudget = document.getElementById('input-adjust-master-budget');
+    const totalVal = parseFloat(inputBudget ? inputBudget.value : 0) || 0;
+
+    const mb = getMasterBudget();
+    const allocations = mb.projectAllocations || {};
+    let sumAllocated = 0;
+    Object.values(allocations).forEach(v => {
+        sumAllocated += (parseFloat(v) || 0);
+    });
+
+    const unallocated = totalVal - sumAllocated;
+
+    const totalDisp = document.getElementById('adjust-modal-total-display');
+    if (totalDisp) totalDisp.textContent = '฿' + totalVal.toLocaleString();
+
+    const allocDisp = document.getElementById('adjust-modal-allocated-display');
+    if (allocDisp) allocDisp.textContent = '฿' + sumAllocated.toLocaleString();
+
+    const unallocDisp = document.getElementById('adjust-modal-unallocated-display');
+    if (unallocDisp) {
+        if (unallocated >= 0) {
+            unallocDisp.textContent = '฿' + unallocated.toLocaleString();
+            unallocDisp.className = 'text-lg font-black text-emerald-600';
+        } else {
+            unallocDisp.textContent = '-฿' + Math.abs(unallocated).toLocaleString();
+            unallocDisp.className = 'text-lg font-black text-red-600';
+        }
+    }
+}
+
+function quickAddMasterBudget(amount) {
+    const inputBudget = document.getElementById('input-adjust-master-budget');
+    if (!inputBudget) return;
+    const current = parseFloat(inputBudget.value) || 0;
+    inputBudget.value = current + amount;
+    calculateAdjustModalPreview();
+}
+
+function submitAdjustBudget() {
+    const inputBudget = document.getElementById('input-adjust-master-budget');
+    const inputCash = document.getElementById('input-adjust-initial-cash');
+
+    const totalBudget = parseFloat(inputBudget ? inputBudget.value : 0) || 0;
+    const initialCash = parseFloat(inputCash ? inputCash.value : 0) || 0;
+
+    if (totalBudget <= 0) {
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('กรุณาระบุงบประมาณรวมทั้งหมดที่มากกว่า 0', 'warning');
+        } else {
+            alert('กรุณาระบุงบประมาณรวมทั้งหมดที่มากกว่า 0');
+        }
+        return;
+    }
+
+    const mb = getMasterBudget();
+    mb.totalBudget = totalBudget;
+    mb.initialCash = initialCash;
+    mb.updatedAt = new Date().toISOString();
+
+    saveMasterBudget(mb);
+    closeFinanceModal('finance-adjust-budget-modal');
+    recalculateFinanceTotals();
+
+    if (window.App && typeof App._showToast === 'function') {
+        App._showToast('บันทึกการปรับยอดงบประมาณรวมสำเร็จ!', 'success');
+    }
+}
+
+// Project Allocation Modal Handlers
+function openAllocateBudgetModal() {
+    renderProjectAllocationList();
+    openFinanceModal('finance-allocate-budget-modal');
+}
+
+function renderProjectAllocationList() {
+    const container = document.getElementById('project-allocation-list-container');
+    if (!container) return;
+
+    const projects = getFinanceProjects();
+    const mb = getMasterBudget();
+    const allocations = mb.projectAllocations || {};
+    const txs = getStoredTransactions();
+
+    const totalMasterBudget = parseFloat(mb.totalBudget) || 0;
+    const totalEl = document.getElementById('alloc-modal-total-budget');
+    if (totalEl) totalEl.textContent = '฿' + totalMasterBudget.toLocaleString();
+
+    if (projects.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-400">
+                <i class="fa-solid fa-diagram-project text-3xl mb-2 text-gray-300"></i>
+                <p class="text-sm">ไม่พบโครงการในระบบ</p>
+                <p class="text-xs text-gray-400 mt-1">กรุณาสร้างโครงการที่หน้า "โครงการ" ก่อนจัดสรรงบประมาณ</p>
+            </div>
+        `;
+        return;
+    }
+
+    const html = projects.map(p => {
+        const allocated = parseFloat(allocations[p.id]) || 0;
+        const projTxs = txs.filter(t => t.project_id && String(t.project_id) === String(p.id));
+        const projSpent = projTxs.filter(t => t.transaction_type === 'cash' && !t.is_inflow)
+                                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const remaining = Math.max(0, allocated - projSpent);
+        const usedPct = allocated > 0 ? Math.min(100, Math.round((projSpent / allocated) * 100)) : 0;
+
+        return `
+            <div class="p-3.5 bg-white border border-gray-200 rounded-2xl shadow-2xs hover:border-indigo-300 transition-all">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="w-full sm:w-2/5 flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 font-bold text-sm">
+                            <i class="fa-solid fa-diagram-project"></i>
+                        </div>
+                        <div class="truncate">
+                            <h4 class="text-sm font-bold text-gray-800 truncate">${p.name}</h4>
+                            <span class="text-[10px] text-gray-400 font-medium">${p.status === 'active' || p.status === 'in_progress' ? '🟢 กำลังดำเนินงาน' : '⚪ ดำเนินการ'}</span>
+                        </div>
+                    </div>
+
+                    <div class="w-full sm:w-1/4 text-left sm:text-center">
+                        <span class="text-xs font-semibold text-gray-600">ใช้ไป ฿${projSpent.toLocaleString()}</span>
+                        <span class="text-[10px] text-gray-400 block">คงเหลือ ฿${remaining.toLocaleString()} (${100 - usedPct}%)</span>
+                    </div>
+
+                    <div class="w-full sm:w-1/3 flex items-center gap-2 justify-end">
+                        <div class="relative w-full max-w-[200px]">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">฿</span>
+                            <input type="number" step="any" min="0" 
+                                class="project-alloc-input w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-right" 
+                                data-proj-id="${p.id}" 
+                                value="${allocated > 0 ? allocated : ''}" 
+                                placeholder="0.00" 
+                                oninput="calculateAllocationPreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full bg-gray-100 h-1 rounded-full overflow-hidden mt-2.5">
+                    <div class="bg-indigo-500 h-full transition-all duration-300" style="width: ${usedPct}%;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = html;
+    calculateAllocationPreview();
+}
+
+function calculateAllocationPreview() {
+    const inputs = document.querySelectorAll('.project-alloc-input');
+    const mb = getMasterBudget();
+    const totalMaster = parseFloat(mb.totalBudget) || 0;
+
+    let sumAllocated = 0;
+    inputs.forEach(inp => {
+        sumAllocated += (parseFloat(inp.value) || 0);
+    });
+
+    const remaining = totalMaster - sumAllocated;
+
+    const sumAllocEl = document.getElementById('alloc-modal-sum-allocated');
+    if (sumAllocEl) sumAllocEl.textContent = '฿' + sumAllocated.toLocaleString();
+
+    const remEl = document.getElementById('alloc-modal-remaining');
+    if (remEl) {
+        if (remaining >= 0) {
+            remEl.textContent = '฿' + remaining.toLocaleString();
+            remEl.className = 'text-base sm:text-lg font-black text-emerald-600';
+        } else {
+            remEl.textContent = '-฿' + Math.abs(remaining).toLocaleString() + ' (เกินงบรวม)';
+            remEl.className = 'text-base sm:text-lg font-black text-red-600';
+        }
+    }
+}
+
+function distributeBudgetEqually() {
+    const inputs = document.querySelectorAll('.project-alloc-input');
+    if (inputs.length === 0) return;
+
+    const mb = getMasterBudget();
+    const totalMaster = parseFloat(mb.totalBudget) || 0;
+    const share = Math.floor(totalMaster / inputs.length);
+
+    inputs.forEach(inp => {
+        inp.value = share;
+    });
+
+    calculateAllocationPreview();
+}
+
+function clearAllProjectAllocations() {
+    const inputs = document.querySelectorAll('.project-alloc-input');
+    inputs.forEach(inp => {
+        inp.value = '';
+    });
+    calculateAllocationPreview();
+}
+
+function submitProjectAllocation() {
+    const inputs = document.querySelectorAll('.project-alloc-input');
+    const mb = getMasterBudget();
+    const newAllocations = {};
+
+    let sumAllocated = 0;
+    inputs.forEach(inp => {
+        const pId = inp.getAttribute('data-proj-id');
+        const val = parseFloat(inp.value) || 0;
+        if (pId) {
+            newAllocations[pId] = val;
+            sumAllocated += val;
+        }
+    });
+
+    mb.projectAllocations = newAllocations;
+    mb.updatedAt = new Date().toISOString();
+
+    saveMasterBudget(mb);
+    closeFinanceModal('finance-allocate-budget-modal');
+    recalculateFinanceTotals();
+
+    if (window.App && typeof App._showToast === 'function') {
+        App._showToast(`บันทึกการจัดสรรงบประมาณ ${inputs.length} โครงการ เรียบร้อยแล้ว!`, 'success');
+    }
+}
+
+function filterTransactionsByProject(projectId) {
+    const tableRows = document.querySelectorAll('#view-accounting tbody tr');
+    const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');
+    if (tabs.length > 0) tabs[0].click();
+
+    tableRows.forEach(row => {
+        if (!projectId || projectId === 'all') {
+            row.style.display = '';
+        } else if (row._txData) {
+            row.style.display = (String(row._txData.project_id) === String(projectId)) ? '' : 'none';
+        } else {
+            row.style.display = '';
+        }
+    });
+
+    scrollToTable();
 }
 
 function filterTransactionsByCategory(catKey) {
@@ -685,6 +1256,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function initFinanceDashboard() {
     renderFinanceCategorySelects();
     renderCategoryManagementList();
+    renderFinanceProjectSelects();
     loadStoredTransactionsToTable();
     syncFinanceWithSupabase();
 
@@ -715,15 +1287,15 @@ function initFinanceDashboard() {
                         row.style.display = ''; // Show all
                     } else if (filterType === 1) {
                         // Credit
-                        const typeCell = row.querySelector('td:nth-child(4)').innerText;
+                        const typeCell = row.querySelector('td:nth-child(4)')?.innerText || '';
                         row.style.display = typeCell.includes('Credit') ? '' : 'none';
                     } else if (filterType === 2) {
                         // Cash
-                        const typeCell = row.querySelector('td:nth-child(4)').innerText;
+                        const typeCell = row.querySelector('td:nth-child(4)')?.innerText || '';
                         row.style.display = typeCell.includes('Cash') ? '' : 'none';
                     } else if (filterType === 3) {
                         // Pending
-                        const statusCell = row.querySelector('td:nth-child(6)').innerText;
+                        const statusCell = row.querySelector('td:nth-child(6)')?.innerText || '';
                         row.style.display = statusCell.includes('รออนุมัติ') ? '' : 'none';
                     }
                 });
@@ -734,13 +1306,12 @@ function initFinanceDashboard() {
         tabs[0].style.borderBottomWidth = '2px';
     }
 
-    // 2. Summary Cards Click -> Filter Tabs
+    // 2. Summary Cards Click
     const summaryCards = document.querySelectorAll('#view-accounting .grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5 > div');
     if (summaryCards.length === 5) {
-        // Card 1: Credit -> Click triggers Tab 1 (Credit)
+        // Card 1: Master Budget -> Open Adjust Modal directly
         summaryCards[0].addEventListener('click', () => {
-            tabs[1].click();
-            scrollToTable();
+            openAdjustBudgetModal();
         });
         
         // Card 2: Cash Used -> Click triggers Tab 2 (Cash)
@@ -753,7 +1324,8 @@ function initFinanceDashboard() {
         summaryCards[2].addEventListener('click', () => {
             const txs = getStoredTransactions();
             const cashSpent = txs.filter(t => t.transaction_type === 'cash').reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
-            const initialCash = 10000;
+            const master = getMasterBudget();
+            const initialCash = master.initial_cash || 10000;
             const remaining = Math.max(0, initialCash - cashSpent);
             showFinanceDetailModal('รายละเอียดเงินสดคงเหลือ', 'fa-solid fa-money-bill-wave text-green-600', [
                 { label: 'เงินสดตั้งต้น (Initial Balance)', value: '฿' + initialCash.toLocaleString() },
@@ -830,12 +1402,17 @@ function initFinanceDashboard() {
         progressBarContainer.addEventListener('click', () => {
             const txs = getStoredTransactions();
             const cashSpent = txs.filter(t => t.transaction_type === 'cash').reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
-            const totalBudget = 20000;
-            const pct = ((cashSpent / totalBudget) * 100).toFixed(1);
+            const master = getMasterBudget();
+            const totalBudget = master.total_budget || 20000;
+            const pct = totalBudget > 0 ? ((cashSpent / totalBudget) * 100).toFixed(1) : '0.0';
+            const allocated = Object.values(master.project_allocations || {}).reduce((a, b) => a + (parseFloat(b) || 0), 0);
+            const unallocated = Math.max(0, totalBudget - allocated);
             showFinanceDetailModal('อัตราการใช้งบประมาณ (Budget Utilization)', 'fa-solid fa-chart-pie text-blue-600', [
-                { label: 'งบประมาณรวมที่จัดสรร (Credit Budget)', value: '฿' + totalBudget.toLocaleString() },
-                { label: 'ยอดเงินสดที่ใช้จริง (Cash Spent)', value: '฿' + cashSpent.toLocaleString(), highlight: 'text-amber-600' },
-                { label: 'อัตราการใช้เงินรวม (Utilization Rate)', value: pct + '%', highlight: 'text-blue-600 font-extrabold text-base' }
+                { label: 'งบประมาณรวมทั้งหมด (Master Budget)', value: '฿' + totalBudget.toLocaleString(), highlight: 'text-blue-600 font-extrabold text-base' },
+                { label: 'งบที่จัดสรรให้โครงการแล้ว (Allocated)', value: '฿' + allocated.toLocaleString() },
+                { label: 'งบคงเหลือส่วนกลางสำรอง (Unallocated)', value: '฿' + unallocated.toLocaleString(), highlight: 'text-emerald-600' },
+                { label: 'ยอดเงินสดที่ใช้จ่ายจริง (Cash Spent)', value: '฿' + cashSpent.toLocaleString(), highlight: 'text-amber-600' },
+                { label: 'อัตราการใช้เงินรวม (Utilization Rate)', value: pct + '%' }
             ]);
         });
         progressBarContainer.classList.add('cursor-pointer');
@@ -874,6 +1451,7 @@ function openFinanceModal(modalId) {
     if (modal) {
         if (modalId === 'finance-add-modal' || modalId === 'finance-request-modal') {
             renderFinanceCategorySelects();
+            renderFinanceProjectSelects();
         }
         modal.classList.remove('hidden');
     }
@@ -1014,6 +1592,17 @@ function openFinancePanel(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
             approvalActions.classList.remove('hidden');
         } else {
             approvalActions.classList.add('hidden');
+        }
+    }
+
+    // Project
+    const projectEl = document.getElementById('panel-project');
+    if (projectEl) {
+        if (tx.project_id) {
+            const pObj = getFinanceProjects().find(p => String(p.id) === String(tx.project_id));
+            projectEl.innerHTML = `<i class="fa-solid fa-folder-open text-xs text-indigo-500"></i> ${pObj ? pObj.name : 'โครงการ #' + tx.project_id}`;
+        } else {
+            projectEl.innerHTML = `<span class="text-gray-400 font-normal">ส่วนกลาง / ไม่ระบุโครงการ</span>`;
         }
     }
 
@@ -1296,6 +1885,7 @@ async function submitFinanceTransaction() {
     // 1. Gather Data
     const type = document.querySelector('input[name="finance_add_type"]:checked')?.value || 'cash';
     const titleInput = modal.querySelectorAll('input[type="text"]')[0]?.value?.trim();
+    const projectId = document.getElementById('finance-add-project-select')?.value || null;
     const categorySelect = document.getElementById('finance-add-category-select')?.value || modal.querySelector('select')?.value;
     const amountInput = modal.querySelector('input[type="number"]')?.value;
     const dateInput = modal.querySelector('input[type="date"]')?.value;
@@ -1336,6 +1926,7 @@ async function submitFinanceTransaction() {
         const newTx = {
             id: 'tx-' + Date.now(),
             title: titleInput,
+            project_id: projectId || null,
             category: categorySelect,
             amount: parseFloat(amountInput) || 0,
             transaction_type: type,
@@ -1359,6 +1950,8 @@ async function submitFinanceTransaction() {
         modal.querySelectorAll('input[type="text"]')[0].value = '';
         modal.querySelector('input[type="number"]').value = '';
         if (modal.querySelector('textarea')) modal.querySelector('textarea').value = '';
+        const projSel = document.getElementById('finance-add-project-select');
+        if (projSel) projSel.value = '';
         
         // Reset file input
         if (fileInput) fileInput.value = '';
@@ -1412,12 +2005,18 @@ function insertTransactionRow(data, isNew = false) {
         statusBadge = `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-green-200">${data.status || 'จ่ายแล้ว'}</span>`;
     }
     
+    const projectObj = data.project_id ? getFinanceProjects().find(p => String(p.id) === String(data.project_id)) : null;
+    const projectBadge = projectObj ? `<div class="mt-1"><span class="inline-flex items-center gap-1 text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5 font-medium"><i class="fa-solid fa-folder-open text-[9px]"></i> ${projectObj.name}</span></div>` : '';
+
     const tr = document.createElement('tr');
     tr.className = `hover:bg-gray-50 transition-colors ${isNew ? 'animate-fade-in-up bg-yellow-50' : ''}`;
     
     tr.innerHTML = `
         <td class="px-6 py-4 text-xs text-gray-500">${formattedDate}</td>
-        <td class="px-6 py-4 font-medium text-gray-800">${data.title}</td>
+        <td class="px-6 py-4 font-medium text-gray-800">
+            <div>${data.title}</div>
+            ${projectBadge}
+        </td>
         <td class="px-6 py-4">
             <div class="flex items-center gap-2">
                 <i class="fa-solid ${cat.icon || 'fa-box'} ${cat.textClass || 'text-gray-500'} w-4 text-center" style="${!cat.textClass && cat.color ? 'color: ' + cat.color : ''}"></i> <span class="text-xs font-medium text-gray-700">${cat.name}</span>
@@ -1550,6 +2149,7 @@ async function submitFinanceRequest() {
     if (!modal) return;
 
     const title = modal.querySelector('input[type="text"]')?.value?.trim();
+    const projectId = document.getElementById('finance-request-project-select')?.value || null;
     const category = document.getElementById('finance-request-category-select')?.value;
     const amount = parseFloat(modal.querySelector('input[type="number"]')?.value) || 0;
     const date = modal.querySelector('input[type="date"]')?.value;
@@ -1568,6 +2168,7 @@ async function submitFinanceRequest() {
         const newTx = {
             id: 'tx-' + Date.now(),
             title: title,
+            project_id: projectId || null,
             category: category,
             amount: amount,
             transaction_type: 'credit',
@@ -1584,6 +2185,8 @@ async function submitFinanceRequest() {
         // Reset inputs
         modal.querySelectorAll('input').forEach(i => i.value = '');
         if (modal.querySelector('textarea')) modal.querySelector('textarea').value = '';
+        const reqProjSelect = document.getElementById('finance-request-project-select');
+        if (reqProjSelect) reqProjSelect.value = '';
 
         closeFinanceModal('finance-request-modal');
         if (window.App && typeof App._showToast === 'function') {
