@@ -1688,7 +1688,7 @@
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2"><i class="fa-solid fa-list-ul text-gray-400"></i> สรุปงบประมาณตามหมวดหมู่</h3>
                                 <div class="flex items-center gap-3">
-                                    <button onclick="openFinanceModal('finance-add-category-modal')" class="text-[10px] text-gray-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1 border border-gray-200 px-2 py-1 rounded"><i class="fa-solid fa-plus"></i> เพิ่มหมวดงบ</button>
+                                    <button onclick="openFinanceCategoryManager('list')" class="text-[10px] text-gray-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1 border border-gray-200 px-2.5 py-1 rounded-lg"><i class="fa-solid fa-gear"></i> จัดการหมวดหมู่</button>
                                     <button class="text-[10px] text-blue-600 font-medium hover:underline">ดูทั้งหมด <i class="fa-solid fa-chevron-right ml-1"></i></button>
                                 </div>
                             </div>
@@ -6089,51 +6089,109 @@
 
     <!-- ================= FINANCE MODALS ================= -->
     
-    <!-- Add Category Modal -->
+    <!-- Add / Manage Category Modal -->
     <div id="finance-add-category-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/40 py-4 px-2" onclick="closeFinanceModal('finance-add-category-modal')">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden" onclick="event.stopPropagation()">
-            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <h2 class="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2"><i class="fa-solid fa-list-ul text-blue-500"></i> เพิ่มหมวดหมู่งบประมาณ</h2>
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
+            <!-- Header -->
+            <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/70">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg shadow-sm">
+                        <i class="fa-solid fa-shapes"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-gray-800">จัดการหมวดหมู่งบประมาณ</h2>
+                        <p class="text-xs text-gray-500">เพิ่มหรือลดหมวดหมู่ได้อย่างอิสระ</p>
+                    </div>
+                </div>
                 <button onclick="closeFinanceModal('finance-add-category-modal')" class="text-gray-400 hover:text-gray-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
             
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">ชื่อหมวดหมู่ <span class="text-red-500">*</span></label>
-                    <input type="text" id="add-category-name" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 outline-none" placeholder="เช่น ค่ารับรองลูกค้า, อุปกรณ์ IT">
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">ไอคอน (FontAwesome Class)</label>
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500" id="add-category-icon-preview">
-                            <i class="fa-solid fa-box"></i>
-                        </div>
-                        <input type="text" id="add-category-icon" class="flex-1 border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 outline-none" value="fa-box" placeholder="เช่น fa-box, fa-laptop" oninput="document.getElementById('add-category-icon-preview').innerHTML = `<i class='fa-solid ${this.value}'></i>`">
+            <!-- Tab Switcher -->
+            <div class="flex border-b border-gray-100 px-5 bg-white text-xs font-semibold">
+                <button id="cat-tab-btn-list" onclick="switchCategoryManagerTab('list')" class="py-3 px-4 text-blue-600 border-b-2 border-blue-600 flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-list-ul"></i> หมวดหมู่ทั้งหมด <span id="cat-count-badge" class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold">5</span>
+                </button>
+                <button id="cat-tab-btn-add" onclick="switchCategoryManagerTab('add')" class="py-3 px-4 text-gray-500 hover:text-gray-700 flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-plus-circle"></i> เพิ่มหมวดหมู่ใหม่
+                </button>
+            </div>
+            
+            <!-- Tab Contents -->
+            <div class="p-5 overflow-y-auto custom-scrollbar flex-1">
+                <!-- Tab 1: Category List -->
+                <div id="category-mgr-tab-list" class="space-y-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-gray-500 font-medium">หมวดหมู่ที่ใช้งานอยู่ (กดปุ่มถังขยะสีแดงเพื่อลบ)</span>
+                        <button type="button" onclick="switchCategoryManagerTab('add')" class="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1.5 transition-colors">
+                            <i class="fa-solid fa-plus"></i> เพิ่มหมวดหมู่
+                        </button>
+                    </div>
+                    <div id="finance-category-manager-items" class="space-y-2">
+                        <!-- Populated dynamically by renderCategoryManagementList() -->
                     </div>
                 </div>
+                
+                <!-- Tab 2: Add New Category Form -->
+                <div id="category-mgr-tab-add" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">ชื่อหมวดหมู่ <span class="text-red-500">*</span></label>
+                        <input type="text" id="add-category-name" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="เช่น ค่ารับรองลูกค้า, อุปกรณ์ IT, สื่อโฆษณา">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">งบประมาณตั้งต้นโดยประมาณ (บาท)</label>
+                        <input type="number" id="add-category-budget" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="เช่น 5000 (ใส่หรือไม่ใส่ก็ได้)">
+                    </div>
 
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-2">สีของหมวดหมู่</label>
-                    <div class="flex flex-wrap gap-2" id="add-category-colors">
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="red" class="peer hidden"><div class="w-6 h-6 rounded-full bg-red-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-red-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="orange" class="peer hidden"><div class="w-6 h-6 rounded-full bg-orange-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-orange-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="yellow" class="peer hidden"><div class="w-6 h-6 rounded-full bg-yellow-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-yellow-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="green" class="peer hidden"><div class="w-6 h-6 rounded-full bg-green-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-green-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="blue" class="peer hidden" checked><div class="w-6 h-6 rounded-full bg-blue-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-blue-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="indigo" class="peer hidden"><div class="w-6 h-6 rounded-full bg-indigo-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-indigo-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="purple" class="peer hidden"><div class="w-6 h-6 rounded-full bg-purple-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-purple-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="pink" class="peer hidden"><div class="w-6 h-6 rounded-full bg-pink-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-pink-500"></div></label>
-                        <label class="cursor-pointer"><input type="radio" name="category_color" value="gray" class="peer hidden"><div class="w-6 h-6 rounded-full bg-gray-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-500"></div></label>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">ไอคอนหมวดหมู่</label>
+                        <div class="flex items-center gap-3 mb-2.5">
+                            <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 text-base shadow-inner" id="add-category-icon-preview">
+                                <i class="fa-solid fa-box"></i>
+                            </div>
+                            <input type="text" id="add-category-icon" class="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm focus:border-blue-500 outline-none" value="fa-box" placeholder="เช่น fa-box, fa-laptop" oninput="document.getElementById('add-category-icon-preview').innerHTML = `<i class='fa-solid ${this.value}'></i>`">
+                        </div>
+                        <!-- Quick Pick Icons -->
+                        <div class="flex flex-wrap gap-1.5 text-xs text-gray-600">
+                            <span class="text-[11px] text-gray-400 self-center mr-1">เลือกเร็ว:</span>
+                            <button type="button" onclick="selectQuickIcon('fa-utensils')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-utensils"></i> อาหาร</button>
+                            <button type="button" onclick="selectQuickIcon('fa-box')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-box"></i> พัสดุ</button>
+                            <button type="button" onclick="selectQuickIcon('fa-palette')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-palette"></i> กิจกรรม</button>
+                            <button type="button" onclick="selectQuickIcon('fa-car')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-car"></i> เดินทาง</button>
+                            <button type="button" onclick="selectQuickIcon('fa-laptop')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-laptop"></i> IT</button>
+                            <button type="button" onclick="selectQuickIcon('fa-receipt')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-receipt"></i> เอกสาร</button>
+                            <button type="button" onclick="selectQuickIcon('fa-bullhorn')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-bullhorn"></i> สื่อ</button>
+                            <button type="button" onclick="selectQuickIcon('fa-users')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-users"></i> บุคลากร</button>
+                            <button type="button" onclick="selectQuickIcon('fa-mug-hot')" class="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center gap-1"><i class="fa-solid fa-mug-hot"></i> เบรก</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-2">สีของหมวดหมู่</label>
+                        <div class="flex flex-wrap gap-2.5" id="add-category-colors">
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="orange" class="peer hidden"><div class="w-7 h-7 rounded-full bg-orange-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-orange-500 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="purple" class="peer hidden"><div class="w-7 h-7 rounded-full bg-purple-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-purple-500 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="pink" class="peer hidden"><div class="w-7 h-7 rounded-full bg-pink-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-pink-500 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="sky" class="peer hidden"><div class="w-7 h-7 rounded-full bg-sky-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-sky-500 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="blue" class="peer hidden" checked><div class="w-7 h-7 rounded-full bg-blue-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-blue-600 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="green" class="peer hidden"><div class="w-7 h-7 rounded-full bg-emerald-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-emerald-600 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="red" class="peer hidden"><div class="w-7 h-7 rounded-full bg-red-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-red-600 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="yellow" class="peer hidden"><div class="w-7 h-7 rounded-full bg-amber-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-amber-500 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="indigo" class="peer hidden"><div class="w-7 h-7 rounded-full bg-indigo-500 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-indigo-600 shadow-sm transition-transform hover:scale-105"></div></label>
+                            <label class="cursor-pointer"><input type="radio" name="category_color" value="gray" class="peer hidden"><div class="w-7 h-7 rounded-full bg-gray-400 peer-checked:ring-2 peer-checked:ring-offset-2 peer-checked:ring-gray-500 shadow-sm transition-transform hover:scale-105"></div></label>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
-                <button onclick="closeFinanceModal('finance-add-category-modal')" class="px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">ยกเลิก</button>
-                <button id="btn-submit-category" class="px-6 py-2.5 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2"><i class="fa-solid fa-plus"></i> เพิ่มหมวดหมู่</button>
+            <!-- Footer -->
+            <div class="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/70">
+                <button onclick="closeFinanceModal('finance-add-category-modal')" class="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200/70 rounded-xl transition-colors">ปิด</button>
+                <div id="cat-mgr-footer-actions">
+                    <button id="btn-submit-category" onclick="submitFinanceCategory()" class="hidden px-5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-all flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> บันทึกหมวดหมู่ใหม่</button>
+                </div>
             </div>
         </div>
     </div>
@@ -6180,14 +6238,14 @@
                     </div>
                     
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">หมวดหมู่ <span class="text-red-500">*</span></label>
-                        <select class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-bold text-gray-700">หมวดหมู่ <span class="text-red-500">*</span></label>
+                            <button type="button" onclick="openFinanceCategoryManager('add')" class="text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 hover:underline transition-colors">
+                                <i class="fa-solid fa-gear text-[10px]"></i> จัดการหมวดหมู่
+                            </button>
+                        </div>
+                        <select id="finance-add-category-select" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white">
                             <option value="">เลือกหมวดหมู่...</option>
-                            <option value="welfare">สวัสดิการอาหารและเบรก</option>
-                            <option value="supplies">พัสดุ</option>
-                            <option value="activity">กิจกรรม</option>
-                            <option value="travel">เดินทาง</option>
-                            <option value="other">อื่นๆ</option>
                         </select>
                     </div>
 
@@ -6264,13 +6322,14 @@
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 mb-1.5">หมวดหมู่งบประมาณ <span class="text-red-500">*</span></label>
-                        <select class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none bg-white">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-bold text-gray-700">หมวดหมู่งบประมาณ <span class="text-red-500">*</span></label>
+                            <button type="button" onclick="openFinanceCategoryManager('add')" class="text-[11px] text-orange-600 hover:text-orange-800 font-semibold flex items-center gap-1 hover:underline transition-colors">
+                                <i class="fa-solid fa-gear text-[10px]"></i> จัดการหมวดหมู่
+                            </button>
+                        </div>
+                        <select id="finance-request-category-select" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none bg-white">
                             <option value="">เลือกหมวดหมู่...</option>
-                            <option value="welfare">สวัสดิการอาหารและเบรก</option>
-                            <option value="supplies">พัสดุ</option>
-                            <option value="activity">กิจกรรม</option>
-                            <option value="travel">เดินทาง</option>
                         </select>
                     </div>
                     <div>
@@ -6292,7 +6351,7 @@
             
             <div class="p-5 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
                 <button onclick="closeFinanceModal('finance-request-modal')" class="px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">ยกเลิก</button>
-                <button class="px-6 py-2.5 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2"><i class="fa-regular fa-paper-plane"></i> ส่งคำขออนุมัติ</button>
+                <button type="button" onclick="submitFinanceRequest()" class="px-6 py-2.5 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2"><i class="fa-regular fa-paper-plane"></i> ส่งคำขออนุมัติ</button>
             </div>
         </div>
     </div>

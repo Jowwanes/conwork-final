@@ -26,13 +26,233 @@ const STATUS_TO_DB = {
     'paid': 'paid'
 };
 
-const DEFAULT_FINANCE_CATEGORIES = {
-    'welfare': { name: 'สวัสดิการอาหารและเบรก', icon: 'fa-utensils', color: '#f97316', bgClass: 'bg-orange-100', textClass: 'text-orange-500', defaultBudget: 5400 },
-    'supplies': { name: 'พัสดุและอุปกรณ์', icon: 'fa-box', color: '#a855f7', bgClass: 'bg-purple-100', textClass: 'text-purple-500', defaultBudget: 4000 },
-    'activity': { name: 'กิจกรรมโครงการ', icon: 'fa-palette', color: '#ec4899', bgClass: 'bg-pink-100', textClass: 'text-pink-500', defaultBudget: 6000 },
-    'travel': { name: 'การเดินทางและขนส่ง', icon: 'fa-car', color: '#0ea5e9', bgClass: 'bg-sky-100', textClass: 'text-sky-500', defaultBudget: 2600 },
-    'other': { name: 'อื่น ๆ', icon: 'fa-ellipsis', color: '#94a3b8', bgClass: 'bg-gray-100', textClass: 'text-gray-500', defaultBudget: 2000 }
+const FINANCE_CATEGORIES_STORAGE_KEY = 'conwork_finance_categories';
+
+const FINANCE_COLOR_PRESETS = {
+    'orange': { color: '#f97316', bgClass: 'bg-orange-100', textClass: 'text-orange-500' },
+    'purple': { color: '#a855f7', bgClass: 'bg-purple-100', textClass: 'text-purple-500' },
+    'pink': { color: '#ec4899', bgClass: 'bg-pink-100', textClass: 'text-pink-500' },
+    'sky': { color: '#0ea5e9', bgClass: 'bg-sky-100', textClass: 'text-sky-500' },
+    'blue': { color: '#3b82f6', bgClass: 'bg-blue-100', textClass: 'text-blue-500' },
+    'green': { color: '#10b981', bgClass: 'bg-emerald-100', textClass: 'text-emerald-500' },
+    'red': { color: '#ef4444', bgClass: 'bg-red-100', textClass: 'text-red-500' },
+    'yellow': { color: '#f59e0b', bgClass: 'bg-amber-100', textClass: 'text-amber-500' },
+    'indigo': { color: '#6366f1', bgClass: 'bg-indigo-100', textClass: 'text-indigo-500' },
+    'gray': { color: '#94a3b8', bgClass: 'bg-gray-100', textClass: 'text-gray-500' }
 };
+
+const DEFAULT_FINANCE_CATEGORIES = {
+    'welfare': { id: 'welfare', name: 'สวัสดิการอาหารและเบรก', icon: 'fa-utensils', color: '#f97316', bgClass: 'bg-orange-100', textClass: 'text-orange-500', defaultBudget: 5400 },
+    'supplies': { id: 'supplies', name: 'พัสดุและอุปกรณ์', icon: 'fa-box', color: '#a855f7', bgClass: 'bg-purple-100', textClass: 'text-purple-500', defaultBudget: 4000 },
+    'activity': { id: 'activity', name: 'กิจกรรมโครงการ', icon: 'fa-palette', color: '#ec4899', bgClass: 'bg-pink-100', textClass: 'text-pink-500', defaultBudget: 6000 },
+    'travel': { id: 'travel', name: 'การเดินทางและขนส่ง', icon: 'fa-car', color: '#0ea5e9', bgClass: 'bg-sky-100', textClass: 'text-sky-500', defaultBudget: 2600 },
+    'other': { id: 'other', name: 'อื่น ๆ', icon: 'fa-ellipsis', color: '#94a3b8', bgClass: 'bg-gray-100', textClass: 'text-gray-500', defaultBudget: 2000 }
+};
+
+function getFinanceCategories() {
+    try {
+        const saved = localStorage.getItem(FINANCE_CATEGORIES_STORAGE_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                return parsed;
+            }
+        }
+    } catch (e) {}
+    try {
+        localStorage.setItem(FINANCE_CATEGORIES_STORAGE_KEY, JSON.stringify(DEFAULT_FINANCE_CATEGORIES));
+    } catch (e) {}
+    return { ...DEFAULT_FINANCE_CATEGORIES };
+}
+
+function saveFinanceCategories(categories) {
+    try {
+        localStorage.setItem(FINANCE_CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+    } catch (e) {}
+}
+
+function renderFinanceCategorySelects(selectedKey = null) {
+    const categories = getFinanceCategories();
+    const selects = [
+        document.getElementById('finance-add-category-select'),
+        document.getElementById('finance-request-category-select')
+    ];
+
+    selects.forEach(select => {
+        if (!select) return;
+        const previousVal = selectedKey || select.value;
+        select.innerHTML = '<option value="">เลือกหมวดหมู่...</option>';
+        Object.entries(categories).forEach(([key, cat]) => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = cat.name;
+            if (previousVal === key) {
+                opt.selected = true;
+            }
+            select.appendChild(opt);
+        });
+        if (selectedKey && categories[selectedKey]) {
+            select.value = selectedKey;
+        }
+    });
+}
+
+function renderCategoryManagementList() {
+    const container = document.getElementById('finance-category-manager-items');
+    const countBadge = document.getElementById('cat-count-badge');
+    if (!container) return;
+
+    const categories = getFinanceCategories();
+    const txs = getStoredTransactions();
+    const keys = Object.keys(categories);
+
+    if (countBadge) countBadge.textContent = keys.length;
+
+    if (keys.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-400 text-xs">
+                <i class="fa-solid fa-folder-open text-2xl mb-2 text-gray-300"></i>
+                <p>ยังไม่มีหมวดหมู่ กรุณาเพิ่มหมวดหมู่ใหม่</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = keys.map(k => {
+        const cat = categories[k];
+        const txCount = txs.filter(t => t.category === k).length;
+        const color = cat.color || '#64748b';
+        const icon = cat.icon || 'fa-box';
+        const bgClass = cat.bgClass || 'bg-gray-100';
+        const textClass = cat.textClass || 'text-gray-500';
+        const budget = cat.defaultBudget ? '฿' + Number(cat.defaultBudget).toLocaleString() : 'ไม่ได้กำหนด';
+
+        return `
+            <div class="flex items-center justify-between p-3 rounded-2xl bg-gray-50/80 hover:bg-gray-100/80 border border-gray-100 transition-all">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl ${bgClass} flex items-center justify-center shrink-0 shadow-sm" style="${!bgClass ? 'background-color:' + color + '20;' : ''}">
+                        <i class="fa-solid ${icon} ${textClass} text-sm" style="${!textClass ? 'color:' + color + ';' : ''}"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-gray-800 text-xs">${cat.name}</div>
+                        <div class="text-[10px] text-gray-400 mt-0.5 flex items-center gap-2">
+                            <span>งบ: <strong class="text-gray-600">${budget}</strong></span>
+                            <span>•</span>
+                            <span>ใช้ใน <strong>${txCount}</strong> รายการ</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="deleteFinanceCategory('${k}')" class="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-xl transition-all" title="ลบหมวดหมู่นี้">
+                        <i class="fa-regular fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function openFinanceCategoryManager(tab = 'list') {
+    openFinanceModal('finance-add-category-modal');
+    switchCategoryManagerTab(tab);
+    renderCategoryManagementList();
+}
+
+function switchCategoryManagerTab(tab) {
+    const listTab = document.getElementById('category-mgr-tab-list');
+    const addTab = document.getElementById('category-mgr-tab-add');
+    const btnList = document.getElementById('cat-tab-btn-list');
+    const btnAdd = document.getElementById('cat-tab-btn-add');
+    const submitBtn = document.getElementById('btn-submit-category');
+
+    if (tab === 'add') {
+        if (listTab) listTab.classList.add('hidden');
+        if (addTab) addTab.classList.remove('hidden');
+        if (btnList) {
+            btnList.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+            btnList.classList.add('text-gray-500');
+        }
+        if (btnAdd) {
+            btnAdd.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            btnAdd.classList.remove('text-gray-500');
+        }
+        if (submitBtn) submitBtn.classList.remove('hidden');
+        const nameInput = document.getElementById('add-category-name');
+        if (nameInput) setTimeout(() => nameInput.focus(), 50);
+    } else {
+        if (listTab) listTab.classList.remove('hidden');
+        if (addTab) addTab.classList.add('hidden');
+        if (btnList) {
+            btnList.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            btnList.classList.remove('text-gray-500');
+        }
+        if (btnAdd) {
+            btnAdd.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+            btnAdd.classList.add('text-gray-500');
+        }
+        if (submitBtn) submitBtn.classList.add('hidden');
+        renderCategoryManagementList();
+    }
+}
+
+function selectQuickIcon(iconClass) {
+    const iconInput = document.getElementById('add-category-icon');
+    const preview = document.getElementById('add-category-icon-preview');
+    if (iconInput) iconInput.value = iconClass;
+    if (preview) preview.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+}
+
+function deleteFinanceCategory(catKey) {
+    const categories = getFinanceCategories();
+    const cat = categories[catKey];
+    if (!cat) return;
+
+    const keys = Object.keys(categories);
+    if (keys.length <= 1) {
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('ต้องมีหมวดหมู่อย่างน้อย 1 หมวดหมู่ ไม่สามารถลบทั้งหมดได้', 'warning');
+        } else {
+            alert('ต้องมีหมวดหมู่อย่างน้อย 1 หมวดหมู่ ไม่สามารถลบทั้งหมดได้');
+        }
+        return;
+    }
+
+    const txs = getStoredTransactions();
+    const usedCount = txs.filter(t => t.category === catKey).length;
+    const confirmMsg = usedCount > 0 
+        ? `คุณต้องการลบหมวดหมู่ "${cat.name}" ใช่หรือไม่?\n\n* มีรายการที่ใช้หมวดหมู่นี้อยู่ ${usedCount} รายการ รายการเหล่านี้จะถูกย้ายไปยังหมวดหมู่อื่น`
+        : `คุณต้องการลบหมวดหมู่ "${cat.name}" ใช่หรือไม่?`;
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    delete categories[catKey];
+    saveFinanceCategories(categories);
+
+    // Migrate any orphaned transactions to a remaining category
+    const remainingKeys = Object.keys(categories);
+    const fallbackKey = categories['other'] ? 'other' : remainingKeys[0];
+    let updatedTxs = false;
+    txs.forEach(t => {
+        if (t.category === catKey) {
+            t.category = fallbackKey;
+            updatedTxs = true;
+        }
+    });
+    if (updatedTxs) {
+        localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(txs));
+    }
+
+    renderCategoryManagementList();
+    renderFinanceCategorySelects();
+    loadStoredTransactionsToTable();
+    recalculateFinanceTotals();
+
+    if (window.App && typeof App._showToast === 'function') {
+        App._showToast(`ลบหมวดหมู่ "${cat.name}" เรียบร้อยแล้ว`, 'success');
+    }
+}
 
 function getStoredTransactions() {
     try {
@@ -129,28 +349,29 @@ function recalculateFinanceTotals() {
     const cashRemaining = Math.max(0, initialCash + cashInflow - cashUsed);
 
     // 1. Calculate per-category metrics for Credit & Cash
-    const catKeys = Object.keys(DEFAULT_FINANCE_CATEGORIES);
+    const categories = getFinanceCategories();
+    const catKeys = Object.keys(categories);
     let totalPlannedCredit = 0;
     const catData = {};
 
     catKeys.forEach(k => {
-        const meta = DEFAULT_FINANCE_CATEGORIES[k];
-        const catTxs = txs.filter(t => t.category === k || (k === 'other' && !DEFAULT_FINANCE_CATEGORIES[t.category]));
+        const meta = categories[k];
+        const catTxs = txs.filter(t => t.category === k);
         const creditTxs = catTxs.filter(t => t.transaction_type === 'credit');
         const cashTxs = catTxs.filter(t => t.transaction_type === 'cash');
 
         const creditSum = creditTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
         const cashSum = cashTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-        const planned = Math.max(meta.defaultBudget, creditSum);
+        const planned = Math.max(meta.defaultBudget || 0, creditSum);
 
         totalPlannedCredit += planned;
         catData[k] = {
             key: k,
             name: meta.name,
-            icon: meta.icon,
-            color: meta.color,
-            bgClass: meta.bgClass,
-            textClass: meta.textClass,
+            icon: meta.icon || 'fa-box',
+            color: meta.color || '#64748b',
+            bgClass: meta.bgClass || 'bg-gray-100',
+            textClass: meta.textClass || 'text-gray-500',
             planned: planned,
             creditSum: creditSum,
             cashSum: cashSum,
@@ -159,6 +380,26 @@ function recalculateFinanceTotals() {
             txs: catTxs
         };
     });
+
+    // Group any orphaned transactions under other or first category
+    const orphanedTxs = txs.filter(t => !categories[t.category]);
+    if (orphanedTxs.length > 0 && catKeys.length > 0) {
+        const fallbackKey = categories['other'] ? 'other' : catKeys[0];
+        if (catData[fallbackKey]) {
+            orphanedTxs.forEach(t => {
+                const amt = parseFloat(t.amount) || 0;
+                if (t.transaction_type === 'credit') {
+                    catData[fallbackKey].creditSum += amt;
+                } else {
+                    catData[fallbackKey].cashSum += amt;
+                }
+                catData[fallbackKey].txs.push(t);
+            });
+            catData[fallbackKey].planned = Math.max(categories[fallbackKey].defaultBudget || 0, catData[fallbackKey].creditSum);
+            catData[fallbackKey].remaining = Math.max(0, catData[fallbackKey].planned - catData[fallbackKey].cashSum);
+            catData[fallbackKey].usedPct = catData[fallbackKey].planned > 0 ? Math.min(100, Math.round((catData[fallbackKey].cashSum / catData[fallbackKey].planned) * 100)) : 0;
+        }
+    }
 
     // 2. Summary Cards (5 Cards)
     const cards = document.querySelectorAll('#view-accounting .grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5 > div');
@@ -336,12 +577,15 @@ function filterTransactionsByCategory(catKey) {
     const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');
     if (tabs.length > 0) tabs[0].click();
 
-    const meta = DEFAULT_FINANCE_CATEGORIES[catKey];
+    const categories = getFinanceCategories();
+    const meta = categories[catKey];
     tableRows.forEach(row => {
         const catCell = row.querySelector('td:nth-child(3)');
         if (!catCell) return;
         if (!meta || catKey === 'all') {
             row.style.display = '';
+        } else if (row._txData) {
+            row.style.display = (row._txData.category === catKey) ? '' : 'none';
         } else {
             const matches = catCell.textContent.includes(meta.name) || (catKey === 'welfare' && catCell.textContent.includes('สวัสดิการ'));
             row.style.display = matches ? '' : 'none';
@@ -405,6 +649,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initFinanceDashboard() {
+    renderFinanceCategorySelects();
+    renderCategoryManagementList();
     loadStoredTransactionsToTable();
     syncFinanceWithSupabase();
 
@@ -592,6 +838,9 @@ function scrollToTable() {
 function openFinanceModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
+        if (modalId === 'finance-add-modal' || modalId === 'finance-request-modal') {
+            renderFinanceCategorySelects();
+        }
         modal.classList.remove('hidden');
     }
 }
@@ -740,8 +989,9 @@ function openFinancePanel(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
         if (tx.categoryHTML) {
             catEl.innerHTML = tx.categoryHTML;
         } else {
-            const meta = DEFAULT_FINANCE_CATEGORIES[tx.category] || DEFAULT_FINANCE_CATEGORIES['other'];
-            catEl.innerHTML = `<i class="fa-solid ${meta.icon} ${meta.textClass}"></i> ${meta.name}`;
+            const categories = getFinanceCategories();
+            const meta = categories[tx.category] || categories['other'] || { name: tx.category || 'อื่นๆ', icon: 'fa-box', textClass: 'text-gray-500' };
+            catEl.innerHTML = `<i class="fa-solid ${meta.icon || 'fa-box'} ${meta.textClass || ''}" style="${!meta.textClass && meta.color ? 'color: ' + meta.color : ''}"></i> ${meta.name}`;
         }
     }
 
@@ -1012,7 +1262,7 @@ async function submitFinanceTransaction() {
     // 1. Gather Data
     const type = document.querySelector('input[name="finance_add_type"]:checked')?.value || 'cash';
     const titleInput = modal.querySelectorAll('input[type="text"]')[0]?.value?.trim();
-    const categorySelect = modal.querySelector('select')?.value;
+    const categorySelect = document.getElementById('finance-add-category-select')?.value || modal.querySelector('select')?.value;
     const amountInput = modal.querySelector('input[type="number"]')?.value;
     const dateInput = modal.querySelector('input[type="date"]')?.value;
     const descInput = modal.querySelector('textarea')?.value?.trim() || '';
@@ -1106,16 +1356,16 @@ function insertTransactionRow(data, isNew = false) {
     const tbody = document.querySelector('#view-accounting tbody');
     if (!tbody) return;
     
-    // Map categories for UI
-    const catMap = {
-        'welfare': { name: 'สวัสดิการ', icon: 'fa-utensils', color: 'orange' },
-        'supplies': { name: 'พัสดุ', icon: 'fa-box', color: 'purple' },
-        'activity': { name: 'กิจกรรม', icon: 'fa-palette', color: 'pink' },
-        'travel': { name: 'เดินทาง', icon: 'fa-car', color: 'sky' },
-        'other': { name: 'อื่นๆ', icon: 'fa-ellipsis', color: 'gray' }
+    // Dynamic category resolution from stored categories
+    const categories = getFinanceCategories();
+    const cat = categories[data.category] || {
+        name: data.category || 'อื่นๆ',
+        icon: 'fa-box',
+        color: '#94a3b8',
+        bgClass: 'bg-gray-100',
+        textClass: 'text-gray-500'
     };
     
-    const cat = catMap[data.category] || catMap['other'];
     const formattedDate = new Date(data.transaction_date).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const formattedAmount = '฿' + (parseFloat(data.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 0 });
     
@@ -1136,7 +1386,7 @@ function insertTransactionRow(data, isNew = false) {
         <td class="px-6 py-4 font-medium text-gray-800">${data.title}</td>
         <td class="px-6 py-4">
             <div class="flex items-center gap-2">
-                <i class="fa-solid ${cat.icon} text-${cat.color}-400 w-4 text-center"></i> <span class="text-xs">${cat.name}</span>
+                <i class="fa-solid ${cat.icon || 'fa-box'} ${cat.textClass || 'text-gray-500'} w-4 text-center" style="${!cat.textClass && cat.color ? 'color: ' + cat.color : ''}"></i> <span class="text-xs font-medium text-gray-700">${cat.name}</span>
             </div>
         </td>
         <td class="px-6 py-4 text-center">${typeBadge}</td>
@@ -1172,16 +1422,16 @@ function insertTransactionRow(data, isNew = false) {
     }
 }
 
-// Category Submission
+// Category Submission & Management
 async function submitFinanceCategory() {
-    const modal = document.getElementById('finance-add-category-modal');
-    
-    // Gather Data
-    const nameInput = document.getElementById('add-category-name').value.trim();
-    const iconInput = document.getElementById('add-category-icon').value.trim() || 'fa-box';
-    const colorInput = document.querySelector('input[name="category_color"]:checked').value;
-    
-    if (!nameInput) {
+    const nameInput = document.getElementById('add-category-name');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const iconInput = document.getElementById('add-category-icon')?.value.trim() || 'fa-box';
+    const budgetInput = parseFloat(document.getElementById('add-category-budget')?.value) || 0;
+    const colorRadio = document.querySelector('input[name="category_color"]:checked');
+    const colorPresetKey = colorRadio ? colorRadio.value : 'blue';
+
+    if (!name) {
         if (window.App && typeof App._showToast === 'function') {
             App._showToast('กรุณากรอกชื่อหมวดหมู่', 'warning');
         } else {
@@ -1189,107 +1439,117 @@ async function submitFinanceCategory() {
         }
         return;
     }
-    
-    try {
-        const submitBtn = document.getElementById('btn-submit-category');
-        const originalText = submitBtn.innerHTML;
+
+    const submitBtn = document.getElementById('btn-submit-category');
+    const originalText = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
         submitBtn.disabled = true;
-        
-        const data = {
-            name: nameInput,
+    }
+
+    try {
+        const preset = FINANCE_COLOR_PRESETS[colorPresetKey] || FINANCE_COLOR_PRESETS['blue'];
+        const newId = 'cat_' + Date.now();
+
+        const newCategory = {
+            id: newId,
+            name: name,
             icon: iconInput,
-            color: colorInput
+            color: preset.color,
+            bgClass: preset.bgClass,
+            textClass: preset.textClass,
+            defaultBudget: budgetInput
         };
-        
-        const result = await ApiService.createFinanceCategory(data);
-        
-        // Update Select dropdowns in Modals
-        const valueSlug = 'cat_' + Date.now();
-        const selects = document.querySelectorAll('#finance-add-modal select, #finance-request-modal select');
-        
-        selects.forEach(select => {
-            // Find if it's the category select (usually the one with options welfare, supplies, etc.)
-            const isCategorySelect = Array.from(select.options).some(opt => opt.value === 'welfare' || opt.value === 'supplies');
-            if (isCategorySelect) {
-                const newOption = new Option(result.name, valueSlug);
-                select.add(newOption);
-            }
-        });
-        
-        // Add to Breakdown list
-        insertCategoryBreakdown(result);
-        
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        
-        // Reset form
-        document.getElementById('add-category-name').value = '';
-        
-        closeFinanceModal('finance-add-category-modal');
+
+        const categories = getFinanceCategories();
+        categories[newId] = newCategory;
+        saveFinanceCategories(categories);
+
+        // Reset inputs
+        if (nameInput) nameInput.value = '';
+        const budgetEl = document.getElementById('add-category-budget');
+        if (budgetEl) budgetEl.value = '';
+
+        // Update selects across modals and pre-select the newly added category
+        renderFinanceCategorySelects(newId);
+        recalculateFinanceTotals();
+        renderCategoryManagementList();
+
+        // Switch back to list tab
+        switchCategoryManagerTab('list');
+
         if (window.App && typeof App._showToast === 'function') {
-            App._showToast('เพิ่มหมวดหมู่สำเร็จ!', 'success');
+            App._showToast(`เพิ่มหมวดหมู่ "${name}" สำเร็จ!`, 'success');
         }
-        
     } catch (error) {
-        console.error(error);
+        console.error('Error adding category:', error);
         if (window.App && typeof App._showToast === 'function') {
             App._showToast('เกิดข้อผิดพลาดในการบันทึกหมวดหมู่', 'error');
         } else {
             alert('เกิดข้อผิดพลาดในการบันทึกหมวดหมู่');
         }
+    } finally {
+        if (submitBtn) {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
     }
 }
 
 function insertCategoryBreakdown(data) {
-    // Find the breakdown container
-    const breakdownContainers = document.querySelectorAll('#view-accounting .space-y-5.overflow-y-auto.flex-1.pr-1.custom-scrollbar');
-    if (breakdownContainers.length === 0) return;
-    
-    const container = breakdownContainers[0];
-    
-    // Build new category HTML
-    const bgColors = {
-        'red': 'bg-red-100', 'orange': 'bg-orange-100', 'yellow': 'bg-yellow-100',
-        'green': 'bg-green-100', 'blue': 'bg-blue-100', 'indigo': 'bg-indigo-100',
-        'purple': 'bg-purple-100', 'pink': 'bg-pink-100', 'gray': 'bg-gray-100'
-    };
-    
-    const textColors = {
-        'red': 'text-red-500', 'orange': 'text-orange-500', 'yellow': 'text-yellow-600',
-        'green': 'text-green-500', 'blue': 'text-blue-500', 'indigo': 'text-indigo-500',
-        'purple': 'text-purple-500', 'pink': 'text-pink-500', 'gray': 'text-gray-500'
-    };
-    
-    const bgColorClass = bgColors[data.color] || 'bg-gray-100';
-    const textColorClass = textColors[data.color] || 'text-gray-500';
-    
-    const newDiv = document.createElement('div');
-    newDiv.className = 'animate-fade-in-up';
-    newDiv.innerHTML = `
-        <div class="flex items-center justify-between text-[11px] mb-2 cursor-pointer group hover:bg-gray-50 p-1 -mx-1 rounded transition-colors bg-yellow-50" onclick="if(this.nextElementSibling.nextElementSibling.nextElementSibling) this.nextElementSibling.nextElementSibling.nextElementSibling.classList.toggle('hidden');">
-            <div class="w-2/5 flex items-center gap-2.5 font-medium text-gray-700">
-                <div class="w-6 h-6 rounded ${bgColorClass} flex items-center justify-center shrink-0"><i class="fa-solid ${data.icon} ${textColorClass} text-[10px]"></i></div>
-                <span class="truncate">${data.name}</span>
-            </div>
-            <div class="w-1/5 text-right text-gray-500">฿0</div>
-            <div class="w-1/5 text-right text-gray-500">฿0</div>
-            <div class="w-1/5 text-right font-bold text-gray-800">฿0</div>
-        </div>
-        <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
-            <div class="bg-gray-200 h-full" style="width: 100%;"></div>
-        </div>
-        <div class="text-[9px] text-gray-400 text-right mt-1">ยังไม่มีการใช้งาน</div>
-    `;
-    
-    // Add to top of list
-    container.insertBefore(newDiv, container.firstChild);
-    
-    // Remove highlight
-    setTimeout(() => {
-        const header = newDiv.querySelector('.bg-yellow-50');
-        if (header) header.classList.remove('bg-yellow-50');
-    }, 3000);
+    recalculateFinanceTotals();
+}
+
+async function submitFinanceRequest() {
+    const modal = document.getElementById('finance-request-modal');
+    if (!modal) return;
+
+    const title = modal.querySelector('input[type="text"]')?.value?.trim();
+    const category = document.getElementById('finance-request-category-select')?.value;
+    const amount = parseFloat(modal.querySelector('input[type="number"]')?.value) || 0;
+    const date = modal.querySelector('input[type="date"]')?.value;
+    const reason = modal.querySelector('textarea')?.value?.trim();
+
+    if (!title || !category || !amount || !date) {
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('กรุณากรอกข้อมูลขอใช้งบประมาณให้ครบถ้วน (*)', 'warning');
+        } else {
+            alert('กรุณากรอกข้อมูลขอใช้งบประมาณให้ครบถ้วน (*)');
+        }
+        return;
+    }
+
+    try {
+        const newTx = {
+            id: 'tx-' + Date.now(),
+            title: title,
+            category: category,
+            amount: amount,
+            transaction_type: 'credit',
+            status: 'รออนุมัติ',
+            transaction_date: date,
+            description: reason || '',
+            author: (window.App && App.state && App.state.currentUser) ? App.state.currentUser.name : 'คุณ (Me)'
+        };
+
+        saveTransactionToStorage(newTx);
+        insertTransactionRow(newTx, true);
+        recalculateFinanceTotals();
+
+        // Reset inputs
+        modal.querySelectorAll('input').forEach(i => i.value = '');
+        if (modal.querySelector('textarea')) modal.querySelector('textarea').value = '';
+
+        closeFinanceModal('finance-request-modal');
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('ส่งคำขออนุมัติงบประมาณสำเร็จ!', 'success');
+        }
+    } catch (e) {
+        console.error('Error submitting finance request:', e);
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เกิดข้อผิดพลาดในการส่งคำขออนุมัติ', 'error');
+        }
+    }
 }
 
 // File Attachment Handler
@@ -1345,10 +1605,11 @@ function getFinanceBudgetSummary() {
     let totalIncome = 0;
     let plannedBudget = 0;
 
-    const catKeys = Object.keys(DEFAULT_FINANCE_CATEGORIES);
+    const categories = getFinanceCategories();
+    const catKeys = Object.keys(categories);
     catKeys.forEach(k => {
-        const meta = DEFAULT_FINANCE_CATEGORIES[k];
-        const catTxs = txs.filter(t => t.category === k || (k === 'other' && !DEFAULT_FINANCE_CATEGORIES[t.category]));
+        const meta = categories[k];
+        const catTxs = txs.filter(t => t.category === k);
         const creditTxs = catTxs.filter(t => t.transaction_type === 'credit');
         const creditSum = creditTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
         plannedBudget += Math.max(meta.defaultBudget || 0, creditSum);
@@ -1379,4 +1640,14 @@ function getFinanceBudgetSummary() {
 }
 
 window.DEFAULT_FINANCE_CATEGORIES = DEFAULT_FINANCE_CATEGORIES;
+window.getFinanceCategories = getFinanceCategories;
+window.saveFinanceCategories = saveFinanceCategories;
+window.renderFinanceCategorySelects = renderFinanceCategorySelects;
+window.renderCategoryManagementList = renderCategoryManagementList;
+window.openFinanceCategoryManager = openFinanceCategoryManager;
+window.switchCategoryManagerTab = switchCategoryManagerTab;
+window.selectQuickIcon = selectQuickIcon;
+window.deleteFinanceCategory = deleteFinanceCategory;
+window.submitFinanceCategory = submitFinanceCategory;
+window.submitFinanceRequest = submitFinanceRequest;
 window.getFinanceBudgetSummary = getFinanceBudgetSummary;
