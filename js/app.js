@@ -2223,7 +2223,15 @@ const App = {
         }
 
         if (filteredProjects.length === 0) {
-            container.innerHTML = '<div class="col-span-full py-10 text-center text-gray-500">ไม่พบโปรเจกต์</div>';
+            container.innerHTML = `
+                <div class="col-span-full py-16 text-center text-slate-400 dark:text-slate-500">
+                    <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-slate-100 dark:bg-slate-800/60 flex items-center justify-center text-slate-400 text-2xl">
+                        <i class="fa-regular fa-folder-open"></i>
+                    </div>
+                    <p class="text-base font-medium text-slate-600 dark:text-slate-300">ไม่พบโปรเจกต์</p>
+                    <p class="text-xs text-slate-400 mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ</p>
+                </div>
+            `;
             return;
         }
 
@@ -2238,64 +2246,92 @@ const App = {
             const sectionsTotal = sections.length;
             const sectionsDone = sectionsTotal > 0 ? Math.round((p.progress / 100) * sectionsTotal) : 0;
 
-            const statusLabel = p.status === 'completed' ? 'เสร็จสิ้น'
-                : p.status === 'in-progress' ? 'กำลังดำเนินการ'
-                    : p.status === 'todo' ? 'รอดำเนินการ'
-                        : p.status === 'cancelled' ? 'ถูกยกเลิก'
-                            : p.status === 'paused' ? 'พักชั่วคราว'
-                                : p.status === 'hidden' ? 'ซ่อนงาน'
-                                    : p.status === 'deleted' ? 'ลบโครงการ'
-                                        : 'วางแผน';
+            let statusLabel = 'วางแผน';
+            let badgeClass = 'bg-slate-100 text-slate-600 border border-slate-200/80 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
+            let dotClass = 'bg-slate-400';
 
-            const badgeColor = p.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
-                : p.status === 'in-progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
-                    : p.status === 'todo' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400'
-                        : p.status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
-                            : p.status === 'paused' ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
-                                : p.status === 'hidden' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700/40 dark:text-gray-300'
-                                    : p.status === 'deleted' ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
-                                        : 'bg-gray-100 text-gray-600 dark:bg-gray-500/30 dark:text-gray-300';
+            if (p.status === 'completed') {
+                statusLabel = 'เสร็จสิ้น';
+                badgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200/70 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40';
+                dotClass = 'bg-emerald-500';
+            } else if (p.status === 'in-progress') {
+                statusLabel = 'กำลังดำเนินการ';
+                badgeClass = 'bg-blue-50 text-blue-700 border border-blue-200/70 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40';
+                dotClass = 'bg-blue-500 animate-pulse';
+            } else if (p.status === 'todo') {
+                statusLabel = 'รอดำเนินการ';
+                badgeClass = 'bg-amber-50 text-amber-700 border border-amber-200/70 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40';
+                dotClass = 'bg-amber-500';
+            } else if (p.status === 'paused') {
+                statusLabel = 'พักชั่วคราว';
+                badgeClass = 'bg-purple-50 text-purple-700 border border-purple-200/70 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40';
+                dotClass = 'bg-purple-500';
+            } else if (p.status === 'cancelled') {
+                statusLabel = 'ถูกยกเลิก';
+                badgeClass = 'bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40';
+                dotClass = 'bg-rose-500';
+            } else if (p.status === 'deleted') {
+                statusLabel = 'ลบโครงการ';
+                badgeClass = 'bg-rose-50 text-rose-700 border border-rose-200/70 dark:bg-rose-950/40 dark:text-rose-300';
+                dotClass = 'bg-rose-500';
+            } else if (p.status === 'hidden') {
+                statusLabel = 'ซ่อนงาน';
+                badgeClass = 'bg-slate-100 text-slate-600 border border-slate-200/70 dark:bg-slate-800 dark:text-slate-400';
+                dotClass = 'bg-slate-400';
+            }
 
-            const projectColorClass = p.color || 'bg-blue-600';
-            const progressBarColor = projectColorClass;
-            const projectLightBgClass = projectColorClass.replace(/-\d{3,4}$/, '-50');
-
-            const statusBorder = p.status === 'completed' ? 'border-t-green-500 dark:border-t-green-400'
-                : p.status === 'in-progress' ? 'border-t-blue-500 dark:border-t-blue-400'
-                    : p.status === 'todo' ? 'border-t-yellow-500 dark:border-t-yellow-400'
-                        : p.status === 'cancelled' ? 'border-t-red-500 dark:border-t-red-400'
-                            : p.status === 'paused' ? 'border-t-orange-500 dark:border-t-orange-400'
-                                : p.status === 'hidden' ? 'border-t-gray-700 dark:border-t-gray-500'
-                                    : p.status === 'deleted' ? 'border-t-red-500 dark:border-t-red-400'
-                                        : 'border-t-gray-400 dark:border-t-gray-400';
+            const isDone = p.progress === 100;
+            const progressGradient = isDone ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-blue-500 to-indigo-500';
+            const progressTextColor = isDone ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200';
 
             html += `
-                <div class="relative ${projectLightBgClass} rounded-xl shadow p-5 border border-gray-100 hover:shadow-lg transition-shadow cursor-pointer flex flex-col min-h-[160px] overflow-hidden" onclick="App.openProject('${p.id}')">
-                    <div class="absolute top-0 left-0 right-0 h-1.5 ${projectColorClass}"></div>
-                    <div class="flex justify-between items-start mb-3 shrink-0">
-                        <div class="flex items-center gap-2">
-                            ${p.pinned ? '<i class="fa-solid fa-thumbtack text-blue-500 transform -rotate-45" title="ปักหมุดแล้ว"></i>' : ''}
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full ${badgeColor} shrink-0">${statusLabel}</span>
+                <div class="group relative bg-white dark:bg-slate-850 rounded-2xl p-5 border border-slate-200/70 hover:border-blue-400/70 dark:border-slate-800 dark:hover:border-blue-500/50 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer flex flex-col justify-between" onclick="App.openProject('${p.id}')">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                ${p.pinned ? `<span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-500 text-xs shadow-2xs" title="ปักหมุดแล้ว"><i class="fa-solid fa-thumbtack text-[10px] -rotate-45"></i></span>` : ''}
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${badgeClass}">
+                                    <span class="w-1.5 h-1.5 rounded-full ${dotClass}"></span>
+                                    ${statusLabel}
+                                </span>
+                            </div>
+                            <button class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700/60 flex items-center justify-center transition-colors shrink-0" onclick="App.projectOptions(event, '${p.id}')" title="ตัวเลือกโปรเจกต์">
+                                <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+                            </button>
                         </div>
-                        <button class="text-gray-400 hover:text-gray-600 p-1 shrink-0" onclick="App.projectOptions(event, '${p.id}')"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+
+                        <h3 class="font-semibold text-slate-800 dark:text-slate-100 text-[15px] leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 project-name-display mb-4" title="${p.name}">
+                            ${p.name}
+                        </h3>
                     </div>
-                    <h3 class="font-bold text-gray-800 mb-2 line-clamp-2 project-name-display" title="${p.name}">${p.name}</h3>
-                    <div class="flex items-center space-x-2 mb-auto shrink-0">
-                        <div class="flex -space-x-2">
-                            ${p.team.slice(0, 3).map(id => {
-                const u = mockUsers.find(user => String(user.id) === String(id));
-                return u ? `<img class="w-8 h-8 rounded-full border-2 border-white bg-white" src="${u.avatar}" title="${u.name}">` : '';
-            }).join('')}
-                            ${p.team.length > 3 ? `<div class="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">+${p.team.length - 3}</div>` : ''}
+
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <div class="flex items-center">
+                                ${p.team && p.team.length > 0 ? `
+                                    <div class="flex -space-x-1.5 overflow-hidden py-0.5">
+                                        ${p.team.slice(0, 3).map(id => {
+                                            const u = mockUsers.find(user => String(user.id) === String(id));
+                                            if (!u) return '';
+                                            return `<img class="inline-block w-6 h-6 rounded-full ring-2 ring-white dark:ring-slate-800 object-cover shadow-2xs bg-slate-100" src="${u.avatar}" title="${u.name}" alt="${u.name}" onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${u.name || 'U'}') + '&background=e2e8f0&color=475569'">`;
+                                        }).join('')}
+                                        ${p.team.length > 3 ? `<div class="inline-flex items-center justify-center w-6 h-6 rounded-full ring-2 ring-white dark:ring-slate-800 bg-slate-100 dark:bg-slate-700 text-[10px] font-semibold text-slate-600 dark:text-slate-300 shadow-2xs">+${p.team.length - 3}</div>` : ''}
+                                    </div>
+                                ` : `
+                                    <span class="text-[11px] text-slate-400 flex items-center gap-1 font-normal">
+                                        <i class="fa-regular fa-user text-[10px] opacity-60"></i> สมาชิกทั่วไป
+                                    </span>
+                                `}
+                            </div>
+
+                            <div class="text-right">
+                                <span class="text-xs font-semibold ${progressTextColor}">${p.progress}%</span>
+                                <span class="text-[11px] text-slate-400 ml-1 font-normal">${sectionsDone}/${sectionsTotal} หัวข้อ</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="mt-4 shrink-0">
-                        <div class="flex justify-between text-xs text-gray-500 mb-1.5 font-medium">
-                            <span>${p.progress}% เสร็จสิ้น</span>
-                            <span>${sectionsDone}/${sectionsTotal} หัวข้อ</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-1.5">
-                            <div class="${progressBarColor} h-1.5 rounded-full transition-all duration-300" style="width: ${p.progress}%"></div>
+
+                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-500 ease-out ${progressGradient}" style="width: ${p.progress}%"></div>
                         </div>
                     </div>
                 </div>
@@ -4959,9 +4995,9 @@ const App = {
         btns.forEach(btn => {
             const isSelected = btn.getAttribute('onclick').includes("'" + type + "'");
             if (isSelected) {
-                btn.className = "px-4 py-1.5 bg-blue-600 text-white dark:bg-blue-500/15 dark:text-[#93c5fd] rounded-lg text-sm font-bold shadow-md dark:shadow-none transition-all duration-300 border border-transparent dark:border-blue-500/30";
+                btn.className = "px-4 py-1.5 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-semibold shadow-xs transition-all duration-200";
             } else {
-                btn.className = "px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 shadow-sm transition-all duration-300 border-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600";
+                btn.className = "px-4 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg text-sm font-medium hover:bg-white/60 dark:hover:bg-slate-700/50 transition-all duration-200";
             }
         });
 

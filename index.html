@@ -1462,33 +1462,33 @@
 
                 <!-- 1. PROJECTS VIEW (งานทั้งหมด) -->
                 <div id="view-projects" class="view-section hidden h-full flex flex-col p-6">
-                    <div class="flex justify-between items-center mb-6">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
                         <div id="proj-filter-toggle-container"
-                            class="flex space-x-1 bg-white dark:bg-gray-800/30 p-1 rounded-xl border-none">
+                            class="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60 self-start">
                             <button
-                                class="px-4 py-1.5 bg-blue-600 text-white dark:bg-blue-500/15 dark:text-[#93c5fd] rounded-lg text-sm font-bold shadow-md dark:shadow-none transition-all duration-300 border border-transparent dark:border-blue-500/30"
+                                class="px-4 py-1.5 bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-semibold shadow-xs transition-all duration-200"
                                 onclick="App.filterProjects('all')">โปรเจกต์ทั้งหมด</button>
                             <button
-                                class="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 shadow-sm transition-all duration-300 border-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                class="px-4 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg text-sm font-medium hover:bg-white/60 dark:hover:bg-slate-700/50 transition-all duration-200"
                                 onclick="App.filterProjects('related')">โปรเจกต์ที่เกี่ยวข้อง</button>
                         </div>
 
-                        <!-- Search and Filter (New) -->
-                        <div class="flex flex-1 mx-4 space-x-3 items-center justify-end max-w-xl ml-auto">
+                        <!-- Search and Filter -->
+                        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 flex-1 justify-end max-w-2xl">
                             <!-- Search -->
-                            <div class="relative flex-1">
+                            <div class="relative flex-1 min-w-[200px]">
                                 <i
-                                    class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                    class="fa-solid fa-search absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                                 <input type="text" id="project-search-input" oninput="App.renderProjects()"
-                                    class="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                    class="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm shadow-2xs transition-all"
                                     placeholder="ค้นหาโปรเจกต์...">
                             </div>
 
                             <!-- Status Filter -->
-                            <div class="relative w-48 shrink-0">
+                            <div class="relative w-44 shrink-0">
                                 <select id="project-status-filter" onchange="App.renderProjects()"
-                                    class="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm cursor-pointer">
-                                    <option value="all">สถานะโปรเจกต์ทั้งหมด</option>
+                                    class="w-full appearance-none bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-2 pl-3.5 pr-8 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm cursor-pointer shadow-2xs transition-all">
+                                    <option value="all">สถานะทั้งหมด</option>
                                     <option value="plan">วางแผน</option>
                                     <option value="todo">รอดำเนินการ</option>
                                     <option value="in-progress">กำลังดำเนินการ</option>
@@ -1497,19 +1497,19 @@
                                     <option value="deleted">ลบโครงการ</option>
                                 </select>
                                 <i
-                                    class="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                    class="fa-solid fa-chevron-down absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                             </div>
-                        </div>
 
-                        <button id="btn-create-project" data-require-perm="สร้างโปรเจกต์"
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-sm text-sm font-medium flex items-center space-x-2 transition-colors"
-                            onclick="App.createProject()">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>สร้างโปรเจกต์ใหม่</span>
-                        </button>
+                            <button id="btn-create-project" data-require-perm="สร้างโปรเจกต์"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-xs hover:shadow text-sm font-medium flex items-center space-x-2 transition-all shrink-0"
+                                onclick="App.createProject()">
+                                <i class="fa-solid fa-plus text-xs"></i>
+                                <span>สร้างโปรเจกต์ใหม่</span>
+                            </button>
+                        </div>
                     </div>
                     <!-- Cards Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
                         id="projects-container">
                         <!-- Rendered by JS -->
                     </div>
