@@ -162,12 +162,23 @@ function getFinanceCategories() {
                 if (hasMockBudget) {
                     try { localStorage.setItem(FINANCE_CATEGORIES_STORAGE_KEY, JSON.stringify(parsed)); } catch (e) {}
                 }
+                Object.keys(parsed).forEach(k => {
+                    if (!Array.isArray(parsed[k].subcategories)) {
+                        parsed[k].subcategories = [];
+                    }
+                });
                 return parsed;
             }
         }
     } catch (e) {}
     try {
-        localStorage.setItem(FINANCE_CATEGORIES_STORAGE_KEY, JSON.stringify(DEFAULT_FINANCE_CATEGORIES));
+        const defaults = { ...DEFAULT_FINANCE_CATEGORIES };
+        Object.keys(defaults).forEach(k => {
+            if (!Array.isArray(defaults[k].subcategories)) {
+                defaults[k].subcategories = [];
+            }
+        });
+        localStorage.setItem(FINANCE_CATEGORIES_STORAGE_KEY, JSON.stringify(defaults));
     } catch (e) {}
     return { ...DEFAULT_FINANCE_CATEGORIES };
 }
@@ -202,6 +213,45 @@ function renderFinanceCategorySelects(selectedKey = null) {
             select.value = selectedKey;
         }
     });
+
+    onFinanceCategorySelectChanged('add');
+    onFinanceCategorySelectChanged('request');
+}
+
+function onFinanceCategorySelectChanged(formType) {
+    const catSelectId = formType === 'request' ? 'finance-request-category-select' : 'finance-add-category-select';
+    const subSelectId = formType === 'request' ? 'finance-request-subcategory-select' : 'finance-add-subcategory-select';
+    const catSelect = document.getElementById(catSelectId);
+    const subSelect = document.getElementById(subSelectId);
+    if (!subSelect) return;
+
+    const selectedCatKey = catSelect ? catSelect.value : '';
+    const categories = getFinanceCategories();
+    const currentCat = categories[selectedCatKey];
+
+    subSelect.innerHTML = '';
+
+    if (currentCat && Array.isArray(currentCat.subcategories) && currentCat.subcategories.length > 0) {
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = '-- เลือกหมวดหมู่ย่อย (ไม่ระบุก็ได้) --';
+        subSelect.appendChild(defaultOpt);
+
+        currentCat.subcategories.forEach(sub => {
+            const opt = document.createElement('option');
+            opt.value = sub.id || sub.name;
+            opt.setAttribute('data-name', sub.name);
+            opt.textContent = `${sub.name} (งบ: ฿${(parseFloat(sub.budget) || 0).toLocaleString()})`;
+            subSelect.appendChild(opt);
+        });
+        subSelect.disabled = false;
+    } else {
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = '-- ไม่มีหมวดหมู่ย่อยในหมวดนี้ --';
+        subSelect.appendChild(defaultOpt);
+        subSelect.disabled = false;
+    }
 }
 
 function renderCategoryManagementList() {
@@ -520,6 +570,31 @@ function recalculateFinanceTotals() {
         sumAllocated += allocated;
         const planned = Math.max(allocated, creditSum);
 
+        const rawSubcategories = Array.isArray(meta.subcategories) ? meta.subcategories : [];
+        const computedSubcategories = rawSubcategories.map(sub => {
+            const subId = String(sub.id || '');
+            const subName = String(sub.name || '').trim();
+            const subAllocated = parseFloat(sub.budget) || 0;
+            const subTxs = catTxs.filter(t => (t.subcategory_id && String(t.subcategory_id) === subId) || (t.subcategory_name && String(t.subcategory_name).trim() === subName));
+            const subCreditTxs = subTxs.filter(t => t.transaction_type === 'credit');
+            const subCashTxs = subTxs.filter(t => t.transaction_type === 'cash');
+            const subSpent = subCashTxs.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+            const subCredit = subCreditTxs.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+            const subRemaining = Math.max(0, subAllocated - subSpent);
+            const subUsedPct = subAllocated > 0 ? Math.min(100, Math.round((subSpent / subAllocated) * 100)) : 0;
+            return {
+                id: sub.id,
+                name: sub.name,
+                budget: subAllocated,
+                allocated: subAllocated,
+                spent: subSpent,
+                credit: subCredit,
+                remaining: subRemaining,
+                usedPct: subUsedPct,
+                txs: subTxs
+            };
+        });
+
         catData[k] = {
             key: k,
             id: k,
@@ -535,6 +610,7 @@ function recalculateFinanceTotals() {
             spent: cashSum,
             remaining: Math.max(0, (allocated > 0 ? allocated : planned) - cashSum),
             usedPct: (allocated > 0 ? allocated : planned) > 0 ? Math.min(100, Math.round((cashSum / (allocated > 0 ? allocated : planned)) * 100)) : 0,
+            subcategories: computedSubcategories,
             txs: catTxs
         };
     });
@@ -844,11 +920,42 @@ function renderCategoryBreakdown(catKeys, catData, totalAllocated, totalCashUsed
         const collapseId = `cat-breakdown-details-${idx}`;
         const hasTxs = d.txs && d.txs.length > 0;
         
+        const subcategoriesList = Array.isArray(d.subcategories) ? d.subcategories : [];
+        let subcatSectionHTML = '';
+        if (subcategoriesList.length > 0) {
+            subcatSectionHTML = `
+                <div class="mb-2 pb-2 border-b border-gray-200/60">
+                    <div class="flex items-center justify-between text-[10px] font-bold text-indigo-800 mb-1.5 px-1">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-sitemap text-[9px]"></i> หมวดหมู่ย่อย (${subcategoriesList.length})</span>
+                        <span class="text-[9px] text-gray-400 font-normal">งบจัดสรร / ใช้จริง / เหลือ</span>
+                    </div>
+                    <div class="space-y-1.5">
+                        ${subcategoriesList.map(sub => `
+                            <div class="bg-white p-1.5 rounded-lg border border-gray-100">
+                                <div class="flex items-center justify-between text-[10px] font-medium text-gray-700 mb-0.5">
+                                    <span class="truncate max-w-[130px] font-semibold text-gray-800">${sub.name}</span>
+                                    <div class="flex gap-2 text-right text-[10px]">
+                                        <span class="text-indigo-600 font-semibold w-14">฿${sub.budget.toLocaleString()}</span>
+                                        <span class="text-gray-600 w-14">฿${sub.spent.toLocaleString()}</span>
+                                        <span class="${sub.remaining > 0 ? 'text-emerald-600 font-bold' : 'text-red-500 font-bold'} w-14">฿${sub.remaining.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                                <div class="w-full bg-gray-100 h-1 rounded-full overflow-hidden">
+                                    <div class="bg-indigo-500 h-full transition-all duration-300" style="width: ${sub.usedPct}%;"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         const subItemsHTML = hasTxs ? d.txs.map(tx => {
             const isCash = tx.transaction_type === 'cash';
+            const subBadge = tx.subcategory_name ? `<span class="inline-flex items-center text-[8px] bg-indigo-50 text-indigo-700 border border-indigo-100 rounded px-1 py-0.2 mr-1"><i class="fa-solid fa-sitemap text-[7px] mr-0.5"></i>${tx.subcategory_name}</span>` : '';
             return `
                 <div class="flex justify-between text-[10px] text-gray-600 py-1 hover:bg-white px-2 rounded transition-colors">
-                    <span class="truncate max-w-[150px] font-medium">${tx.title}</span>
+                    <span class="truncate max-w-[150px] font-medium flex items-center">${subBadge}<span class="truncate">${tx.title}</span></span>
                     <div class="flex gap-3 shrink-0 text-right">
                         <span class="${isCash ? 'text-gray-300' : 'text-blue-600 font-semibold'} w-14">${isCash ? '-' : '฿' + (parseFloat(tx.amount)||0).toLocaleString()}</span>
                         <span class="${isCash ? 'text-green-600 font-semibold' : 'text-gray-300'} w-14">${isCash ? '฿' + (parseFloat(tx.amount)||0).toLocaleString() : '-'}</span>
@@ -856,7 +963,7 @@ function renderCategoryBreakdown(catKeys, catData, totalAllocated, totalCashUsed
                     </div>
                 </div>
             `;
-        }).join('') : `<div class="text-[10px] text-gray-400 py-1 pl-2 italic">ยังไม่มีรายการย่อยในหมวดนี้</div>`;
+        }).join('') : `<div class="text-[10px] text-gray-400 py-1 pl-2 italic">ยังไม่มีรายการบันทึกในหมวดนี้</div>`;
 
         return `
             <div>
@@ -865,7 +972,10 @@ function renderCategoryBreakdown(catKeys, catData, totalAllocated, totalCashUsed
                         <div class="w-6 h-6 rounded ${d.bgClass} flex items-center justify-center shrink-0">
                             <i class="fa-solid ${d.icon} ${d.textClass} text-[10px]"></i>
                         </div>
-                        <span class="truncate font-semibold">${d.name}</span>
+                        <div class="truncate">
+                            <span class="truncate font-semibold block">${d.name}</span>
+                            ${subcategoriesList.length > 0 ? `<span class="text-[9px] text-indigo-600 font-normal">มี ${subcategoriesList.length} หมวดหมู่ย่อย</span>` : ''}
+                        </div>
                         <i class="fa-solid fa-angle-down text-gray-300 ml-auto text-[10px] group-hover:text-gray-500 transition-transform"></i>
                     </div>
                     <div class="w-1/5 text-right font-medium text-indigo-700">฿${allocated.toLocaleString()}</div>
@@ -882,8 +992,9 @@ function renderCategoryBreakdown(catKeys, catData, totalAllocated, totalCashUsed
                 </div>
                 
                 <div id="${collapseId}" class="hidden mt-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
+                    ${subcatSectionHTML}
                     <div class="flex justify-between text-[9px] font-bold text-gray-400 border-b border-gray-200/60 pb-1 mb-1 px-2">
-                        <span>รายการ</span>
+                        <span>ประวัติรายการ</span>
                         <div class="flex gap-3 text-right">
                             <span class="w-14">Credit</span>
                             <span class="w-14">Cash</span>
@@ -1060,6 +1171,10 @@ function renderCategoryAllocationList() {
             ? (parseFloat(allocations[k]) || 0)
             : (parseFloat(cat.defaultBudget) || 0);
 
+        const subcategories = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+        const subCount = subcategories.length;
+        const subBudgetSum = subcategories.reduce((s, sub) => s + (parseFloat(sub.budget) || 0), 0);
+
         const catTxs = txs.filter(t => t.category === k);
         const catSpent = catTxs.filter(t => t.transaction_type === 'cash' && !t.is_inflow)
                                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
@@ -1075,7 +1190,14 @@ function renderCategoryAllocationList() {
                         </div>
                         <div class="truncate">
                             <h4 class="text-sm font-bold text-gray-800 truncate">${cat.name}</h4>
-                            <span class="text-[10px] text-gray-400 font-medium">รหัส: ${cat.id || k}</span>
+                            <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                <span class="text-[10px] text-gray-400 font-medium">รหัส: ${cat.id || k}</span>
+                                ${subCount > 0 ? `
+                                    <span class="inline-flex items-center gap-1 text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.2 font-medium">
+                                        <i class="fa-solid fa-sitemap text-[8px]"></i> ย่อย ${subCount} รายการ (฿${subBudgetSum.toLocaleString()})
+                                    </span>
+                                ` : ''}
+                            </div>
                         </div>
                     </div>
 
@@ -1085,7 +1207,11 @@ function renderCategoryAllocationList() {
                     </div>
 
                     <div class="w-full sm:w-1/3 flex items-center gap-2 justify-end">
-                        <div class="relative w-full max-w-[200px]">
+                        <button type="button" onclick="openSubcategoryAllocationModal('${k}')" class="px-2.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all flex items-center gap-1 shrink-0" title="คลิกเพื่อจัดการและแบ่งงบย่อยในหมวดหมู่นี้">
+                            <i class="fa-solid fa-sitemap text-[11px]"></i>
+                            <span>ย่อย (${subCount})</span>
+                        </button>
+                        <div class="relative w-full max-w-[170px]">
                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">฿</span>
                             <input type="number" step="any" min="0" 
                                 class="category-alloc-input project-alloc-input w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-right" 
@@ -1214,6 +1340,290 @@ async function submitCategoryAllocation() {
 }
 const submitProjectAllocation = submitCategoryAllocation;
 const renderProjectAllocationList = renderCategoryAllocationList;
+
+// ==========================================
+// Subcategory Budget Allocation Modal Handlers
+// ==========================================
+let currentSuballocCategoryKey = null;
+
+function openSubcategoryAllocationModal(catKey) {
+    const categories = getFinanceCategories();
+    const cat = categories[catKey];
+    if (!cat) {
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('ไม่พบข้อมูลหมวดหมู่นี้', 'error');
+        }
+        return;
+    }
+
+    currentSuballocCategoryKey = catKey;
+
+    const nameEl = document.getElementById('suballoc-modal-cat-name') || document.getElementById('suballoc-category-name');
+    if (nameEl) nameEl.textContent = cat.name;
+
+    const iconEl = document.getElementById('suballoc-modal-cat-icon');
+    if (iconEl && cat.icon) iconEl.className = `fa-solid ${cat.icon}`;
+
+    const iconContainer = document.getElementById('suballoc-modal-cat-icon-container');
+    if (iconContainer && cat.color) {
+        iconContainer.style.backgroundColor = cat.color;
+    }
+
+    const hiddenCatKey = document.getElementById('suballoc-modal-current-cat-key');
+    if (hiddenCatKey) hiddenCatKey.value = catKey;
+
+    // Get current budget allocated to this category
+    const mb = getMasterBudget();
+    const allocations = mb.categoryAllocations || mb.projectAllocations || {};
+    const catBudget = (typeof allocations[catKey] !== 'undefined' && allocations[catKey] !== null)
+        ? (parseFloat(allocations[catKey]) || 0)
+        : (parseFloat(cat.defaultBudget) || 0);
+
+    const parentBudgetEl = document.getElementById('suballoc-modal-cat-budget') || document.getElementById('suballoc-parent-budget');
+    if (parentBudgetEl) {
+        parentBudgetEl.textContent = '฿' + catBudget.toLocaleString();
+        parentBudgetEl.setAttribute('data-parent-budget', catBudget);
+    }
+
+    renderSubcategoryAllocationList(cat);
+    openFinanceModal('finance-subcategory-budget-modal');
+}
+
+function renderSubcategoryAllocationList(cat) {
+    const container = document.getElementById('subcategory-allocation-list-container');
+    if (!container) return;
+
+    const subcategories = Array.isArray(cat.subcategories) ? cat.subcategories : [];
+    if (subcategories.length === 0) {
+        container.innerHTML = createSubcategoryRowHTML({ id: 'sub_' + Date.now(), name: '', budget: 0 }, 0);
+    } else {
+        container.innerHTML = subcategories.map((sub, idx) => createSubcategoryRowHTML(sub, idx)).join('');
+    }
+
+    calculateSuballocationPreview();
+}
+
+function createSubcategoryRowHTML(sub = {}, idx = 0) {
+    const subId = sub.id || ('sub_' + (Date.now() + Math.floor(Math.random() * 1000)));
+    const name = sub.name ? escapeHtml(sub.name) : '';
+    const budgetVal = (typeof sub.budget !== 'undefined' && sub.budget !== null && sub.budget > 0) ? sub.budget : '';
+
+    return `
+        <div class="subcategory-alloc-row flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50/80 hover:bg-gray-100/70 border border-gray-200 rounded-xl transition-all" data-sub-id="${subId}">
+            <div class="text-gray-400 font-medium text-xs w-6 text-center shrink-0">
+                <i class="fa-solid fa-folder-tree text-indigo-400"></i>
+            </div>
+            <div class="flex-1 min-w-[140px]">
+                <input type="text" 
+                    class="subcat-name-input w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold text-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-white transition-all" 
+                    value="${name}" 
+                    placeholder="ชื่อหมวดหมู่ย่อย (เช่น ค่าอาหาร, อุปกรณ์)...">
+            </div>
+            <div class="relative w-28 sm:w-36 shrink-0">
+                <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">฿</span>
+                <input type="number" step="any" min="0" 
+                    class="subcat-budget-input w-full border border-gray-300 rounded-lg pl-6 pr-2 py-1.5 text-xs sm:text-sm font-bold text-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 outline-none bg-white transition-all text-right" 
+                    value="${budgetVal}" 
+                    placeholder="0.00" 
+                    oninput="calculateSuballocationPreview()">
+            </div>
+            <button type="button" onclick="removeSubcategoryRow(this)" class="w-8 h-8 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center shrink-0" title="ลบรายการย่อยนี้">
+                <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+        </div>
+    `;
+}
+
+function addSubcategoryRow() {
+    const container = document.getElementById('subcategory-allocation-list-container');
+    if (!container) return;
+
+    const rowId = 'sub_' + Date.now();
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = createSubcategoryRowHTML({ id: rowId, name: '', budget: 0 });
+    container.appendChild(tempDiv.firstElementChild);
+
+    calculateSuballocationPreview();
+}
+
+function removeSubcategoryRow(btn) {
+    const row = btn.closest('.subcategory-alloc-row');
+    if (!row) return;
+
+    const container = document.getElementById('subcategory-allocation-list-container');
+    const rows = container.querySelectorAll('.subcategory-alloc-row');
+    if (rows.length <= 1) {
+        const nameInput = row.querySelector('.subcat-name-input');
+        const budgetInput = row.querySelector('.subcat-budget-input');
+        if (nameInput) nameInput.value = '';
+        if (budgetInput) budgetInput.value = '';
+    } else {
+        row.remove();
+    }
+
+    calculateSuballocationPreview();
+}
+
+function calculateSuballocationPreview() {
+    const parentBudgetEl = document.getElementById('suballoc-modal-cat-budget') || document.getElementById('suballoc-parent-budget');
+    const parentBudget = parentBudgetEl ? (parseFloat(parentBudgetEl.getAttribute('data-parent-budget')) || 0) : 0;
+
+    const rows = document.querySelectorAll('.subcategory-alloc-row');
+    let sumAllocated = 0;
+    rows.forEach(r => {
+        const bInput = r.querySelector('.subcat-budget-input');
+        const val = parseFloat(bInput ? bInput.value : 0) || 0;
+        sumAllocated += val;
+    });
+
+    const remaining = parentBudget - sumAllocated;
+
+    const sumEl = document.getElementById('suballoc-modal-sum-allocated') || document.getElementById('suballoc-sum-allocated');
+    if (sumEl) sumEl.textContent = '฿' + sumAllocated.toLocaleString();
+
+    const remEl = document.getElementById('suballoc-modal-remaining') || document.getElementById('suballoc-remaining');
+    if (remEl) {
+        if (remaining >= 0) {
+            remEl.textContent = '฿' + remaining.toLocaleString();
+            remEl.className = 'text-base sm:text-lg font-black text-emerald-600';
+        } else {
+            remEl.textContent = '-฿' + Math.abs(remaining).toLocaleString() + ' (เกินงบหมวด)';
+            remEl.className = 'text-base sm:text-lg font-black text-red-600';
+        }
+    }
+}
+
+function distributeSubcategoryBudgetEqually() {
+    const rows = document.querySelectorAll('.subcategory-alloc-row');
+    if (rows.length === 0) return;
+
+    const parentBudgetEl = document.getElementById('suballoc-modal-cat-budget') || document.getElementById('suballoc-parent-budget');
+    const parentBudget = parentBudgetEl ? (parseFloat(parentBudgetEl.getAttribute('data-parent-budget')) || 0) : 0;
+    const share = Math.floor(parentBudget / rows.length);
+
+    rows.forEach(r => {
+        const bInput = r.querySelector('.subcat-budget-input');
+        if (bInput) bInput.value = share;
+    });
+
+    calculateSuballocationPreview();
+}
+
+function clearAllSubcategoryAllocations() {
+    const rows = document.querySelectorAll('.subcategory-alloc-row');
+    rows.forEach(r => {
+        const bInput = r.querySelector('.subcat-budget-input');
+        if (bInput) bInput.value = '';
+    });
+    calculateSuballocationPreview();
+}
+
+function fitCategoryBudgetToSubcategories() {
+    const rows = document.querySelectorAll('.subcategory-alloc-row');
+    let sumAllocated = 0;
+    rows.forEach(r => {
+        const bInput = r.querySelector('.subcat-budget-input');
+        sumAllocated += (parseFloat(bInput ? bInput.value : 0) || 0);
+    });
+
+    const parentBudgetEl = document.getElementById('suballoc-modal-cat-budget') || document.getElementById('suballoc-parent-budget');
+    if (parentBudgetEl) {
+        parentBudgetEl.textContent = '฿' + sumAllocated.toLocaleString();
+        parentBudgetEl.setAttribute('data-parent-budget', sumAllocated);
+    }
+
+    if (currentSuballocCategoryKey) {
+        const catInput = document.querySelector(`.category-alloc-input[data-cat-id="${currentSuballocCategoryKey}"]`);
+        if (catInput) {
+            catInput.value = sumAllocated;
+            calculateAllocationPreview();
+        }
+    }
+
+    calculateSuballocationPreview();
+    if (window.App && typeof App._showToast === 'function') {
+        App._showToast(`ปรับงบประมาณหมวดหลักเป็น ฿${sumAllocated.toLocaleString()} เรียบร้อยแล้ว`, 'info');
+    }
+}
+
+async function submitSubcategoryAllocation() {
+    if (!currentSuballocCategoryKey) return;
+
+    const categories = getFinanceCategories();
+    const cat = categories[currentSuballocCategoryKey];
+    if (!cat) return;
+
+    const rows = document.querySelectorAll('.subcategory-alloc-row');
+    const subcategories = [];
+    let sumSubBudget = 0;
+
+    rows.forEach((r, index) => {
+        const subId = r.getAttribute('data-sub-id') || ('sub_' + Date.now() + '_' + index);
+        const nameInput = r.querySelector('.subcat-name-input');
+        const budgetInput = r.querySelector('.subcat-budget-input');
+
+        const name = nameInput ? nameInput.value.trim() : '';
+        const budget = budgetInput ? (parseFloat(budgetInput.value) || 0) : 0;
+
+        if (name) {
+            subcategories.push({
+                id: subId,
+                name: name,
+                budget: budget
+            });
+            sumSubBudget += budget;
+        }
+    });
+
+    cat.subcategories = subcategories;
+
+    const parentBudgetEl = document.getElementById('suballoc-modal-cat-budget') || document.getElementById('suballoc-parent-budget');
+    const parentBudget = parentBudgetEl ? (parseFloat(parentBudgetEl.getAttribute('data-parent-budget')) || 0) : 0;
+    if (sumSubBudget > parentBudget) {
+        cat.defaultBudget = sumSubBudget;
+        const mb = getMasterBudget();
+        if (!mb.categoryAllocations) mb.categoryAllocations = {};
+        mb.categoryAllocations[currentSuballocCategoryKey] = sumSubBudget;
+        saveMasterBudget(mb);
+    }
+
+    saveFinanceCategories(categories);
+
+    try {
+        if (window.conworkSupabase && typeof window.conworkSupabase.saveFinanceCategory === 'function') {
+            await window.conworkSupabase.saveFinanceCategory({
+                id: currentSuballocCategoryKey,
+                name: cat.name,
+                icon: cat.icon,
+                color: cat.color,
+                default_budget: cat.defaultBudget,
+                subcategories: subcategories
+            });
+        }
+    } catch (e) {
+        console.warn('Sync subcategories to Supabase failed:', e);
+    }
+
+    closeFinanceModal('finance-subcategory-budget-modal');
+
+    renderCategoryAllocationList();
+    renderFinanceCategorySelects();
+    recalculateFinanceTotals();
+
+    if (window.App && typeof App._showToast === 'function') {
+        App._showToast(`บันทึกการแบ่งงบหมวดหมู่ย่อย ${subcategories.length} รายการ เรียบร้อยแล้ว!`, 'success');
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 function filterTransactionsByProject(projectId) {
     const tableRows = document.querySelectorAll('#view-accounting tbody tr');
@@ -1684,7 +2094,8 @@ function openFinancePanel(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
         } else {
             const categories = getFinanceCategories();
             const meta = categories[tx.category] || categories['other'] || { name: tx.category || 'อื่นๆ', icon: 'fa-box', textClass: 'text-gray-500' };
-            catEl.innerHTML = `<i class="fa-solid ${meta.icon || 'fa-box'} ${meta.textClass || ''}" style="${!meta.textClass && meta.color ? 'color: ' + meta.color : ''}"></i> ${meta.name}`;
+            const subBadge = tx.subcategory_name ? `<span class="ml-1.5 text-[10px] font-normal text-indigo-700 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5"><i class="fa-solid fa-sitemap text-[8px] mr-1"></i>${tx.subcategory_name}</span>` : '';
+            catEl.innerHTML = `<i class="fa-solid ${meta.icon || 'fa-box'} ${meta.textClass || ''}" style="${!meta.textClass && meta.color ? 'color: ' + meta.color : ''}"></i> ${meta.name} ${subBadge}`;
         }
     }
 
@@ -1957,6 +2368,12 @@ async function submitFinanceTransaction() {
     const titleInput = modal.querySelectorAll('input[type="text"]')[0]?.value?.trim();
     const projectId = document.getElementById('finance-add-project-select')?.value || null;
     const categorySelect = document.getElementById('finance-add-category-select')?.value || modal.querySelector('select')?.value;
+    const subcategorySelect = document.getElementById('finance-add-subcategory-select');
+    const subcategoryId = subcategorySelect ? subcategorySelect.value : null;
+    let subcategoryName = null;
+    if (subcategoryId && subcategorySelect && subcategorySelect.selectedOptions && subcategorySelect.selectedOptions[0]) {
+        subcategoryName = subcategorySelect.selectedOptions[0].getAttribute('data-name') || subcategorySelect.selectedOptions[0].textContent.split(' (')[0].trim();
+    }
     const amountInput = modal.querySelector('input[type="number"]')?.value;
     const dateInput = modal.querySelector('input[type="date"]')?.value;
     const descInput = modal.querySelector('textarea')?.value?.trim() || '';
@@ -1998,6 +2415,8 @@ async function submitFinanceTransaction() {
             title: titleInput,
             project_id: projectId || null,
             category: categorySelect,
+            subcategory_id: subcategoryId || null,
+            subcategory_name: subcategoryName || null,
             amount: parseFloat(amountInput) || 0,
             transaction_type: type,
             status: type === 'credit' ? 'รออนุมัติ' : 'จ่ายแล้ว',
@@ -2022,6 +2441,7 @@ async function submitFinanceTransaction() {
         if (modal.querySelector('textarea')) modal.querySelector('textarea').value = '';
         const projSel = document.getElementById('finance-add-project-select');
         if (projSel) projSel.value = '';
+        if (subcategorySelect) subcategorySelect.value = '';
         
         // Reset file input
         if (fileInput) fileInput.value = '';
@@ -2093,7 +2513,11 @@ function insertTransactionRow(data, isNew = false) {
         </td>
         <td class="px-6 py-4">
             <div class="flex items-center gap-2">
-                <i class="fa-solid ${cat.icon || 'fa-box'} ${cat.textClass || 'text-gray-500'} w-4 text-center" style="${!cat.textClass && cat.color ? 'color: ' + cat.color : ''}"></i> <span class="text-xs font-medium text-gray-700">${cat.name}</span>
+                <i class="fa-solid ${cat.icon || 'fa-box'} ${cat.textClass || 'text-gray-500'} w-4 text-center shrink-0" style="${!cat.textClass && cat.color ? 'color: ' + cat.color : ''}"></i>
+                <div>
+                    <span class="text-xs font-medium text-gray-700">${cat.name}</span>
+                    ${data.subcategory_name ? `<div class="text-[10px] text-indigo-600 font-normal"><i class="fa-solid fa-turn-up fa-rotate-90 text-[8px] mr-1"></i>${data.subcategory_name}</div>` : ''}
+                </div>
             </div>
         </td>
         <td class="px-6 py-4 text-center">${typeBadge}</td>
@@ -2225,6 +2649,12 @@ async function submitFinanceRequest() {
     const title = modal.querySelector('input[type="text"]')?.value?.trim();
     const projectId = document.getElementById('finance-request-project-select')?.value || null;
     const category = document.getElementById('finance-request-category-select')?.value;
+    const subcategorySelect = document.getElementById('finance-request-subcategory-select');
+    const subcategoryId = subcategorySelect ? subcategorySelect.value : null;
+    let subcategoryName = null;
+    if (subcategoryId && subcategorySelect && subcategorySelect.selectedOptions && subcategorySelect.selectedOptions[0]) {
+        subcategoryName = subcategorySelect.selectedOptions[0].getAttribute('data-name') || subcategorySelect.selectedOptions[0].textContent.split(' (')[0].trim();
+    }
     const amount = parseFloat(modal.querySelector('input[type="number"]')?.value) || 0;
     const date = modal.querySelector('input[type="date"]')?.value;
     const reason = modal.querySelector('textarea')?.value?.trim();
@@ -2244,6 +2674,8 @@ async function submitFinanceRequest() {
             title: title,
             project_id: projectId || null,
             category: category,
+            subcategory_id: subcategoryId || null,
+            subcategory_name: subcategoryName || null,
             amount: amount,
             transaction_type: 'credit',
             status: 'รออนุมัติ',
@@ -2261,6 +2693,7 @@ async function submitFinanceRequest() {
         if (modal.querySelector('textarea')) modal.querySelector('textarea').value = '';
         const reqProjSelect = document.getElementById('finance-request-project-select');
         if (reqProjSelect) reqProjSelect.value = '';
+        if (subcategorySelect) subcategorySelect.value = '';
 
         closeFinanceModal('finance-request-modal');
         if (window.App && typeof App._showToast === 'function') {
@@ -2384,3 +2817,13 @@ window.submitProjectAllocation = submitProjectAllocation;
 window.renderProjectAllocationList = renderProjectAllocationList;
 window.filterTransactionsByCategory = filterTransactionsByCategory;
 window.filterTransactionsByProject = filterTransactionsByProject;
+window.onFinanceCategorySelectChanged = onFinanceCategorySelectChanged;
+window.openSubcategoryAllocationModal = openSubcategoryAllocationModal;
+window.renderSubcategoryAllocationList = renderSubcategoryAllocationList;
+window.addSubcategoryRow = addSubcategoryRow;
+window.removeSubcategoryRow = removeSubcategoryRow;
+window.calculateSuballocationPreview = calculateSuballocationPreview;
+window.distributeSubcategoryBudgetEqually = distributeSubcategoryBudgetEqually;
+window.clearAllSubcategoryAllocations = clearAllSubcategoryAllocations;
+window.fitCategoryBudgetToSubcategories = fitCategoryBudgetToSubcategories;
+window.submitSubcategoryAllocation = submitSubcategoryAllocation;

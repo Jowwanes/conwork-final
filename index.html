@@ -6036,13 +6036,20 @@
                     
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
-                            <label class="text-xs font-bold text-gray-700">หมวดหมู่ <span class="text-red-500">*</span></label>
+                            <label class="text-xs font-bold text-gray-700">หมวดหมู่หลัก <span class="text-red-500">*</span></label>
                             <button type="button" onclick="openFinanceCategoryManager('add')" class="text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 hover:underline transition-colors">
                                 <i class="fa-solid fa-gear text-[10px]"></i> จัดการหมวดหมู่
                             </button>
                         </div>
-                        <select id="finance-add-category-select" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white">
+                        <select id="finance-add-category-select" onchange="onFinanceCategorySelectChanged('add')" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white">
                             <option value="">เลือกหมวดหมู่...</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">หมวดหมู่ย่อย (ถ้ามี)</label>
+                        <select id="finance-add-subcategory-select" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white">
+                            <option value="">-- ไม่ระบุ / ใช้หมวดหลัก --</option>
                         </select>
                     </div>
 
@@ -6132,13 +6139,23 @@
                                 <i class="fa-solid fa-gear text-[10px]"></i> จัดการหมวดหมู่
                             </button>
                         </div>
-                        <select id="finance-request-category-select" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none bg-white">
+                        <select id="finance-request-category-select" onchange="onFinanceCategorySelectChanged('request')" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none bg-white">
                             <option value="">เลือกหมวดหมู่...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">หมวดหมู่ย่อย (ถ้ามี)</label>
+                        <select id="finance-request-subcategory-select" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none bg-white">
+                            <option value="">-- ไม่ระบุ / ใช้หมวดหลัก --</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-700 mb-1.5">จำนวนเงิน (บาท) <span class="text-red-500">*</span></label>
                         <input type="number" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1.5">วันที่ต้องการใช้เงิน <span class="text-red-500">*</span></label>
+                        <input type="date" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none">
                     </div>
                 </div>
 
@@ -6147,11 +6164,6 @@
                     <select id="finance-request-project-select" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none bg-white">
                         <option value="">-- ส่วนกลาง / ไม่ระบุโครงการ --</option>
                     </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1.5">วันที่ต้องการใช้เงิน <span class="text-red-500">*</span></label>
-                    <input type="date" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:border-orange-500 outline-none">
                 </div>
 
                 <div>
@@ -6390,6 +6402,87 @@
                     </button>
                     <button type="button" onclick="submitCategoryAllocation()" class="px-6 py-2.5 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-check"></i> บันทึกการจัดสรรงบประมาณ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Subcategory Budget Allocation Modal -->
+    <div id="finance-subcategory-budget-modal" class="hidden fixed inset-0 z-[130] flex items-center justify-center bg-black/50 py-4 px-2" onclick="closeFinanceModal('finance-subcategory-budget-modal')">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh] overflow-hidden animate-fade-in" onclick="event.stopPropagation()">
+            <input type="hidden" id="suballoc-modal-current-cat-key" value="">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-blue-50/80 to-indigo-50/50">
+                <div class="flex items-center gap-3">
+                    <div id="suballoc-modal-cat-icon-container" class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-sm">
+                        <i id="suballoc-modal-cat-icon" class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="suballoc-modal-cat-name" class="text-xl font-bold text-gray-800 tracking-tight">แบ่งงบประมาณย่อย</h2>
+                            <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200/60 px-2 py-0.5 rounded-md">Sub-category</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-0.5">กำหนดรายการย่อยและจัดสรรวงเงินภายในหมวดหมู่นี้</p>
+                    </div>
+                </div>
+                <button onclick="closeFinanceModal('finance-subcategory-budget-modal')" class="text-gray-400 hover:text-gray-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Top Balance Bar -->
+            <div class="px-6 py-4 bg-gray-50/80 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-6">
+                    <div>
+                        <span class="text-[11px] text-gray-500 font-semibold block">งบหมวดหมู่นี้</span>
+                        <span id="suballoc-modal-cat-budget" class="text-base sm:text-lg font-black text-gray-800">฿0</span>
+                    </div>
+                    <div class="h-8 w-px bg-gray-200"></div>
+                    <div>
+                        <span class="text-[11px] text-gray-500 font-semibold block">จัดสรรให้รายการย่อย</span>
+                        <span id="suballoc-modal-sum-allocated" class="text-base sm:text-lg font-black text-indigo-600">฿0</span>
+                    </div>
+                    <div class="h-8 w-px bg-gray-200"></div>
+                    <div>
+                        <span class="text-[11px] text-gray-500 font-semibold block">คงเหลือยังไม่แบ่ง</span>
+                        <span id="suballoc-modal-remaining" class="text-base sm:text-lg font-black text-emerald-600">฿0</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button type="button" onclick="addSubcategoryRow()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg shadow-2xs transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-plus text-[10px]"></i> เพิ่มรายการย่อย
+                    </button>
+                    <button type="button" onclick="distributeSubcategoryBudgetEqually()" class="text-xs bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium px-3 py-1.5 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5">
+                        <i class="fa-solid fa-equals text-blue-500 text-[10px]"></i> แบ่งเท่ากัน
+                    </button>
+                    <button type="button" onclick="clearAllSubcategoryAllocations()" class="text-xs bg-white border border-gray-200 hover:bg-red-50 text-red-600 font-medium px-3 py-1.5 rounded-lg shadow-2xs transition-colors">
+                        ล้างยอด
+                    </button>
+                </div>
+            </div>
+
+            <!-- List Container -->
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+                <div class="flex items-center justify-between text-xs text-gray-400 px-3 font-semibold border-b border-gray-100 pb-2">
+                    <span class="w-1/2">ชื่อรายการย่อย / กิจกรรม</span>
+                    <span class="w-2/5 text-right">งบประมาณจัดสรร (บาท)</span>
+                    <span class="w-10 text-center">ลบ</span>
+                </div>
+                <div id="subcategory-allocation-list-container" class="space-y-3">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-5 border-t border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <button type="button" onclick="fitCategoryBudgetToSubcategories()" class="px-3.5 py-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl transition-colors flex items-center gap-1.5" title="ปรับยอดงบหมวดหลักให้เท่ากับผลรวมรายการย่อย">
+                    <i class="fa-solid fa-calculator text-[11px]"></i> ปรับงบหมวดหลักให้พอดี
+                </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="closeFinanceModal('finance-subcategory-budget-modal')" class="px-5 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">ยกเลิก</button>
+                    <button type="button" onclick="submitSubcategoryAllocation()" class="px-6 py-2.5 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-check"></i> บันทึกรายการย่อย
                     </button>
                 </div>
             </div>
