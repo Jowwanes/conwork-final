@@ -447,6 +447,19 @@ DROP POLICY IF EXISTS "Members can delete finance transactions" ON public.financ
 CREATE POLICY "Members can delete finance transactions" ON public.finance_transactions FOR DELETE
 USING (true);
 
+-- 6. FINANCE SETTINGS (Master Budget & Allocations)
+CREATE TABLE IF NOT EXISTS public.finance_settings (
+    id TEXT PRIMARY KEY DEFAULT 'default',
+    total_budget NUMERIC(15,2) DEFAULT 0,
+    initial_cash NUMERIC(15,2) DEFAULT 0,
+    category_allocations JSONB DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.finance_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access to finance_settings" ON public.finance_settings;
+CREATE POLICY "Allow all access to finance_settings" ON public.finance_settings FOR ALL USING (true) WITH CHECK (true);
+
 -- =====================================================================
 -- INITIAL SEED DATA FOR SUBSCRIPTION PLANS
 -- =====================================================================

@@ -66,25 +66,8 @@ function saveMasterBudget(budgetData) {
 
     if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
         try {
-            const currentUser = (window.App && App.state && App.state.currentUser) ? App.state.currentUser : null;
-            const companyId = (currentUser && currentUser.workspaceId) 
-                ? currentUser.workspaceId 
-                : ((window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null);
-            if (companyId) {
-                window.conworkSupabase.client
-                    .from('companies')
-                    .select('settings')
-                    .eq('id', companyId)
-                    .maybeSingle()
-                    .then(({ data }) => {
-                        const curSettings = (data && data.settings && typeof data.settings === 'object') ? data.settings : {};
-                        curSettings.master_budget = budgetData;
-                        return window.conworkSupabase.client
-                            .from('companies')
-                            .update({ settings: curSettings })
-                            .eq('id', companyId);
-                    })
-                    .catch(e => console.warn('Supabase save master budget warning:', e));
+            if (typeof window.conworkSupabase.saveFinanceSettings === 'function') {
+                window.conworkSupabase.saveFinanceSettings(budgetData).catch(e => console.warn('Supabase save master budget warning:', e));
             }
         } catch (e) {
             console.warn('Supabase master budget sync error:', e);
@@ -474,6 +457,23 @@ async function syncFinanceWithSupabase() {
     try {
         const companyId = (window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null;
         
+        // 0. Sync Master Budget & Settings from Supabase
+        try {
+            if (typeof window.conworkSupabase.fetchFinanceSettings === 'function') {
+                const settings = await window.conworkSupabase.fetchFinanceSettings();
+                if (settings && (settings.total_budget || settings.category_allocations)) {
+                    const mb = {
+                        totalBudget: parseFloat(settings.total_budget) || 0,
+                        initialCash: parseFloat(settings.initial_cash) || 0,
+                        categoryAllocations: settings.category_allocations || {}
+                    };
+                    localStorage.setItem(FINANCE_MASTER_BUDGET_KEY, JSON.stringify(mb));
+                }
+            }
+        } catch (mbErr) {
+            console.warn('Supabase fetch settings warning:', mbErr);
+        }
+
         // 1. Sync Categories from Supabase
         try {
             const remoteCats = await window.conworkSupabase.fetchFinanceCategories();
@@ -520,6 +520,8 @@ async function syncFinanceWithSupabase() {
             localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(mapped));
             loadStoredTransactionsToTable();
         }
+
+        recalculateFinanceTotals();
     } catch (err) {
         console.warn('Supabase finance sync warning:', err);
     }
@@ -646,7 +648,8 @@ function recalculateFinanceTotals() {
         }
     }
 
-    const unallocatedReserve = Math.max(0, totalMasterBudget - sumAllocated);
+    const effectiveTotalBudget = totalMasterBudget > 0 ? totalMasterBudget : sumAllocated;
+    const unallocatedReserve = Math.max(0, effectiveTotalBudget - sumAllocated);
 
     // Keep projectData calculation available for project references
     const projects = getFinanceProjects();
@@ -664,7 +667,7 @@ function recalculateFinanceTotals() {
 
     // --- 2. Summary Cards (5 Cards) ---
     const c1El = document.getElementById('finance-card-total-budget');
-    if (c1El) c1El.textContent = '฿' + totalMasterBudget.toLocaleString();
+    if (c1El) c1El.textContent = '฿' + effectiveTotalBudget.toLocaleString();
     const c1Sub = document.getElementById('finance-card-budget-subtext');
     if (c1Sub) c1Sub.textContent = `จัดสรรให้หมวดหมู่แล้ว ฿${sumAllocated.toLocaleString()} (คงเหลือยังไม่จัดสรร ฿${unallocatedReserve.toLocaleString()})`;
 
@@ -692,7 +695,7 @@ function recalculateFinanceTotals() {
     if (cards.length >= 5) {
         if (!c1El) {
             const v = cards[0].querySelector('.text-2xl');
-            if (v) v.textContent = '฿' + totalMasterBudget.toLocaleString();
+            if (v) v.textContent = '฿' + effectiveTotalBudget.toLocaleString();
         }
         if (!c2El) {
             const v = cards[1].querySelector('.text-2xl');
@@ -719,8 +722,8 @@ function recalculateFinanceTotals() {
     const pRemainText = document.getElementById('finance-progress-remaining-text');
     if (pRemainText) pRemainText.textContent = '฿' + unallocatedReserve.toLocaleString();
 
-    const spentPct = totalMasterBudget > 0 ? Math.min(100, Math.round((cashUsed / totalMasterBudget) * 100)) : 0;
-    const allocPct = totalMasterBudget > 0 ? Math.min(100, Math.round((sumAllocated / totalMasterBudget) * 100)) : 0;
+    const spentPct = effectiveTotalBudget > 0 ? Math.min(100, Math.round((cashUsed / effectiveTotalBudget) * 100)) : 0;
+    const allocPct = effectiveTotalBudget > 0 ? Math.min(100, Math.round((sumAllocated / effectiveTotalBudget) * 100)) : 0;
     const unallocPct = Math.max(0, 100 - allocPct);
 
     const spentBar = document.getElementById('finance-progress-spent-bar');
@@ -748,7 +751,7 @@ function recalculateFinanceTotals() {
     catKeys.forEach(k => {
         const d = catData[k];
         const color = d.color || '#6366f1';
-        const pct = totalMasterBudget > 0 ? (d.allocated / totalMasterBudget) * 100 : 0;
+        const pct = effectiveTotalBudget > 0 ? (d.allocated / effectiveTotalBudget) * 100 : 0;
         if (pct > 0) {
             const start = currentPct;
             currentPct += pct;
@@ -767,7 +770,7 @@ function recalculateFinanceTotals() {
     });
 
     if (unallocatedReserve > 0) {
-        const unallocPctFloat = totalMasterBudget > 0 ? (unallocatedReserve / totalMasterBudget) * 100 : 0;
+        const unallocPctFloat = effectiveTotalBudget > 0 ? (unallocatedReserve / effectiveTotalBudget) * 100 : 0;
         gradientSlices.push(`#e2e8f0 ${currentPct.toFixed(1)}% 100%`);
         creditLegendItems.push(`
             <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1 -mx-1 rounded transition-colors cursor-pointer border-t border-dashed border-gray-100 pt-2 mt-1" onclick="openAllocateBudgetModal()" title="คลิกเพื่อจัดสรรงบที่เหลือ">
@@ -788,7 +791,7 @@ function recalculateFinanceTotals() {
     }
     const creditTotalEl = document.getElementById('finance-credit-donut-total');
     if (creditTotalEl) {
-        creditTotalEl.textContent = '฿' + totalMasterBudget.toLocaleString();
+        creditTotalEl.textContent = '฿' + effectiveTotalBudget.toLocaleString();
     }
     const creditLegendEl = document.getElementById('finance-credit-donut-legend');
     if (creditLegendEl) {

@@ -797,6 +797,51 @@ class ConWorkSupabaseService {
         }
     }
 
+    async fetchFinanceSettings() {
+        if (!this.isAvailable()) return null;
+        try {
+            const { data, error } = await this.client
+                .from('finance_settings')
+                .select('*')
+                .eq('id', 'default')
+                .maybeSingle();
+            if (error) {
+                console.warn('Supabase fetchFinanceSettings warning:', error);
+                return null;
+            }
+            return data;
+        } catch (e) {
+            console.warn('Supabase fetchFinanceSettings error:', e);
+            return null;
+        }
+    }
+
+    async saveFinanceSettings(settingsData) {
+        if (!this.isAvailable()) return null;
+        try {
+            const payload = {
+                id: 'default',
+                total_budget: parseFloat(settingsData.totalBudget || settingsData.total_budget) || 0,
+                initial_cash: parseFloat(settingsData.initialCash || settingsData.initial_cash) || 0,
+                category_allocations: settingsData.categoryAllocations || settingsData.category_allocations || {},
+                updated_at: new Date().toISOString()
+            };
+            const { data, error } = await this.client
+                .from('finance_settings')
+                .upsert([payload], { onConflict: 'id' })
+                .select()
+                .single();
+            if (error) {
+                console.warn('Supabase saveFinanceSettings warning:', error);
+                return null;
+            }
+            return data;
+        } catch (e) {
+            console.warn('Supabase saveFinanceSettings error:', e);
+            return null;
+        }
+    }
+
     async fetchFinanceCategories(projectId = null) {
         if (!this.isAvailable()) return [];
         try {
