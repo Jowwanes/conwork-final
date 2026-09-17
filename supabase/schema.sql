@@ -456,4 +456,8 @@ CREATE POLICY "Users can update profiles" ON public.profiles FOR UPDATE USING (t
 DROP POLICY IF EXISTS "Users update company members" ON public.company_members;
 CREATE POLICY "Users update company members" ON public.company_members FOR UPDATE USING (true);
 
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS role_settings JSONB DEFAULT '{}'::jsonb;
+
 

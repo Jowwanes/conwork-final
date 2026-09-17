@@ -429,6 +429,18 @@ const App = {
         };
         localStorage.setItem('conwork_role_settings', JSON.stringify(data));
 
+        // Sync role settings to Supabase
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                const compId = this.state.currentCompanyId || (this.state.workspaces && this.state.workspaces[0]?.id) || (this.state.workspaces && this.state.workspaces[0]?.workspace_id);
+                if (compId) {
+                    window.conworkSupabase.client.from('companies').update({
+                        role_settings: data
+                    }).eq('id', compId).then(res => {}).catch(e => console.warn('Supabase role settings sync warning:', e));
+                }
+            } catch (e) {}
+        }
+
         if (showNotification) {
             if (typeof this._showToast === 'function') {
                 this._showToast('บันทึกสำเร็จ', 'success');
@@ -440,8 +452,21 @@ const App = {
         this.updateRoleDropdown();
     },
 
-    loadRoleSettings() {
-        const data = localStorage.getItem('conwork_role_settings');
+    async loadRoleSettings() {
+        let data = localStorage.getItem('conwork_role_settings');
+        // If Supabase is available, attempt to load latest settings from companies table
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                const compId = this.state.currentCompanyId || (this.state.workspaces && this.state.workspaces[0]?.id) || (this.state.workspaces && this.state.workspaces[0]?.workspace_id);
+                if (compId) {
+                    const { data: comp } = await window.conworkSupabase.client.from('companies').select('role_settings').eq('id', compId).single();
+                    if (comp && comp.role_settings && Object.keys(comp.role_settings).length > 0) {
+                        data = JSON.stringify(comp.role_settings);
+                        localStorage.setItem('conwork_role_settings', data);
+                    }
+                }
+            } catch (e) {}
+        }
         if (!data) return;
         try {
             const parsed = JSON.parse(data);
@@ -536,7 +561,7 @@ const App = {
         }
     },
 
-    _loadSettings() {
+    async _loadSettings() {
         try {
             const saved = localStorage.getItem('conwork_user_settings');
             if (saved) {
@@ -551,6 +576,16 @@ const App = {
                     fontSize: 'medium'
                 };
             }
+
+            if (window.conworkSupabase && window.conworkSupabase.isAvailable() && this.state.currentUser) {
+                try {
+                    const { data: prof } = await window.conworkSupabase.client.from('profiles').select('settings').eq('id', this.state.currentUser.id).single();
+                    if (prof && prof.settings && Object.keys(prof.settings).length > 0) {
+                        this.settings = { ...this.settings, ...prof.settings };
+                        localStorage.setItem('conwork_user_settings', JSON.stringify(this.settings));
+                    }
+                } catch (e) {}
+            }
         } catch (e) {
             this.settings = { language: 'th', darkMode: false, appNotifications: true, emailNotifications: false, fontSize: 'medium' };
         }
@@ -561,6 +596,15 @@ const App = {
         try {
             localStorage.setItem('conwork_user_settings', JSON.stringify(this.settings));
         } catch (e) { }
+
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable() && this.state.currentUser) {
+            try {
+                window.conworkSupabase.client.from('profiles').update({
+                    settings: this.settings
+                }).eq('id', this.state.currentUser.id).then(res => {}).catch(e => console.warn('Supabase settings update warning:', e));
+            } catch (e) {}
+        }
+
         this._applySettings();
     },
 
