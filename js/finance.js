@@ -1335,3 +1335,48 @@ async function handleFinanceAttachmentChange(input) {
         `;
     }
 }
+
+/**
+ * Returns summary of budget, expenses, and remaining funds for Dashboard
+ */
+function getFinanceBudgetSummary() {
+    const txs = getStoredTransactions();
+    let totalExpense = 0;
+    let totalIncome = 0;
+    let plannedBudget = 0;
+
+    const catKeys = Object.keys(DEFAULT_FINANCE_CATEGORIES);
+    catKeys.forEach(k => {
+        const meta = DEFAULT_FINANCE_CATEGORIES[k];
+        const catTxs = txs.filter(t => t.category === k || (k === 'other' && !DEFAULT_FINANCE_CATEGORIES[t.category]));
+        const creditTxs = catTxs.filter(t => t.transaction_type === 'credit');
+        const creditSum = creditTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        plannedBudget += Math.max(meta.defaultBudget || 0, creditSum);
+    });
+
+    txs.forEach(t => {
+        const amt = parseFloat(t.amount) || 0;
+        if (t.type === 'income' || t.is_inflow) {
+            totalIncome += amt;
+        } else {
+            totalExpense += amt;
+        }
+    });
+
+    const effectiveBudget = totalIncome > 0 ? totalIncome : (plannedBudget || 20000);
+    const remaining = effectiveBudget - totalExpense;
+    const usedPct = effectiveBudget > 0 ? Math.round((totalExpense / effectiveBudget) * 100) : 0;
+    const remainingPct = Math.max(0, 100 - usedPct);
+
+    return {
+        totalBudget: effectiveBudget,
+        totalExpense,
+        totalIncome,
+        remaining,
+        usedPct,
+        remainingPct
+    };
+}
+
+window.DEFAULT_FINANCE_CATEGORIES = DEFAULT_FINANCE_CATEGORIES;
+window.getFinanceBudgetSummary = getFinanceBudgetSummary;

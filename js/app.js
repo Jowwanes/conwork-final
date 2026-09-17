@@ -1597,29 +1597,39 @@ const App = {
         const pendingTasks = totalTasks - doneTasks;
         const taskDonePct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-        // Financial totals from stored transactions
-        let totalIncome = 0;
-        let totalExpense = 0;
-        try {
-            const rawTrans = localStorage.getItem('conwork_finance_transactions');
-            if (rawTrans) {
-                const transactions = JSON.parse(rawTrans);
-                transactions.forEach(t => {
-                    const amt = Number(t.amount) || 0;
-                    if (t.type === 'income') totalIncome += amt;
-                    else totalExpense += amt;
-                });
+        // Financial totals: calculate from finance summary or stored transactions
+        let fin = null;
+        if (typeof window.getFinanceBudgetSummary === 'function') {
+            fin = window.getFinanceBudgetSummary();
+        } else {
+            let totalIncome = 0;
+            let totalExpense = 0;
+            let plannedBudget = 24450;
+            try {
+                const rawTrans = localStorage.getItem('conwork_finance_transactions');
+                if (rawTrans) {
+                    const transactions = JSON.parse(rawTrans);
+                    transactions.forEach(t => {
+                        const amt = Number(t.amount) || 0;
+                        if (t.type === 'income' || t.is_inflow) totalIncome += amt;
+                        else totalExpense += amt;
+                    });
+                }
+            } catch (e) {
+                console.warn('Finance calc error:', e);
             }
-        } catch (e) {
-            console.warn('Finance calc error:', e);
+            const effectiveBudget = totalIncome > 0 ? totalIncome : plannedBudget;
+            const remaining = effectiveBudget - totalExpense;
+            const usedPct = effectiveBudget > 0 ? Math.round((totalExpense / effectiveBudget) * 100) : 0;
+            fin = {
+                totalBudget: effectiveBudget,
+                totalExpense: totalExpense,
+                totalIncome: totalIncome,
+                remaining: remaining,
+                usedPct: usedPct,
+                remainingPct: Math.max(0, 100 - usedPct)
+            };
         }
-
-        // Fallback demo figures if empty
-        if (totalIncome === 0 && totalExpense === 0) {
-            totalIncome = 250000;
-            totalExpense = 84500;
-        }
-        const netBalance = totalIncome - totalExpense;
 
         // Workforce totals
         const totalEmployees = mockUsers.length;
@@ -1644,9 +1654,43 @@ const App = {
         const tBar = document.getElementById('ceo-tasks-bar');
         if (tBar) tBar.style.width = `${taskDonePct}%`;
 
-        setVal('ceo-net-balance', '฿' + netBalance.toLocaleString());
-        setVal('ceo-total-income', '฿' + totalIncome.toLocaleString());
-        setVal('ceo-total-expense', '฿' + totalExpense.toLocaleString());
+        // Financial Card Display & Formatting
+        const netBalanceEl = document.getElementById('ceo-net-balance');
+        const budgetRateEl = document.getElementById('ceo-budget-rate');
+        const finBarEl = document.getElementById('ceo-finance-bar');
+
+        if (netBalanceEl) {
+            if (fin.remaining < 0) {
+                netBalanceEl.textContent = `-฿${Math.abs(fin.remaining).toLocaleString()}`;
+                netBalanceEl.className = 'text-rose-600 dark:text-rose-400 font-bold';
+            } else {
+                netBalanceEl.textContent = `฿${fin.remaining.toLocaleString()}`;
+                netBalanceEl.className = 'text-slate-800 dark:text-slate-100 font-bold';
+            }
+        }
+
+        if (budgetRateEl) {
+            if (fin.remaining < 0) {
+                budgetRateEl.textContent = `เกินงบ ${fin.usedPct}%`;
+                budgetRateEl.className = 'text-xs font-semibold text-rose-500';
+            } else {
+                budgetRateEl.textContent = `เหลือ ${fin.remainingPct}%`;
+                budgetRateEl.className = 'text-xs font-normal text-slate-400';
+            }
+        }
+
+        if (finBarEl) {
+            if (fin.remaining < 0) {
+                finBarEl.style.width = '100%';
+                finBarEl.className = 'bg-rose-500 h-full rounded-full transition-all duration-500';
+            } else {
+                finBarEl.style.width = `${Math.min(100, fin.remainingPct)}%`;
+                finBarEl.className = 'bg-emerald-500 h-full rounded-full transition-all duration-500';
+            }
+        }
+
+        setVal('ceo-total-income', '฿' + fin.totalBudget.toLocaleString());
+        setVal('ceo-total-expense', '฿' + fin.totalExpense.toLocaleString());
 
         setVal('ceo-total-employees', totalEmployees);
         setVal('ceo-total-depts', depts.length);
