@@ -1454,10 +1454,10 @@ const App = {
                 subtitleEl.textContent = 'รายชื่อพนักงานทั้งหมดในบริษัท';
                 subtitleEl.classList.remove('hidden');
             } else if (viewName === 'work-report') {
-                subtitleEl.textContent = 'สร้างรายงานจากกิจกรรมโครงการที่คุณรับผิดชอบ';
+                subtitleEl.textContent = 'แดชบอร์ดสรุปผลงานส่วนตัวและส่งออกรายงาน';
                 subtitleEl.classList.remove('hidden');
             } else if (viewName === 'dashboard') {
-                subtitleEl.textContent = 'สรุปข้อมูลกิจกรรมและงานส่วนตัวของคุณ';
+                subtitleEl.textContent = 'ภาพรวมโครงการ การเงิน และข้อมูลพนักงานทั้งหมดในระบบ';
                 subtitleEl.classList.remove('hidden');
             } else if (viewName === 'accounting') {
                 subtitleEl.textContent = 'วางแผนงบประมาณ ติดตามเงินสด และตรวจสอบการใช้จ่ายของโครงการ';
