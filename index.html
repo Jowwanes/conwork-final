@@ -1830,131 +1830,132 @@
                 </div>
 
                 <!-- 3. CALENDAR VIEW (ปฏิทิน) -->
-                <div id="view-calendar" class="view-section hidden h-full flex flex-col gap-2 p-6">
+                <div id="view-calendar" class="view-section hidden h-full flex flex-col gap-3 p-5">
 
                     <!-- Main Content Split -->
-                    <div class="flex gap-5 flex-1 min-h-0">
+                    <div class="flex gap-4 flex-1 min-h-0">
 
                         <!-- LEFT: Main Calendar & Controls -->
                         <div
-                            class="flex-1 flex flex-col min-w-0 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            class="flex-1 flex flex-col min-w-0 bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
 
-                            <!-- Group Selector Area -->
-                            <div id="cal-group-bar"
-                                class="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                                <div class="flex items-center gap-4">
-                                    <div
-                                        class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
-                                        <i class="fa-solid fa-users"></i>
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <p class="text-[11px] text-gray-500 font-medium mb-1">กลุ่มที่เลือก</p>
-                                        <div
-                                            class="flex items-center gap-2 relative bg-white border border-gray-200 rounded-lg px-3 py-1.5 shadow-sm hover:border-blue-400 transition-colors cursor-pointer w-fit">
-                                            <select id="cal-group-select" onchange="App.switchCalTab(this.value)"
-                                                class="text-sm font-bold text-gray-800 bg-transparent focus:outline-none cursor-pointer appearance-none pr-6 z-10 w-full min-w-[120px]">
-                                                <option value="all">ทั้งหมด</option>
-                                                <option value="personal">ส่วนตัวของฉัน</option>
-                                                <option value="group">โปรเจคที่เราร่วมโครงการอยู่</option>
-                                            </select>
-                                            <i
-                                                class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 pointer-events-none"></i>
+                            <!-- Unified Calendar Controls Header -->
+                            <div class="px-5 py-3 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white shrink-0">
+                                <!-- Left: Navigation & Date Picker -->
+                                <div class="flex items-center gap-3">
+                                    <!-- Prev / Next & Today -->
+                                    <div class="flex items-center gap-1.5">
+                                        <div class="flex items-center bg-slate-100/80 p-0.5 rounded-xl border border-slate-200/60">
+                                            <button
+                                                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-slate-800 hover:shadow-xs transition-all cursor-pointer"
+                                                onclick="App.prevMonth()" title="ย้อนกลับ"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                                            <button
+                                                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white text-slate-600 hover:text-slate-800 hover:shadow-xs transition-all cursor-pointer"
+                                                onclick="App.nextMonth()" title="ถัดไป"><i class="fa-solid fa-chevron-right text-xs"></i></button>
                                         </div>
-                                        <p id="cal-group-member-count" class="text-xs text-gray-500 font-medium mt-1">
-                                            สมาชิก 5 คน</p>
+                                        <button
+                                            class="px-3 py-1.5 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 bg-white shadow-xs hover:border-slate-300 transition-all active:scale-95 cursor-pointer"
+                                            onclick="App.goToToday()">วันนี้</button>
+                                    </div>
+
+                                    <!-- Month Label Dropdown Container -->
+                                    <div class="flex items-center" id="cal-month-label-container">
+                                        <div id="cal-month-label" class="text-base font-bold text-slate-800"></div>
                                     </div>
                                 </div>
-                                <div class="shrink-0 ml-auto">
-                                    <button id="header-btn-create-event"
-                                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-sm text-sm font-semibold flex items-center gap-2 transition-colors h-11"
-                                        onclick="App.openCreateEventModal()">
-                                        <i class="fa-solid fa-plus"></i> สร้างกิจกรรม
-                                    </button>
-                                </div>
-                            </div>
 
-                            <!-- Calendar Controls -->
-                            <div class="px-4 py-3 flex items-center justify-between border-b border-gray-100">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-                                        <button
-                                            class="px-4 py-2 bg-white hover:bg-gray-50 text-gray-600 border-r border-gray-200 transition-colors"
-                                            onclick="App.prevMonth()"><i class="fa-solid fa-chevron-left"></i></button>
-                                        <button
-                                            class="px-4 py-2 bg-white hover:bg-gray-50 text-gray-600 transition-colors"
-                                            onclick="App.nextMonth()"><i class="fa-solid fa-chevron-right"></i></button>
+                                <!-- Center / Secondary: Group Selector Pill -->
+                                <div class="flex items-center gap-2">
+                                    <div
+                                        class="flex items-center gap-2 relative bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-1.5 shadow-2xs transition-all cursor-pointer">
+                                        <div class="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] shrink-0">
+                                            <i class="fa-solid fa-users"></i>
+                                        </div>
+                                        <select id="cal-group-select" onchange="App.switchCalTab(this.value)"
+                                            class="text-xs font-semibold text-slate-700 bg-transparent focus:outline-none cursor-pointer appearance-none pr-5 z-10">
+                                            <option value="all">ทั้งหมด</option>
+                                            <option value="personal">ส่วนตัวของฉัน</option>
+                                            <option value="group">โปรเจคที่ร่วมโครงการ</option>
+                                        </select>
+                                        <i class="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
                                     </div>
-                                    <button
-                                        class="px-5 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 bg-white shadow-sm transition-colors"
-                                        onclick="App.goToToday()">วันนี้</button>
+                                    <span id="cal-group-member-count" class="text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-1 rounded-lg border border-slate-200/60 hidden sm:inline-block">
+                                        สมาชิก 1 คน</span>
                                 </div>
 
-                                <div class="flex items-center gap-2" id="cal-month-label-container">
-                                    <div id="cal-month-label" class="text-xl font-bold text-gray-800">พฤษภาคม 2024</div>
-                                </div>
-
-                                <div class="flex items-center gap-4">
-                                    <div class="flex bg-gray-100 p-1 rounded-lg">
+                                <!-- Right: View Switcher, Filter & Create Event Button -->
+                                <div class="flex items-center gap-2.5">
+                                    <!-- View switch: Month / Week / Day -->
+                                    <div class="flex bg-slate-100/90 p-1 rounded-xl border border-slate-200/50">
                                         <button id="cal-view-month" onclick="App.switchCalView('month')"
-                                            class="cal-view-btn px-4 py-1 text-sm font-semibold rounded-md bg-blue-600 text-white shadow transition-colors">เดือน</button>
+                                            class="cal-view-btn px-3 py-1 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow-xs transition-all cursor-pointer">เดือน</button>
                                         <button id="cal-view-week" onclick="App.switchCalView('week')"
-                                            class="cal-view-btn px-4 py-1 text-sm font-semibold rounded-md text-gray-500 hover:text-gray-700 transition-colors">สัปดาห์</button>
+                                            class="cal-view-btn px-3 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-800 transition-all cursor-pointer">สัปดาห์</button>
                                         <button id="cal-view-day" onclick="App.switchCalView('day')"
-                                            class="cal-view-btn px-4 py-1 text-sm font-semibold rounded-md text-gray-500 hover:text-gray-700 transition-colors">วัน</button>
+                                            class="cal-view-btn px-3 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-800 transition-all cursor-pointer">วัน</button>
                                     </div>
+
+                                    <!-- Filter Button -->
                                     <div class="relative">
                                         <button
-                                            class="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2 bg-white shadow-sm transition-colors"
+                                            class="px-3 py-1.5 border border-slate-200/80 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 bg-white shadow-xs hover:border-slate-300 transition-all cursor-pointer"
                                             onclick="App.toggleCalFilter()">
-                                            <i class="fa-solid fa-filter"></i> ตัวกรอง
+                                            <i class="fa-solid fa-filter text-slate-400 text-[11px]"></i> ตัวกรอง
                                         </button>
                                         <!-- Filter Panel -->
                                         <div id="cal-filter-panel"
-                                            class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 p-3 z-30">
-                                            <h4
-                                                class="text-xs font-semibold text-gray-500 mb-3 px-1 uppercase tracking-wider">
-                                                ประเภทกิจกรรม</h4>
-                                            <div class="flex flex-col gap-2">
-                                                <label
-                                                    class="flex items-center gap-2 px-1 cursor-pointer hover:bg-gray-50 py-1 rounded">
+                                            class="hidden absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-xl border border-slate-200/80 p-3.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                                                <h4 class="text-xs font-bold text-slate-700">ประเภทกิจกรรม</h4>
+                                                <span class="text-[10px] text-slate-400">กรองข้อมูล</span>
+                                            </div>
+                                            <div class="flex flex-col gap-1.5">
+                                                <label class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
                                                     <input type="checkbox" id="cal-filter-meetings" checked
-                                                        class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                        class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
                                                         onchange="App.renderCalendar()">
-                                                    <span class="text-sm text-gray-700 font-medium">ประชุม</span>
+                                                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
+                                                    <span class="text-xs text-slate-700 font-medium">ประชุม (Meeting)</span>
                                                 </label>
-                                                <label
-                                                    class="flex items-center gap-2 px-1 cursor-pointer hover:bg-gray-50 py-1 rounded">
+                                                <label class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
                                                     <input type="checkbox" id="cal-filter-events" checked
-                                                        class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                        class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                                                         onchange="App.renderCalendar()">
-                                                    <span class="text-sm text-gray-700 font-medium">กิจกรรม</span>
+                                                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0"></span>
+                                                    <span class="text-xs text-slate-700 font-medium">กิจกรรมทั่วไป (Event)</span>
                                                 </label>
-                                                <label
-                                                    class="flex items-center gap-2 px-1 cursor-pointer hover:bg-gray-50 py-1 rounded">
+                                                <label class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
                                                     <input type="checkbox" id="cal-filter-deadlines" checked
-                                                        class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                        class="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500"
                                                         onchange="App.renderCalendar()">
-                                                    <span class="text-sm text-gray-700 font-medium">เดสราย
-                                                        ( Deadline )</span>
+                                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0"></span>
+                                                    <span class="text-xs text-slate-700 font-medium">กำหนดส่ง (Deadline)</span>
                                                 </label>
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- Primary Button: Create Event -->
+                                    <button id="header-btn-create-event"
+                                        class="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3.5 py-1.5 rounded-xl shadow-xs text-xs font-semibold flex items-center gap-1.5 transition-all hover:shadow-md cursor-pointer"
+                                        onclick="App.openCreateEventModal()">
+                                        <i class="fa-solid fa-plus text-[11px]"></i> สร้างกิจกรรม
+                                    </button>
                                 </div>
                             </div>
 
                             <!-- Calendar Grid Area -->
-                            <div class="flex-1 flex flex-col min-h-0 relative">
+                            <div class="flex-1 flex flex-col min-h-0 relative bg-white">
                                 <!-- Day Headers -->
                                 <div id="cal-day-headers"
-                                    class="grid grid-cols-7 border-b border-gray-100 bg-white shrink-0">
-                                    <div class="py-3 text-center text-sm font-semibold text-red-500">อา.</div>
-                                    <div class="py-3 text-center text-sm font-semibold text-gray-700">จ.</div>
-                                    <div class="py-3 text-center text-sm font-semibold text-gray-700">อ.</div>
-                                    <div class="py-3 text-center text-sm font-semibold text-gray-700">พ.</div>
-                                    <div class="py-3 text-center text-sm font-semibold text-gray-700">พฤ.</div>
-                                    <div class="py-3 text-center text-sm font-semibold text-gray-700">ศ.</div>
-                                    <div class="py-3 text-center text-sm font-semibold text-gray-700">ส.</div>
+                                    class="grid grid-cols-7 border-b border-slate-100 bg-slate-50/70 shrink-0 select-none">
+                                    <div class="py-2.5 text-center text-xs font-bold text-rose-500">อา.</div>
+                                    <div class="py-2.5 text-center text-xs font-bold text-slate-600">จ.</div>
+                                    <div class="py-2.5 text-center text-xs font-bold text-slate-600">อ.</div>
+                                    <div class="py-2.5 text-center text-xs font-bold text-slate-600">พ.</div>
+                                    <div class="py-2.5 text-center text-xs font-bold text-slate-600">พฤ.</div>
+                                    <div class="py-2.5 text-center text-xs font-bold text-slate-600">ศ.</div>
+                                    <div class="py-2.5 text-center text-xs font-bold text-slate-600">ส.</div>
                                 </div>
                                 <!-- Month View Grid -->
                                 <div id="cal-days-container" class="flex-1 min-h-0"></div>
@@ -1965,26 +1966,25 @@
                         </div>
 
                         <!-- RIGHT: Mini Cal & Daily Events -->
-                        <div class="w-[300px] shrink-0 flex flex-col gap-4 min-h-0">
+                        <div class="w-[300px] shrink-0 flex flex-col gap-3.5 min-h-0">
                             <!-- Mini Calendar -->
-                            <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm shrink-0">
-                                <div class="flex justify-between items-center mb-2">
-                                    <h3 id="mini-cal-label" class="text-[13px] font-bold text-gray-800">พฤษภาคม 2024
-                                    </h3>
-                                    <div class="flex gap-1 text-gray-400">
+                            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs shrink-0">
+                                <div class="flex justify-between items-center mb-2.5 px-0.5">
+                                    <h3 id="mini-cal-label" class="text-xs font-bold text-slate-800 tracking-tight"></h3>
+                                    <div class="flex items-center gap-1">
                                         <button
-                                            class="hover:text-gray-600 p-1 rounded-full hover:bg-gray-50 transition-colors"
-                                            onclick="App.miniPrev()"><i
+                                            class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                            onclick="App.miniPrev()" title="เดือนก่อนหน้า"><i
                                                 class="fa-solid fa-chevron-left text-[10px]"></i></button>
                                         <button
-                                            class="hover:text-gray-600 p-1 rounded-full hover:bg-gray-50 transition-colors"
-                                            onclick="App.miniNext()"><i
+                                            class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                            onclick="App.miniNext()" title="เดือนถัดไป"><i
                                                 class="fa-solid fa-chevron-right text-[10px]"></i></button>
                                     </div>
                                 </div>
                                 <div
-                                    class="grid grid-cols-7 text-center text-[10px] font-semibold text-gray-500 mb-1.5">
-                                    <div class="text-red-500">อา.</div>
+                                    class="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 mb-1.5 select-none">
+                                    <div class="text-rose-400">อา.</div>
                                     <div>จ.</div>
                                     <div>อ.</div>
                                     <div>พ.</div>
@@ -1992,24 +1992,32 @@
                                     <div>ศ.</div>
                                     <div>ส.</div>
                                 </div>
-                                <div id="mini-cal-grid" class="grid grid-cols-7 text-center gap-y-1 text-[11px]">
+                                <div id="mini-cal-grid" class="grid grid-cols-7 text-center gap-y-1 text-xs">
                                     <!-- Rendered by JS -->
                                 </div>
                             </div>
 
                             <!-- Daily Events List -->
                             <div
-                                class="bg-white rounded-xl border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 p-3">
-                                <h3 id="panel-date-label" class="font-bold text-gray-800 mb-2.5 text-[13px]">
-                                    กิจกรรมวันพุธที่
-                                    15 พฤษภาคม 2024</h3>
+                                class="bg-white rounded-2xl border border-slate-200/80 shadow-xs flex-1 flex flex-col min-h-0 p-3.5 overflow-hidden">
+                                <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-100 shrink-0">
+                                    <div class="min-w-0">
+                                        <h3 id="panel-date-label" class="font-bold text-slate-800 text-xs truncate"></h3>
+                                        <p class="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                            <span id="panel-event-count-badge" class="font-medium text-blue-600"></span>
+                                        </p>
+                                    </div>
+                                    <button onclick="App.openCreateEventModal()" class="w-6 h-6 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors shrink-0 shadow-2xs cursor-pointer" title="เพิ่มกิจกรรมในวันนี้">
+                                        <i class="fa-solid fa-plus text-[10px]"></i>
+                                    </button>
+                                </div>
                                 <div id="panel-events-list"
-                                    class="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-hide">
+                                    class="flex-1 overflow-y-auto space-y-2 pr-0.5 scrollbar-hide">
                                     <!-- Rendered by JS -->
                                 </div>
-                                <div class="mt-2.5 pt-2.5 border-t border-gray-100 shrink-0">
-                                    <button
-                                        class="w-full py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors bg-white shadow-sm">
+                                <div class="mt-2.5 pt-2.5 border-t border-slate-100 shrink-0">
+                                    <button onclick="App.switchCalView('month')"
+                                        class="w-full py-1.5 rounded-xl border border-slate-200/80 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors bg-white shadow-2xs hover:border-slate-300 cursor-pointer">
                                         ดูรายการกิจกรรมทั้งหมด
                                     </button>
                                 </div>

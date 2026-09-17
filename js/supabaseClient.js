@@ -81,6 +81,25 @@ class ConWorkSupabaseService {
         if (!this.isAvailable() || !userId) return null;
 
         try {
+            // Map internal app roles to DB company_role enum:
+            // ('super_admin', 'company_admin', 'manager', 'employee', 'guest')
+            let dbRole = undefined;
+            if (role !== undefined && role !== null) {
+                const r = String(role).toLowerCase();
+                if (r === 'admin' || r === 'company_admin') {
+                    dbRole = 'company_admin';
+                } else if (r === 'reviewer2' || r === 'super_admin' || r.includes('ceo') || r.includes('ประธาน')) {
+                    dbRole = 'super_admin';
+                } else if (r === 'reviewer1' || r === 'manager' || r.includes('head') || r.includes('หัวหน้า') || r.includes('ผู้จัดการ')) {
+                    dbRole = 'manager';
+                } else if (r === 'guest') {
+                    dbRole = 'guest';
+                } else {
+                    dbRole = 'employee';
+                }
+            }
+
+            // 1. Update profiles table
             const profileUpdates = { id: userId, updated_at: new Date().toISOString() };
             if (fullName !== undefined) profileUpdates.full_name = fullName;
             if (avatarUrl !== undefined) profileUpdates.avatar_url = avatarUrl;
@@ -93,25 +112,48 @@ class ConWorkSupabaseService {
                     .upsert(profileUpdates);
 
                 if (profErr) {
-                    console.error('Supabase profile upsert error:', profErr);
+                    console.warn('Supabase profile upsert warning (retrying basic fields):', profErr);
+                    // If columns department or job_title don't exist yet in profiles table, retry with standard columns
+                    const basicUpdates = { id: userId, updated_at: new Date().toISOString() };
+                    if (fullName !== undefined) basicUpdates.full_name = fullName;
+                    if (avatarUrl !== undefined) basicUpdates.avatar_url = avatarUrl;
+                    await this.client.from('profiles').upsert(basicUpdates);
                 }
             }
 
+            // 2. Update company_members table
             const memberUpdates = {};
-            if (role !== undefined) {
-                memberUpdates.company_role = role;
+            if (dbRole !== undefined) {
+                memberUpdates.company_role = dbRole;
             }
             if (department !== undefined) {
                 memberUpdates.department = department;
             }
+            if (jobTitle !== undefined) {
+                memberUpdates.job_title = jobTitle;
+            }
+
             if (Object.keys(memberUpdates).length > 0) {
                 let query = this.client.from('company_members').update(memberUpdates).eq('user_id', userId);
                 if (companyId) {
                     query = query.eq('company_id', companyId);
                 }
-                await query;
+                const { error: memErr } = await query;
+                if (memErr) {
+                    console.warn('Supabase company_members update warning (retrying without job_title):', memErr);
+                    // In case job_title column doesn't exist in company_members, retry without it
+                    if (memberUpdates.job_title !== undefined) {
+                        delete memberUpdates.job_title;
+                        let retryQuery = this.client.from('company_members').update(memberUpdates).eq('user_id', userId);
+                        if (companyId) {
+                            retryQuery = retryQuery.eq('company_id', companyId);
+                        }
+                        await retryQuery;
+                    }
+                }
             }
-            return { userId, fullName, avatarUrl, department, role, jobTitle };
+
+            return { userId, fullName, avatarUrl, department, role, jobTitle, dbRole };
         } catch (err) {
             console.warn('Supabase profile update warning:', err);
             return null;

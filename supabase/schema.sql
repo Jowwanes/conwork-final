@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     avatar_url TEXT,
     phone TEXT,
     account_type TEXT CHECK (account_type IN ('personal', 'company')) DEFAULT 'personal',
+    department TEXT,
+    job_title TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -58,6 +60,7 @@ CREATE TABLE IF NOT EXISTS public.company_members (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     company_role TEXT CHECK (company_role IN ('super_admin', 'company_admin', 'manager', 'employee', 'guest')) DEFAULT 'employee',
     department TEXT,
+    job_title TEXT,
     joined_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(company_id, user_id)
 );
@@ -436,3 +439,11 @@ EXCEPTION WHEN OTHERS THEN
     -- Ignore if already added to publication
     NULL;
 END $$;
+
+-- =====================================================================
+-- 12. MIGRATIONS & SCHEMA PATCHES
+-- =====================================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS department TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS job_title TEXT;
+ALTER TABLE public.company_members ADD COLUMN IF NOT EXISTS job_title TEXT;
+

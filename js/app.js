@@ -684,11 +684,24 @@ const App = {
                         }));
 
                         // --- FETCH PROFILES (mockUsers) ---
-                        const { data: teamMembersData } = await window.conworkSupabase.client
+                        let teamMembersData = null;
+                        const { data: tmWithJob, error: tmJobErr } = await window.conworkSupabase.client
                             .from('company_members')
-                            .select('user_id, company_role, department')
+                            .select('user_id, company_role, department, job_title')
                             .in('company_id', companyIds);
+
+                        if (!tmJobErr && tmWithJob) {
+                            teamMembersData = tmWithJob;
+                        } else {
+                            const { data: tmFallback } = await window.conworkSupabase.client
+                                .from('company_members')
+                                .select('user_id, company_role, department')
+                                .in('company_id', companyIds);
+                            teamMembersData = tmFallback;
+                        }
                         
+                        this.state.currentCompanyId = companyIds[0];
+
                         if (teamMembersData && teamMembersData.length > 0) {
                             const userIds = [...new Set(teamMembersData.map(m => m.user_id))];
                             const { data: profilesData } = await window.conworkSupabase.client
@@ -701,18 +714,21 @@ const App = {
                                 profilesData.forEach(p => profileMap.set(p.id, p));
                             }
 
+                            const savedPositions = JSON.parse(localStorage.getItem('conwork_employee_positions') || '{}');
+
                             mockUsers.length = 0; // Clear mock
                             userIds.forEach(uid => {
                                 const p = profileMap.get(uid);
                                 const memberObj = teamMembersData.find(m => m.user_id === uid);
                                 const mRole = memberObj?.company_role;
+                                const savedPos = savedPositions[uid] || {};
                                 
                                 // Check if user is company creator or first user registered in company
                                 const isCompanyCreator = (companiesData || []).some(c => String(c.created_by) === String(uid));
                                 const isFirstUserInCompany = teamMembersData.length > 0 && String(teamMembersData[0].user_id) === String(uid);
                                 
                                 const defaultDept = (isCompanyCreator || isFirstUserInCompany) ? 'บริหาร' : 'พนักงานทั่วไป';
-                                const mDept = memberObj?.department || p?.department || defaultDept;
+                                const mDept = memberObj?.department || p?.department || savedPos.department || defaultDept;
                                 
                                 const isCurrentUser = this.state.currentUser && String(uid) === String(this.state.currentUser.id);
                                 const defaultName = isCurrentUser ? (this.state.currentUser.name || this.state.currentUser.username) : `พนักงาน (${uid.substring(0, 5)})`;
@@ -722,19 +738,21 @@ const App = {
                                 const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
 
                                 let mappedRole = 'worker';
-                                if (mRole === 'reviewer2' || mRole === 'ceo') {
+                                if (mRole === 'reviewer2' || mRole === 'super_admin' || mRole === 'ceo') {
                                     mappedRole = 'reviewer2';
                                 } else if (mRole === 'reviewer1' || mRole === 'manager') {
                                     mappedRole = 'reviewer1';
-                                } else if (mRole === 'admin' || mRole === 'company_admin' || mRole === 'super_admin') {
+                                } else if (mRole === 'admin' || mRole === 'company_admin') {
                                     mappedRole = 'admin';
                                 } else if (mRole === 'worker' || mRole === 'employee') {
-                                    mappedRole = 'worker';
+                                    mappedRole = savedPos.role || 'worker';
                                 } else if (isCompanyCreator || isFirstUserInCompany) {
                                     mappedRole = 'admin';
+                                } else if (savedPos.role) {
+                                    mappedRole = savedPos.role;
                                 }
 
-                                const jobTitle = p?.job_title || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
+                                const jobTitle = memberObj?.job_title || p?.job_title || savedPos.jobTitle || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
 
                                 mockUsers.push({
                                     id: uid,
@@ -4493,13 +4511,13 @@ const App = {
     _syncCalViewButtons() {
         const view = this.state.calView || 'month';
         document.querySelectorAll('.cal-view-btn').forEach(btn => {
-            btn.classList.remove('bg-blue-600', 'text-white', 'shadow', 'bg-white', 'text-blue-600', 'shadow-sm');
-            btn.classList.add('text-gray-500', 'hover:text-gray-700');
+            btn.classList.remove('bg-blue-600', 'text-white', 'shadow', 'shadow-xs', 'bg-white', 'text-blue-600', 'shadow-sm');
+            btn.classList.add('text-slate-600', 'hover:text-slate-800');
         });
         const activeBtn = document.getElementById(`cal-view-${view}`);
         if (activeBtn) {
-            activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow');
-            activeBtn.classList.remove('text-gray-500', 'hover:text-gray-700');
+            activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-xs');
+            activeBtn.classList.remove('text-slate-600', 'hover:text-slate-800');
         }
     },
 
@@ -4646,15 +4664,15 @@ const App = {
             if (monthLabel) {
                 const monthOptions = displayMonths.map((m, i) => `<option value="${i}" ${i === month ? 'selected' : ''}>${m}</option>`).join('');
                 monthLabel.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <div class="relative flex items-center group cursor-pointer px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                            <select onchange="App.setCalendarMonth(this.value)" class="appearance-none bg-transparent font-bold text-lg text-gray-800 cursor-pointer focus:outline-none pr-6 z-10 w-full min-w-[90px] text-left">
+                    <div class="flex items-center gap-1.5">
+                        <div class="relative flex items-center cursor-pointer px-2.5 py-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 transition-all">
+                            <select onchange="App.setCalendarMonth(this.value)" class="appearance-none bg-transparent font-bold text-sm text-slate-800 cursor-pointer focus:outline-none pr-5 z-10">
                                 ${monthOptions}
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[14px] text-blue-600 z-20 pointer-events-none"></i>
+                            <i class="fa-solid fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 pointer-events-none"></i>
                         </div>
-                        <div class="relative flex items-center px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                            <input type="number" value="${displayYear}" onchange="App.setCalendarYear(this.value)" class="bg-transparent font-bold text-lg text-gray-800 focus:outline-none w-[65px] text-center" min="2000" max="2700" />
+                        <div class="relative flex items-center px-2 py-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 transition-all">
+                            <input type="number" value="${displayYear}" onchange="App.setCalendarYear(this.value)" class="bg-transparent font-bold text-sm text-slate-800 focus:outline-none w-[54px] text-center" min="2000" max="2700" />
                         </div>
                     </div>
                 `;
@@ -4779,52 +4797,95 @@ const App = {
     _renderMonthGrid(container, year, month, events) {
         const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
         const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const prevMonthDays = new Date(year, month, 0).getDate();
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
         let html = '';
-        for (let i = 0; i < firstDay; i++) {
-            html += `<div class="min-h-0 border-b border-r border-gray-100 bg-gray-50/40 p-1 flex flex-col"></div>`;
+
+        // Previous month trailing days
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const prevD = prevMonthDays - i;
+            html += `
+                <div class="min-h-0 border-b border-r border-slate-100 bg-slate-50/25 p-1.5 flex flex-col select-none opacity-45">
+                    <span class="text-xs font-medium text-slate-400 ml-1">${prevD}</span>
+                </div>
+            `;
         }
 
+        // Current month days
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === this.state.selectedDate;
+            const dow = (firstDay + d - 1) % 7; // 0=Sun, 6=Sat
+            const isWeekend = dow === 0 || dow === 6;
             const dayEvents = events.filter(e => e.date === dateStr);
 
             // Sort events by time loosely
             dayEvents.sort((a, b) => (a.time || '24:00').localeCompare(b.time || '24:00'));
 
-            let bgClass = 'bg-white hover:bg-gray-50';
-            if (isSelected) bgClass = 'bg-blue-50 ring-1 ring-blue-300 ring-inset z-10';
+            let bgClass = isWeekend ? 'bg-slate-50/25 hover:bg-slate-50/80' : 'bg-white hover:bg-slate-50/80';
+            if (isSelected) {
+                bgClass = 'bg-blue-50/60 ring-2 ring-blue-500/70 ring-inset z-10';
+            }
+
+            let numClass = 'text-xs font-medium text-slate-700 ml-1';
+            if (isToday) {
+                numClass = 'bg-blue-600 text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-xs text-xs';
+            } else if (dow === 0) {
+                numClass = 'text-xs font-bold text-rose-500 ml-1';
+            }
+
+            // Render max 2-3 events in monthly cell, then "+X" badge
+            const maxVisible = 2;
+            const visibleEvents = dayEvents.slice(0, maxVisible);
+            const hiddenCount = dayEvents.length - maxVisible;
 
             html += `
-                <div class="min-h-0 border-b border-r border-gray-100 p-1 flex flex-col ${bgClass} transition-colors cursor-pointer"
+                <div class="min-h-0 border-b border-r border-slate-100 p-1.5 flex flex-col ${bgClass} transition-all cursor-pointer group/cell"
                     onclick="App.calendarDayClick('${dateStr}')">
-                    <span class="text-sm font-medium ml-1 mt-0.5 ${isToday ? 'bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-sm' : 'text-gray-600'}">${d}</span>
-                    <div class="flex-1 min-h-0 overflow-y-auto mt-1 px-0.5 space-y-0.5 custom-scrollbar">
-                        ${dayEvents.map(e => `
-                            <div class="group relative text-[9px] truncate px-1 py-[1px] rounded-sm font-medium ${e.colorClass} cursor-pointer shadow-sm border ${e.borderClass || 'border-transparent'} leading-tight"
+                    <div class="flex items-center justify-between">
+                        <span class="${numClass}">${d}</span>
+                        ${dayEvents.length > 0 && !isToday ? `<span class="w-1.5 h-1.5 rounded-full bg-blue-400 mr-1 shrink-0"></span>` : ''}
+                    </div>
+                    <div class="flex-1 min-h-0 overflow-y-auto mt-1 space-y-1 scrollbar-hide">
+                        ${visibleEvents.map(e => `
+                            <div class="group relative flex items-center gap-1.5 text-[11px] truncate px-2 py-0.5 rounded-md font-medium ${e.colorClass} ${e.borderClass || 'border-l-2 border-blue-400'} cursor-pointer hover:shadow-2xs transition-all leading-snug"
                                 onclick="event.stopPropagation(); App.calendarEventClick('${e.projectId || ''}', '${e.id}');"
-                                title="${e.title}">
-                                ${e.time ? `<span class="opacity-75 mr-0.5">${e.time}</span>` : ''}<span class="project-name-display">${e.title}</span>
+                                title="${e.title}${e.time ? ' (' + e.time + ')' : ''}">
+                                ${e.time ? `<span class="font-bold text-[10px] opacity-75 shrink-0">${e.time}</span>` : ''}
+                                <span class="truncate project-name-display">${e.title}</span>
                             </div>
                         `).join('')}
+                        ${hiddenCount > 0 ? `
+                            <div class="flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50/70 hover:bg-blue-100/90 px-1.5 py-0.5 rounded-md transition-colors cursor-pointer w-fit"
+                                onclick="event.stopPropagation(); App.calendarDayClick('${dateStr}');"
+                                title="ดูทั้งหมด ${dayEvents.length} รายการ">
+                                <i class="fa-solid fa-ellipsis text-[9px]"></i>
+                                <span>+${hiddenCount} รายการ</span>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
         }
 
+        // Next month trailing days
         const totalCells = firstDay + daysInMonth;
         const remainder = totalCells % 7;
         if (remainder !== 0) {
-            for (let i = 0; i < 7 - remainder; i++) {
-                html += `<div class="min-h-0 border-b border-r border-gray-100 bg-gray-50/40 p-1 flex flex-col"></div>`;
+            for (let i = 1; i <= 7 - remainder; i++) {
+                html += `
+                    <div class="min-h-0 border-b border-r border-slate-100 bg-slate-50/25 p-1.5 flex flex-col select-none opacity-45">
+                        <span class="text-xs font-medium text-slate-400 ml-1">${i}</span>
+                    </div>
+                `;
             }
         }
+
         container.innerHTML = html;
-        container.className = "grid grid-cols-7 auto-rows-fr h-full overflow-y-auto"; // Stretch cells evenly to fit screen
+        container.className = "grid grid-cols-7 auto-rows-fr h-full overflow-hidden select-none";
     },
 
     _renderWeekGrid(container, year, month, date, events, thaiMonths) {
@@ -4852,7 +4913,7 @@ const App = {
         let html = '<div class="flex flex-col flex-1 min-h-0 w-full h-full">';
 
         // Header row — equal columns, full width
-        html += '<div class="grid grid-cols-7 shrink-0 border-b-2 border-gray-200 bg-gray-50/80">';
+        html += '<div class="grid grid-cols-7 shrink-0 border-b border-slate-100 bg-slate-50/70">';
         const weekDates = [];
         for (let i = 0; i < 7; i++) {
             const curr = new Date(startOfWeek);
@@ -4863,20 +4924,20 @@ const App = {
             const isSelected = dateStr === this.state.selectedDate;
             const isWeekend = i === 0 || i === 6;
 
-            let nameColor = 'text-gray-600';
-            if (i === 0) nameColor = 'text-red-500';
+            let nameColor = 'text-slate-600';
+            if (i === 0) nameColor = 'text-rose-500';
             if (i === 6) nameColor = 'text-blue-600';
 
             let headerBg = '';
-            if (isSelected) headerBg = 'bg-blue-100 ring-1 ring-inset ring-blue-300';
-            else if (isWeekend) headerBg = 'bg-gray-100/60';
-            else headerBg = 'hover:bg-gray-100';
+            if (isSelected) headerBg = 'bg-blue-50/80 ring-1 ring-inset ring-blue-300';
+            else if (isWeekend) headerBg = 'bg-slate-100/40';
+            else headerBg = 'hover:bg-slate-100/60';
 
             html += `
-                <div class="py-3 px-1 text-center border-r border-gray-200 last:border-r-0 cursor-pointer transition-colors ${headerBg}"
+                <div class="py-2.5 px-1 text-center border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors ${headerBg}"
                      onclick="App.calendarDayClick('${dateStr}')">
-                    <div class="text-xs font-semibold ${nameColor} tracking-wide">${dayNames[i]}</div>
-                    <div class="mt-1.5 text-lg font-bold ${isToday ? 'bg-blue-600 text-white w-9 h-9 rounded-full mx-auto flex items-center justify-center shadow-md' : 'text-gray-800 h-9 flex items-center justify-center'}">${curr.getDate()}</div>
+                    <div class="text-xs font-bold ${nameColor} tracking-wide">${dayNames[i]}</div>
+                    <div class="mt-1 text-sm font-bold ${isToday ? 'bg-blue-600 text-white w-7 h-7 rounded-full mx-auto flex items-center justify-center shadow-xs' : 'text-slate-700 h-7 flex items-center justify-center'}">${curr.getDate()}</div>
                 </div>
             `;
         }
@@ -4891,28 +4952,28 @@ const App = {
 
             const isSelected = dateStr === this.state.selectedDate;
             const isWeekend = i === 0 || i === 6;
-            let colBg = 'bg-white hover:bg-gray-50/80';
-            if (isSelected) colBg = 'bg-blue-50/50 ring-1 ring-inset ring-blue-200 z-[1]';
-            else if (isWeekend) colBg = 'bg-gray-50/40 hover:bg-gray-50/70';
+            let colBg = 'bg-white hover:bg-slate-50/50';
+            if (isSelected) colBg = 'bg-blue-50/40 ring-1 ring-inset ring-blue-200 z-[1]';
+            else if (isWeekend) colBg = 'bg-slate-50/20 hover:bg-slate-50/50';
 
             html += `
-                <div class="flex flex-col min-h-0 h-full border-r border-gray-200 last:border-r-0 cursor-pointer transition-colors ${colBg}"
+                <div class="flex flex-col min-h-0 h-full border-r border-slate-100 last:border-r-0 cursor-pointer transition-colors ${colBg}"
                      onclick="App.calendarDayClick('${dateStr}')">
-                    <div class="flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5 custom-scrollbar">`;
+                    <div class="flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5 scrollbar-hide">`;
 
             if (dayEvents.length === 0) {
-                html += `<div class="h-full min-h-[120px] flex items-center justify-center text-gray-300 pointer-events-none">
-                    <span class="text-[10px] font-medium opacity-60">—</span>
+                html += `<div class="h-full min-h-[120px] flex items-center justify-center text-slate-300 pointer-events-none">
+                    <span class="text-[10px] font-medium opacity-50">—</span>
                 </div>`;
             } else {
                 dayEvents.forEach(e => {
                     html += `
-                        <div class="group relative p-2 rounded-lg border shadow-sm ${e.colorClass} ${e.borderClass || 'border-transparent'} cursor-pointer hover:shadow-md transition-shadow"
+                        <div class="group relative p-2 rounded-xl border shadow-2xs ${e.colorClass} ${e.borderClass || 'border-l-2 border-blue-400'} cursor-pointer hover:shadow-xs transition-all"
                             onclick="event.stopPropagation(); App.calendarEventClick('${e.projectId || ''}', '${e.id}')">
                             <div class="flex justify-between items-start">
-                                <div class="font-bold text-xs leading-tight line-clamp-2 pr-2 project-name-display">${e.title}</div>
+                                <div class="font-bold text-xs leading-snug line-clamp-2 pr-1 project-name-display">${e.title}</div>
                             </div>
-                            ${e.time ? `<div class="text-[10px] opacity-80 mt-1"><i class="fa-regular fa-clock mr-0.5"></i>${e.time}</div>` : ''}
+                            ${e.time ? `<div class="text-[10px] opacity-75 mt-1 font-medium"><i class="fa-regular fa-clock mr-1"></i>${e.time}</div>` : ''}
                         </div>
                     `;
                 });
@@ -4940,7 +5001,7 @@ const App = {
 
         let html = `
             <div class="flex-1 bg-white p-6 overflow-y-auto">
-                <div class="max-w-2xl mx-auto space-y-4">
+                <div class="max-w-2xl mx-auto space-y-3.5">
         `;
 
         if (dayEvents.length === 0) {
@@ -4981,7 +5042,10 @@ const App = {
             const p = mockProjects.find(pr => pr.id === projectId);
             if (!p || !p.color) return { cl: defCl, br: defBr };
             const m = p.color.match(/^bg-([a-z]+)-\d+$/);
-            if (m) return { cl: `bg-${m[1]}-50 text-${m[1]}-700`, br: `border-${m[1]}-200` };
+            if (m) {
+                const c = m[1];
+                return { cl: `bg-${c}-50 text-${c}-700`, br: `border-l-2 border-${c}-500` };
+            }
             return { cl: defCl, br: defBr };
         };
 
@@ -5005,15 +5069,22 @@ const App = {
 
                         // Filter by tab with strict creation rules
                         if (this._isEventVisibleByTab(e)) {
-                            let cl = 'bg-indigo-50 text-indigo-700', br = 'border-indigo-200';
-                            if (e.type === 'meeting') { cl = 'bg-fuchsia-50 text-fuchsia-700'; br = 'border-fuchsia-200'; }
-                            if (e.type === 'deadline') { cl = 'bg-rose-50 text-rose-700'; br = 'border-rose-200'; }
+                            let cl = 'bg-blue-50 text-blue-700', br = 'border-l-2 border-blue-500';
+                            if (e.type === 'meeting') {
+                                cl = 'bg-purple-50 text-purple-700';
+                                br = 'border-l-2 border-purple-500';
+                            }
+                            if (e.type === 'deadline') {
+                                cl = 'bg-rose-50 text-rose-700';
+                                br = 'border-l-2 border-rose-500';
+                            }
 
                             if (e.color) {
                                 const match = e.color.match(/^bg-([a-z]+)-\d+$/);
                                 if (match) {
-                                    cl = `bg-${match[1]}-200 text-${match[1]}-800`;
-                                    br = `border-${match[1]}-300`;
+                                    const c = match[1];
+                                    cl = `bg-${c}-50 text-${c}-700`;
+                                    br = `border-l-2 border-${c}-500`;
                                 }
                             }
                             events.push({ ...e, colorClass: cl, borderClass: br });
@@ -5026,7 +5097,7 @@ const App = {
             if (chkProj) {
                 mockProjects.forEach(p => {
                     if (this._isVisibleByTab(p.id)) {
-                        const colors = _getProjColors(p.id, 'bg-emerald-50 text-emerald-700', 'border-emerald-200');
+                        const colors = _getProjColors(p.id, 'bg-emerald-50 text-emerald-700', 'border-l-2 border-emerald-500');
                         if (p.startDate && p.startDate.startsWith(mStr)) {
                             events.push({ id: 'proj-start-' + p.id, date: p.startDate, title: `▶ ${p.name}`, time: '', projectId: p.id, colorClass: colors.cl, borderClass: colors.br });
                         }
@@ -5042,7 +5113,7 @@ const App = {
                 mockTasks.forEach(t => {
                     if (t.dueDate && t.dueDate.startsWith(mStr) && !t.isDraft) {
                         if (this._isVisibleByTab(t.projectId, t.assignees || [])) {
-                            const colors = _getProjColors(t.projectId, 'bg-amber-50 text-amber-700', 'border-amber-200');
+                            const colors = _getProjColors(t.projectId, 'bg-amber-50 text-amber-800', 'border-l-2 border-amber-500');
                             events.push({
                                 id: 'task-due-' + t.id, date: t.dueDate, title: `📋 ${t.title}`, time: t.dueTime || '', projectId: t.projectId,
                                 colorClass: colors.cl, borderClass: colors.br
@@ -5056,7 +5127,7 @@ const App = {
             if (chkRecur) {
                 mockProjects.forEach(p => {
                     if (this._isVisibleByTab(p.id)) {
-                        const colors = _getProjColors(p.id, 'bg-purple-50 text-purple-700', 'border-purple-200');
+                        const colors = _getProjColors(p.id, 'bg-teal-50 text-teal-700', 'border-l-2 border-teal-500');
                         if (p.schedule && p.schedule.days && p.schedule.days.length > 0) {
                             for (let d = 1; d <= daysInM; d++) {
                                 const date = new Date(y, mm, d);
@@ -5186,17 +5257,6 @@ const App = {
         const enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         label.textContent = isEn ? `${enMonths[m]} ${y}` : `${thaiMonths[m]} ${y + 543}`;
 
-        // Update Mini Calendar Day Headers
-        const miniCalHeaders = grid.previousElementSibling;
-        if (miniCalHeaders && miniCalHeaders.classList.contains('grid-cols-7')) {
-            const thaiDays = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
-            const enDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-            const displayDays = isEn ? enDays : thaiDays;
-            Array.from(miniCalHeaders.children).forEach((el, idx) => {
-                if (idx < 7) el.textContent = displayDays[idx];
-            });
-        }
-
         const firstDay = new Date(y, m, 1).getDay();
         const daysInM = new Date(y, m + 1, 0).getDate();
         const todayStr = new Date().toISOString().split('T')[0];
@@ -5217,17 +5277,20 @@ const App = {
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === this.state.selectedDate;
             const hasEvents = allEvents.some(e => e.date === dateStr);
+            const dow = (firstDay + d - 1) % 7;
 
-            let cls = 'relative w-5 h-5 mx-auto flex items-center justify-center text-[10px] rounded-full cursor-pointer transition-colors font-medium ';
+            let cls = 'relative w-6 h-6 mx-auto flex items-center justify-center text-[11px] rounded-lg cursor-pointer transition-all font-medium ';
             if (isSelected) {
-                cls += 'bg-blue-600 text-white shadow-sm';
+                cls += 'bg-blue-600 text-white font-bold shadow-xs';
             } else if (isToday) {
-                cls += 'bg-blue-100 text-blue-600';
+                cls += 'bg-blue-50 text-blue-600 font-bold ring-1 ring-blue-200';
+            } else if (dow === 0) {
+                cls += 'text-rose-500 hover:bg-slate-100';
             } else {
-                cls += 'text-gray-700 hover:bg-gray-100';
+                cls += 'text-slate-700 hover:bg-slate-100';
             }
 
-            const dotHtml = hasEvents ? `<div class="absolute bottom-[-1px] left-1/2 -translate-x-1/2 translate-y-[2px] w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-red-500'}"></div>` : '';
+            const dotHtml = hasEvents ? `<div class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : 'bg-blue-500'}"></div>` : '';
 
             html += `<div><div class="${cls}" onclick="App.calendarDayClick('${dateStr}')">${d}${dotHtml}</div></div>`;
         }
@@ -5237,7 +5300,7 @@ const App = {
     // --- Right Panel Events ---
     renderDayEventsPanel() {
         const label = document.getElementById('panel-date-label');
-        const countSpan = document.getElementById('panel-event-count');
+        const badgeSpan = document.getElementById('panel-event-count-badge');
         const list = document.getElementById('panel-events-list');
         if (!label || !list) return;
 
@@ -5248,10 +5311,14 @@ const App = {
         const thaiMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
         const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+        const todayD = new Date();
+        const todayStr = `${todayD.getFullYear()}-${String(todayD.getMonth() + 1).padStart(2, '0')}-${String(todayD.getDate()).padStart(2, '0')}`;
+        const isToday = this.state.selectedDate === todayStr;
+
         if (isEn) {
-            label.textContent = `${enDayNamesFull[d.getDay()]}, ${d.getDate()} ${enMonths[d.getMonth()]} ${d.getFullYear()}`;
+            label.textContent = `${enDayNamesFull[d.getDay()]}, ${d.getDate()} ${enMonths[d.getMonth()]}`;
         } else {
-            label.textContent = `${dayNamesFull[d.getDay()]}ที่ ${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
+            label.textContent = `${dayNamesFull[d.getDay()]}ที่ ${d.getDate()} ${thaiMonths[d.getMonth()]}`;
         }
 
         const chkMeetings = document.getElementById('cal-filter-meetings')?.checked ?? true;
@@ -5263,52 +5330,70 @@ const App = {
         const dayEvents = allEvents.filter(e => e.date === this.state.selectedDate);
         dayEvents.sort((a, b) => (a.time || '24:00').localeCompare(b.time || '24:00'));
 
-        if (countSpan) countSpan.textContent = dayEvents.length;
+        if (badgeSpan) {
+            const todayBadge = isToday ? '<span class="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-bold mr-1">วันนี้</span>' : '';
+            badgeSpan.innerHTML = `${todayBadge}${dayEvents.length} กิจกรรม`;
+        }
 
         if (dayEvents.length === 0) {
             list.innerHTML = `
-                <div class="text-center py-8 text-gray-400">
-                    <i class="fa-regular fa-calendar-xmark text-3xl mb-2 opacity-40"></i>
-                    <p class="text-xs font-medium">ไม่มีกิจกรรม</p>
+                <div class="text-center py-10 px-3 flex flex-col items-center justify-center">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center mb-3">
+                        <i class="fa-regular fa-calendar-check text-xl opacity-60"></i>
+                    </div>
+                    <p class="text-xs font-bold text-slate-700 mb-1">ไม่มีกิจกรรมสำหรับวันนี้</p>
+                    <p class="text-[11px] text-slate-400 mb-3.5 leading-relaxed">วางแผนวันของคุณ หรือสร้างนัดหมายใหม่</p>
+                    <button onclick="App.openCreateEventModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">
+                        <i class="fa-solid fa-plus text-[10px]"></i> สร้างกิจกรรม
+                    </button>
                 </div>
             `;
             return;
         }
 
         list.innerHTML = dayEvents.map(e => {
-            // Generate avatars for team if project related
             let avatarsHtml = '';
             if (e.projectId) {
                 const proj = mockProjects.find(p => p.id === e.projectId);
                 if (proj && proj.team) {
-                    avatarsHtml = `<div class="flex -space-x-1 mt-1.5">` +
+                    avatarsHtml = `<div class="flex -space-x-1 mt-2">` +
                         proj.team.slice(0, 3).map(uid => {
                             const u = mockUsers.find(user => user.id === uid);
-                            return u ? `<img src="${u.avatar}" class="w-4 h-4 rounded-full border border-white">` : '';
+                            return u ? `<img src="${u.avatar}" class="w-4 h-4 rounded-full border border-white" title="${u.name}">` : '';
                         }).join('') +
-                        (proj.team.length > 3 ? `<div class="w-4 h-4 rounded-full bg-gray-100 border border-white text-[7px] font-bold text-gray-500 flex items-center justify-center">+${proj.team.length - 3}</div>` : '') +
+                        (proj.team.length > 3 ? `<div class="w-4 h-4 rounded-full bg-slate-100 border border-white text-[7px] font-bold text-slate-500 flex items-center justify-center">+${proj.team.length - 3}</div>` : '') +
                         `</div>`;
                 }
             } else if (e.userIds && e.userIds.length > 0) {
-                avatarsHtml = `<div class="flex -space-x-1 mt-1.5">` +
+                avatarsHtml = `<div class="flex -space-x-1 mt-2">` +
                     e.userIds.map(uid => {
                         const u = mockUsers.find(user => user.id === uid);
-                        return u ? `<img src="${u.avatar}" class="w-4 h-4 rounded-full border border-white">` : '';
+                        return u ? `<img src="${u.avatar}" class="w-4 h-4 rounded-full border border-white" title="${u.name}">` : '';
                     }).join('') + `</div>`;
             }
 
+            // Category tag
+            let catTag = '';
+            if (e.type === 'meeting') catTag = '<span class="text-[10px] font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">ประชุม</span>';
+            else if (e.type === 'deadline') catTag = '<span class="text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">เดดไลน์</span>';
+            else if (e.projectId) catTag = '<span class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">โปรเจกต์</span>';
+            else catTag = '<span class="text-[10px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">กิจกรรม</span>';
+
             return `
-                <div class="bg-white p-2 px-2.5 rounded-lg border border-gray-100 shadow-sm relative overflow-hidden cursor-pointer hover:shadow-md transition-shadow group"
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200/70 shadow-2xs hover:shadow-xs transition-all cursor-pointer group hover:border-blue-200 relative overflow-hidden"
                      onclick="App.calendarEventClick('${e.projectId || ''}', '${e.id}')">
-                    <!-- Color strip -->
-                    <div class="absolute left-0 top-0 bottom-0 w-1 ${e.colorClass.split(' ')[0].replace('bg-', 'bg-').replace('-50', '-400')} opacity-80"></div>
-                    
-                    <div class="pl-2">
-                        <div class="flex justify-between items-start">
-                            <h5 class="text-xs font-bold text-gray-800 pr-2 project-name-display">${e.title}</h5>
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5 mb-1">
+                                ${catTag}
+                                ${e.time ? `<span class="text-[11px] font-medium text-slate-500 flex items-center gap-1"><i class="fa-regular fa-clock text-[10px] opacity-70"></i>${e.time}</span>` : ''}
+                            </div>
+                            <h5 class="text-xs font-bold text-slate-800 leading-snug project-name-display truncate">${e.title}</h5>
+                            ${avatarsHtml}
                         </div>
-                        ${e.time ? `<div class="text-[10px] text-gray-500 mt-0.5 font-medium"><i class="fa-regular fa-clock mr-1"></i>${e.time}</div>` : ''}
-                        ${avatarsHtml}
+                        <div class="w-6 h-6 rounded-lg flex items-center justify-center text-slate-300 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors shrink-0">
+                            <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                        </div>
                     </div>
                 </div>
             `;
@@ -10223,6 +10308,30 @@ const App = {
             user.customPermissions = customPermissions;
         }
 
+        // Cache employee position and department locally
+        try {
+            const savedPositions = JSON.parse(localStorage.getItem('conwork_employee_positions') || '{}');
+            savedPositions[user.id] = {
+                jobTitle: user.jobTitle,
+                role: user.role,
+                department: user.department
+            };
+            localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
+        } catch (e) {}
+
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            const compId = this.state.currentCompanyId || this.companyRealtimeCompId || (this.state.workspaces && this.state.workspaces[0]?.workspace_id);
+            window.conworkSupabase.updateUserProfile({
+                userId: user.id,
+                fullName: user.name,
+                avatarUrl: user.avatar,
+                department: user.department,
+                role: user.role,
+                jobTitle: user.jobTitle,
+                companyId: compId
+            });
+        }
+
         this._saveData();
     },
 
@@ -10293,7 +10402,7 @@ const App = {
         }
     },
 
-    submitAddMemberForm() {
+    async submitAddMemberForm() {
         const isManager = this.state.currentUser && ['admin', 'reviewer2', 'reviewer1', 'manager', 'supervisor'].includes(this.state.currentUser.role);
         const isEditingSelf = this.state.editingMemberId == this.state.currentUser.id;
 
@@ -10426,12 +10535,24 @@ const App = {
                     alert('บันทึกการเปลี่ยนแปลงเรียบร้อยแล้ว');
                 }
 
+                // Cache employee position in localStorage
+                try {
+                    const savedPositions = JSON.parse(localStorage.getItem('conwork_employee_positions') || '{}');
+                    savedPositions[user.id] = {
+                        jobTitle: user.jobTitle,
+                        role: user.role,
+                        department: user.department
+                    };
+                    localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
+                } catch (e) {}
+
                 // If the user edited themselves, sync current state and sidebar
                 if (this.state.currentUser && String(user.id) === String(this.state.currentUser.id)) {
                     this.state.currentUser.name = user.name;
                     this.state.currentUser.avatar = user.avatar;
                     this.state.currentUser.department = user.department;
                     this.state.currentUser.role = user.role;
+                    this.state.currentUser.jobTitle = user.jobTitle;
                 }
 
                 mockChats.forEach(c => {
@@ -10443,13 +10564,15 @@ const App = {
                 });
 
                 if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
-                    window.conworkSupabase.updateUserProfile({
+                    const compId = this.state.currentCompanyId || this.companyRealtimeCompId || (this.state.workspaces && this.state.workspaces[0]?.workspace_id);
+                    await window.conworkSupabase.updateUserProfile({
                         userId: user.id,
                         fullName: user.name,
                         avatarUrl: user.avatar,
                         department: user.department,
                         role: user.role,
-                        jobTitle: user.jobTitle
+                        jobTitle: user.jobTitle,
+                        companyId: compId
                     });
                 }
                 this._saveData();
@@ -11000,12 +11123,15 @@ const App = {
         });
 
         if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            const compId = this.state.currentCompanyId || this.companyRealtimeCompId || (this.state.workspaces && this.state.workspaces[0]?.workspace_id);
             await window.conworkSupabase.updateUserProfile({
                 userId: user.id,
                 fullName: user.name,
                 avatarUrl: user.avatar,
                 department: user.department,
-                role: user.role
+                role: user.role,
+                jobTitle: user.jobTitle,
+                companyId: compId
             });
         }
 
