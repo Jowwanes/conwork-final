@@ -448,8 +448,12 @@ function saveTransactionToStorage(tx) {
             const companyId = (window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null;
             const dbStatus = STATUS_TO_DB[tx.status] || (tx.transaction_type === 'credit' ? 'pending' : 'paid');
             const dbTx = {
+                id: tx.id,
                 title: tx.title,
                 transaction_type: tx.transaction_type,
+                category_id: tx.category || 'other',
+                subcategory_id: tx.subcategory_id || null,
+                subcategory_name: tx.subcategory_name || null,
                 amount: parseFloat(tx.amount) || 0,
                 status: dbStatus,
                 transaction_date: tx.transaction_date,
@@ -477,6 +481,8 @@ async function syncFinanceWithSupabase() {
                 const localCats = getFinanceCategories();
                 remoteCats.forEach(rc => {
                     const preset = FINANCE_COLOR_PRESETS[rc.color] || { color: rc.color || '#3b82f6', bgClass: 'bg-blue-100', textClass: 'text-blue-500' };
+                    const existingCat = localCats[rc.id] || {};
+                    const remoteSubcats = Array.isArray(rc.subcategories) ? rc.subcategories : (existingCat.subcategories || []);
                     localCats[rc.id] = {
                         id: rc.id,
                         name: rc.name,
@@ -484,7 +490,8 @@ async function syncFinanceWithSupabase() {
                         icon: rc.icon || 'fa-box',
                         bgClass: preset.bgClass,
                         textClass: preset.textClass,
-                        defaultBudget: 0
+                        defaultBudget: parseFloat(rc.default_budget) || existingCat.defaultBudget || 0,
+                        subcategories: remoteSubcats
                     };
                 });
                 saveFinanceCategories(localCats);
@@ -502,6 +509,8 @@ async function syncFinanceWithSupabase() {
                 id: t.id,
                 title: t.title,
                 category: t.category_id || t.category || 'other',
+                subcategory_id: t.subcategory_id || null,
+                subcategory_name: t.subcategory_name || null,
                 amount: parseFloat(t.amount) || 0,
                 transaction_type: t.transaction_type || 'cash',
                 status: STATUS_TO_THAI[t.status] || t.status || 'จ่ายแล้ว',
@@ -2599,10 +2608,13 @@ async function submitFinanceCategory() {
         // Sync category to Supabase if available
         if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
             try {
-                window.conworkSupabase.createFinanceCategory({
+                window.conworkSupabase.saveFinanceCategory({
+                    id: newId,
                     name: name,
                     icon: iconInput,
-                    color: preset.color
+                    color: preset.color,
+                    default_budget: budgetInput,
+                    subcategories: []
                 }).catch(e => console.warn('Supabase create category warning:', e));
             } catch (e) {}
         }

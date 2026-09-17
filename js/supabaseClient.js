@@ -812,23 +812,53 @@ class ConWorkSupabaseService {
         }
     }
 
-    async createFinanceCategory(categoryData) {
+    async saveFinanceCategory(categoryData) {
         if (!this.isAvailable()) return null;
         try {
+            const payload = {
+                id: String(categoryData.id),
+                name: categoryData.name,
+                color: categoryData.color || '#3b82f6',
+                icon: categoryData.icon || 'fa-box',
+                default_budget: parseFloat(categoryData.default_budget) || 0,
+                subcategories: Array.isArray(categoryData.subcategories) ? categoryData.subcategories : []
+            };
             const { data, error } = await this.client
                 .from('finance_categories')
-                .insert([categoryData])
+                .upsert([payload], { onConflict: 'id' })
                 .select()
                 .single();
             if (error) {
-                console.warn('Supabase createFinanceCategory warning:', error);
+                console.warn('Supabase saveFinanceCategory warning:', error);
                 return null;
             }
+
+            // Also sync rows to finance_subcategories table if available
+            if (Array.isArray(categoryData.subcategories) && categoryData.subcategories.length > 0) {
+                try {
+                    const subRows = categoryData.subcategories.map(s => ({
+                        id: String(s.id),
+                        category_id: String(categoryData.id),
+                        name: s.name,
+                        budget: parseFloat(s.budget) || 0
+                    }));
+                    await this.client
+                        .from('finance_subcategories')
+                        .upsert(subRows, { onConflict: 'id' });
+                } catch (subErr) {
+                    console.warn('Supabase finance_subcategories sync warning:', subErr);
+                }
+            }
+
             return data;
         } catch (e) {
-            console.warn('Supabase createFinanceCategory error:', e);
+            console.warn('Supabase saveFinanceCategory error:', e);
             return null;
         }
+    }
+
+    async createFinanceCategory(categoryData) {
+        return this.saveFinanceCategory(categoryData);
     }
 
     async deleteFinanceCategory(catId) {

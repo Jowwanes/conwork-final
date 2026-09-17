@@ -355,19 +355,33 @@ CREATE POLICY "Users delete company events" ON public.events FOR DELETE USING (t
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS public.finance_categories (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     color TEXT DEFAULT '#94a3b8',
     icon TEXT DEFAULT 'fa-box',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    default_budget NUMERIC(15,2) DEFAULT 0,
+    subcategories JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.finance_subcategories (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    category_id TEXT REFERENCES public.finance_categories(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    budget NUMERIC(15,2) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS public.finance_transactions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
     company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
-    category_id UUID REFERENCES public.finance_categories(id) ON DELETE SET NULL,
+    category_id TEXT REFERENCES public.finance_categories(id) ON DELETE SET NULL,
+    subcategory_id TEXT,
+    subcategory_name TEXT,
     creator_id UUID REFERENCES public.profiles(id),
     responsible_user TEXT, -- e.g. payer name or user ID
     title TEXT NOT NULL,
@@ -382,6 +396,7 @@ CREATE TABLE IF NOT EXISTS public.finance_transactions (
 );
 
 ALTER TABLE public.finance_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.finance_subcategories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.finance_transactions ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users view company finance categories" ON public.finance_categories;
@@ -398,6 +413,22 @@ USING (true);
 
 DROP POLICY IF EXISTS "Members can delete finance categories" ON public.finance_categories;
 CREATE POLICY "Members can delete finance categories" ON public.finance_categories FOR DELETE
+USING (true);
+
+DROP POLICY IF EXISTS "Users view finance subcategories" ON public.finance_subcategories;
+CREATE POLICY "Users view finance subcategories" ON public.finance_subcategories FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "Members can create finance subcategories" ON public.finance_subcategories;
+CREATE POLICY "Members can create finance subcategories" ON public.finance_subcategories FOR INSERT
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Managers can update finance subcategories" ON public.finance_subcategories;
+CREATE POLICY "Managers can update finance subcategories" ON public.finance_subcategories FOR UPDATE
+USING (true);
+
+DROP POLICY IF EXISTS "Members can delete finance subcategories" ON public.finance_subcategories;
+CREATE POLICY "Members can delete finance subcategories" ON public.finance_subcategories FOR DELETE
 USING (true);
 
 DROP POLICY IF EXISTS "Users view company finance transactions" ON public.finance_transactions;
