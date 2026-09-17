@@ -375,14 +375,118 @@ const WorkReport = {
     },
 
     _exportExcel(data) {
-        const html = this._buildReportHTML(data);
-        const blob = new Blob(['\ufeff', html], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const html = this._buildExcelHTML(data);
+        const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `WorkReport_${data.employee.name.replace(/\s/g, '_')}_${this._formatDate(new Date())}.xlsx`;
+        a.download = `WorkReport_${data.employee.name.replace(/\s/g, '_')}_${this._formatDate(new Date())}.xls`;
         a.click();
         URL.revokeObjectURL(url);
+    },
+
+    _buildExcelHTML(data) {
+        const s = data.stats;
+        let completedRows = '';
+        if (data.completedTasks && data.completedTasks.length > 0) {
+            completedRows = data.completedTasks.map((t, idx) => `
+                <tr>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${idx + 1}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px;">${t.title || '-'}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px;">${t.project || '-'}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; color: #15803d; font-weight: bold;">เสร็จสิ้น</td>
+                </tr>
+            `).join('');
+        } else {
+            completedRows = '<tr><td colspan="4" style="border: 1px solid #d1d5db; padding: 8px; text-align: center; color: #6b7280;">ไม่มีรายการ</td></tr>';
+        }
+
+        let pendingRows = '';
+        if (data.pendingTasks && data.pendingTasks.length > 0) {
+            pendingRows = data.pendingTasks.map((t, idx) => `
+                <tr>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center;">${idx + 1}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px;">${t.title || '-'}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px;">${t.project || '-'}</td>
+                    <td style="border: 1px solid #d1d5db; padding: 6px; text-align: center; color: #b45309; font-weight: bold;">รอดำเนินการ</td>
+                </tr>
+            `).join('');
+        } else {
+            pendingRows = '<tr><td colspan="4" style="border: 1px solid #d1d5db; padding: 8px; text-align: center; color: #6b7280;">ไม่มีงานค้าง</td></tr>';
+        }
+
+        return `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+            <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+            <!--[if gte mso 9]>
+            <xml>
+                <x:ExcelWorkbook>
+                    <x:ExcelWorksheets>
+                        <x:ExcelWorksheet>
+                            <x:Name>รายงานผลการปฏิบัติงาน</x:Name>
+                            <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                        </x:ExcelWorksheet>
+                    </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, sans-serif; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+                th { background-color: #2563eb; color: #ffffff; font-weight: bold; border: 1px solid #1d4ed8; padding: 8px; }
+                td { border: 1px solid #e5e7eb; padding: 6px; }
+                .title { font-size: 18pt; font-weight: bold; color: #1e3a8a; }
+                .header-meta { background-color: #f8fafc; }
+                .section-header { font-size: 13pt; font-weight: bold; color: #1e293b; background-color: #f1f5f9; padding: 8px; }
+            </style>
+        </head>
+        <body>
+            <table>
+                <tr><td colspan="4" class="title" style="border: none; padding: 10px 0;">รายงานผลการปฏิบัติงาน - ConWork</td></tr>
+                <tr class="header-meta"><td style="border: none; font-weight: bold;">พนักงาน:</td><td style="border: none;">${data.employee.name} (${data.employee.department})</td><td style="border: none; font-weight: bold;">ช่วงเวลา:</td><td style="border: none;">${data.period}</td></tr>
+                <tr class="header-meta"><td style="border: none; font-weight: bold;">ตำแหน่ง:</td><td style="border: none;">${data.employee.role || 'พนักงาน'}</td><td style="border: none; font-weight: bold;">วันที่พิมพ์:</td><td style="border: none;">${new Date().toLocaleDateString('th-TH')}</td></tr>
+            </table>
+
+            <table>
+                <tr><td colspan="4" class="section-header">สรุปภาพรวมผลการดำเนินงาน (KPIs)</td></tr>
+                <tr>
+                    <th style="background-color: #3b82f6;">โครงการที่เข้าร่วม</th>
+                    <th style="background-color: #10b981;">งานที่เสร็จสิ้น</th>
+                    <th style="background-color: #f59e0b;">งานที่รอดำเนินการ</th>
+                    <th style="background-color: #8b5cf6;">อัตราความสำเร็จ (%)</th>
+                </tr>
+                <tr>
+                    <td style="text-align: center; font-size: 14pt; font-weight: bold;">${s.projectsJoined}</td>
+                    <td style="text-align: center; font-size: 14pt; font-weight: bold; color: #10b981;">${s.completedTasks}</td>
+                    <td style="text-align: center; font-size: 14pt; font-weight: bold; color: #f59e0b;">${s.pendingTasks}</td>
+                    <td style="text-align: center; font-size: 14pt; font-weight: bold; color: #8b5cf6;">${s.completionRate}%</td>
+                </tr>
+            </table>
+
+            <table>
+                <tr><td colspan="4" class="section-header" style="color: #166534; background-color: #dcfce7;">รายการงานที่ทำเสร็จแล้ว (${data.completedTasks ? data.completedTasks.length : 0} รายการ)</td></tr>
+                <tr>
+                    <th style="width: 40px; background-color: #15803d;">ลำดับ</th>
+                    <th style="background-color: #15803d;">ชื่องาน</th>
+                    <th style="background-color: #15803d;">โครงการ</th>
+                    <th style="width: 100px; background-color: #15803d;">สถานะ</th>
+                </tr>
+                ${completedRows}
+            </table>
+
+            <table>
+                <tr><td colspan="4" class="section-header" style="color: #92400e; background-color: #fef3c7;">รายการงานที่รอดำเนินการ (${data.pendingTasks ? data.pendingTasks.length : 0} รายการ)</td></tr>
+                <tr>
+                    <th style="width: 40px; background-color: #b45309;">ลำดับ</th>
+                    <th style="background-color: #b45309;">ชื่องาน</th>
+                    <th style="background-color: #b45309;">โครงการ</th>
+                    <th style="width: 100px; background-color: #b45309;">สถานะ</th>
+                </tr>
+                ${pendingRows}
+            </table>
+        </body>
+        </html>`;
     },
 
     /* ── Event Handlers ── */
@@ -587,7 +691,7 @@ const WorkReport = {
                 <label class="wr-export-option ${fmt === 'excel' ? 'selected' : ''}" onclick="WorkReport.selectExportFormat('excel')">
                     <input type="radio" name="export-fmt" value="excel" ${fmt === 'excel' ? 'checked' : ''}>
                     <i class="fa-solid fa-file-excel wr-export-icon" style="color: #107c41;"></i>
-                    <div><div class="font-semibold text-sm">Microsoft Excel (.xlsx)</div><div class="text-xs wr-muted-text">เอกสารสเปรดชีต</div></div>
+                    <div><div class="font-semibold text-sm">Microsoft Excel (.xls)</div><div class="text-xs wr-muted-text">เอกสารสเปรดชีต Excel</div></div>
                 </label>
             </div>
         </div>`;

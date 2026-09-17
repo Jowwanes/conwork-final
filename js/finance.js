@@ -3,6 +3,122 @@
  * Handles interactions for the Finance Dashboard
  */
 
+const FINANCE_STORAGE_KEY = 'conwork_finance_transactions';
+
+function getStoredTransactions() {
+    try {
+        const saved = localStorage.getItem(FINANCE_STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    const initial = [
+        { id: 'tx-1', title: 'ค่าอาหารกลางวันทีมสำรวจหน้างาน', category: 'welfare', amount: 1200, transaction_type: 'cash', status: 'จ่ายแล้ว', transaction_date: '2026-05-18', author: 'คุณ (Me)' },
+        { id: 'tx-2', title: 'จัดซื้อสายไฟและอุปกรณ์ความปลอดภัย VAF', category: 'supplies', amount: 8450, transaction_type: 'credit', status: 'รออนุมัติ', transaction_date: '2026-05-16', author: 'วิชัย มั่นคง' },
+        { id: 'tx-3', title: 'ค่าน้ำมันรถกระบะขนส่งวัสดุ', category: 'travel', amount: 1500, transaction_type: 'cash', status: 'จ่ายแล้ว', transaction_date: '2026-05-14', author: 'คุณ (Me)' }
+    ];
+    try { localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(initial)); } catch (e) {}
+    return initial;
+}
+
+function saveTransactionToStorage(tx) {
+    const list = getStoredTransactions();
+    list.unshift(tx);
+    try { localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            window.conworkSupabase.client.from('finance_transactions').insert([tx]).then();
+        } catch (e) {}
+    }
+}
+
+function recalculateFinanceTotals() {
+    const txs = getStoredTransactions();
+    const initialCredit = 20000;
+    const initialCash = 10000;
+
+    let cashUsed = 0;
+    let pendingAmount = 0;
+    let approvedAmount = 0;
+
+    txs.forEach(t => {
+        const amt = parseFloat(t.amount) || 0;
+        if (t.transaction_type === 'cash') {
+            cashUsed += amt;
+        }
+
+        if (t.status === 'รออนุมัติ') {
+            pendingAmount += amt;
+        } else if (t.status === 'จ่ายแล้ว' || t.status === 'อนุมัติแล้ว') {
+            approvedAmount += amt;
+        }
+    });
+
+    const cashRemaining = Math.max(0, initialCash - cashUsed);
+
+    const cards = document.querySelectorAll('#view-accounting .grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5 > div');
+    if (cards.length >= 5) {
+        const c1Val = cards[0].querySelector('.text-2xl');
+        if (c1Val) c1Val.textContent = '฿' + initialCredit.toLocaleString();
+
+        const c2Val = cards[1].querySelector('.text-2xl');
+        if (c2Val) c2Val.textContent = '฿' + cashUsed.toLocaleString();
+
+        const c3Val = cards[2].querySelector('.text-2xl');
+        if (c3Val) c3Val.textContent = '฿' + cashRemaining.toLocaleString();
+
+        const c4Val = cards[3].querySelector('.text-2xl');
+        if (c4Val) c4Val.textContent = '฿' + pendingAmount.toLocaleString();
+
+        const c5Val = cards[4].querySelector('.text-2xl');
+        if (c5Val) c5Val.textContent = '฿' + approvedAmount.toLocaleString();
+    }
+}
+
+function showFinanceDetailModal(title, iconClass, items) {
+    let modal = document.getElementById('finance-summary-detail-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'finance-summary-detail-modal';
+        modal.className = 'fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 animate-fade-in';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
+                <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+                    <h3 id="finance-detail-modal-title" class="text-lg font-bold text-gray-800 flex items-center gap-2"></h3>
+                    <button onclick="document.getElementById('finance-summary-detail-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                <div id="finance-detail-modal-body" class="py-4 space-y-3 text-sm text-gray-600"></div>
+                <div class="pt-4 border-t border-gray-100 flex justify-end">
+                    <button onclick="document.getElementById('finance-summary-detail-modal').classList.add('hidden')" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm">ปิด</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    const titleEl = document.getElementById('finance-detail-modal-title');
+    const bodyEl = document.getElementById('finance-detail-modal-body');
+    if (titleEl) titleEl.innerHTML = `<i class="${iconClass}"></i> ${title}`;
+    if (bodyEl) {
+        bodyEl.innerHTML = items.map(item => `
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                <span class="font-medium text-gray-700">${item.label}</span>
+                <span class="font-bold ${item.highlight || 'text-gray-900'}">${item.value}</span>
+            </div>
+        `).join('');
+    }
+    modal.classList.remove('hidden');
+}
+
+function loadStoredTransactionsToTable() {
+    const tbody = document.querySelector('#view-accounting tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const txs = getStoredTransactions();
+    txs.forEach(tx => {
+        insertTransactionRow(tx, false);
+    });
+    recalculateFinanceTotals();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Wait a brief moment to ensure all elements are rendered
     setTimeout(() => {
@@ -11,6 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initFinanceDashboard() {
+    loadStoredTransactionsToTable();
+
     // 1. Transaction Tabs Filtering
     const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');
     const tableRows = document.querySelectorAll('#view-accounting tbody tr');
@@ -72,9 +190,18 @@ function initFinanceDashboard() {
             scrollToTable();
         });
 
-        // Card 3: Cash Remaining -> Alert detail
+        // Card 3: Cash Remaining -> Sleek detail modal
         summaryCards[2].addEventListener('click', () => {
-            alert('Cash Balance Detail\nเงินสดตั้งต้น: ฿8,000\nเงินเข้า: ฿2,000\nเงินออก: ฿4,000\nเงินสดคงเหลือ: ฿6,000');
+            const txs = getStoredTransactions();
+            const cashSpent = txs.filter(t => t.transaction_type === 'cash').reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
+            const initialCash = 10000;
+            const remaining = Math.max(0, initialCash - cashSpent);
+            showFinanceDetailModal('รายละเอียดเงินสดคงเหลือ', 'fa-solid fa-money-bill-wave text-green-600', [
+                { label: 'เงินสดตั้งต้น (Initial Balance)', value: '฿' + initialCash.toLocaleString() },
+                { label: 'ยอดเงินเข้า (Cash Inflow)', value: '฿0', highlight: 'text-green-600' },
+                { label: 'ยอดเงินออก / จ่ายจริง (Cash Used)', value: '-฿' + cashSpent.toLocaleString(), highlight: 'text-red-500' },
+                { label: 'เงินสดคงเหลือสุทธิ (Remaining Cash)', value: '฿' + remaining.toLocaleString(), highlight: 'text-emerald-600 font-extrabold text-base' }
+            ]);
         });
 
         // Card 4: Pending -> Click triggers Tab 3 (Pending)
@@ -83,9 +210,16 @@ function initFinanceDashboard() {
             scrollToTable();
         });
 
-        // Card 5: Approved -> Alert detail
+        // Card 5: Approved -> Sleek detail modal
         summaryCards[4].addEventListener('click', () => {
-            alert('Approved Budget Detail\nแสดงรายการที่อนุมัติแล้วทั้งหมดเตรียมเบิกจ่าย');
+            const txs = getStoredTransactions();
+            const approvedTxs = txs.filter(t => t.status === 'จ่ายแล้ว' || t.status === 'อนุมัติแล้ว');
+            const totalApproved = approvedTxs.reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
+            showFinanceDetailModal('รายละเอียดงบประมาณที่อนุมัติแล้ว', 'fa-solid fa-circle-check text-blue-600', [
+                { label: 'จำนวนรายการที่อนุมัติ', value: `${approvedTxs.length} รายการ` },
+                { label: 'ยอดรวมที่อนุมัติแล้วทั้งหมด', value: '฿' + totalApproved.toLocaleString(), highlight: 'text-blue-600 font-extrabold text-base' },
+                { label: 'สถานะการดำเนินงาน', value: 'พร้อมสำหรับการเบิกจ่ายเรียบร้อย', highlight: 'text-emerald-600' }
+            ]);
         });
         
         // Make cards look clickable
@@ -135,7 +269,15 @@ function initFinanceDashboard() {
     const progressBarContainer = document.querySelector('#view-accounting .h-8.rounded-lg.overflow-hidden');
     if (progressBarContainer) {
         progressBarContainer.addEventListener('click', () => {
-            alert('Utilization: 42.25%\nCredit Budget: ฿20,000\nCash Used: ฿8,450');
+            const txs = getStoredTransactions();
+            const cashSpent = txs.filter(t => t.transaction_type === 'cash').reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
+            const totalBudget = 20000;
+            const pct = ((cashSpent / totalBudget) * 100).toFixed(1);
+            showFinanceDetailModal('อัตราการใช้งบประมาณ (Budget Utilization)', 'fa-solid fa-chart-pie text-blue-600', [
+                { label: 'งบประมาณรวมที่จัดสรร (Credit Budget)', value: '฿' + totalBudget.toLocaleString() },
+                { label: 'ยอดเงินสดที่ใช้จริง (Cash Spent)', value: '฿' + cashSpent.toLocaleString(), highlight: 'text-amber-600' },
+                { label: 'อัตราการใช้เงินรวม (Utilization Rate)', value: pct + '%', highlight: 'text-blue-600 font-extrabold text-base' }
+            ]);
         });
         progressBarContainer.classList.add('cursor-pointer');
     }
@@ -283,15 +425,19 @@ async function submitFinanceTransaction() {
     const modal = document.getElementById('finance-add-modal');
     
     // 1. Gather Data
-    const type = document.querySelector('input[name="finance_add_type"]:checked').value;
-    const titleInput = modal.querySelectorAll('input[type="text"]')[0].value;
-    const categorySelect = modal.querySelector('select').value;
-    const amountInput = modal.querySelector('input[type="number"]').value;
-    const dateInput = modal.querySelector('input[type="date"]').value;
+    const type = document.querySelector('input[name="finance_add_type"]:checked')?.value || 'cash';
+    const titleInput = modal.querySelectorAll('input[type="text"]')[0]?.value?.trim();
+    const categorySelect = modal.querySelector('select')?.value;
+    const amountInput = modal.querySelector('input[type="number"]')?.value;
+    const dateInput = modal.querySelector('input[type="date"]')?.value;
     
     // Basic Validation
     if (!titleInput || !categorySelect || !amountInput || !dateInput) {
-        alert('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน');
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน', 'warning');
+        } else {
+            alert('กรุณากรอกข้อมูลที่จำเป็น (*) ให้ครบถ้วน');
+        }
         return;
     }
     
@@ -302,23 +448,30 @@ async function submitFinanceTransaction() {
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
         submitBtn.disabled = true;
         
-        // 2. Call API Service
-        const data = {
+        // 2. Prepare Transaction Data
+        const newTx = {
+            id: 'tx-' + Date.now(),
             title: titleInput,
             category: categorySelect,
-            amount: parseFloat(amountInput),
+            amount: parseFloat(amountInput) || 0,
             transaction_type: type,
-            transaction_date: dateInput
+            status: type === 'credit' ? 'รออนุมัติ' : 'จ่ายแล้ว',
+            transaction_date: dateInput,
+            author: (window.App && App.state && App.state.currentUser) ? App.state.currentUser.name : 'คุณ (Me)'
         };
         
-        const result = await ApiService.createFinanceTransaction(data);
+        // Save to persistent storage and update table
+        saveTransactionToStorage(newTx);
+        insertTransactionRow(newTx, true);
+        recalculateFinanceTotals();
         
-        // 3. Inject new row into the table (Mocking UI update)
-        insertTransactionRow(result);
-        
-        // 4. Reset & Close
+        // 3. Reset & Close
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
+        
+        // Reset inputs
+        modal.querySelectorAll('input[type="text"]')[0].value = '';
+        modal.querySelector('input[type="number"]').value = '';
         
         // Reset file input
         const fileInput = document.getElementById('finance-attachment-add');
@@ -333,15 +486,21 @@ async function submitFinanceTransaction() {
         }
         
         closeFinanceModal('finance-add-modal');
-        alert('บันทึกรายการสำเร็จ!');
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('บันทึกรายการการเงินสำเร็จ!', 'success');
+        }
         
     } catch (error) {
         console.error(error);
-        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+        } else {
+            alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        }
     }
 }
 
-function insertTransactionRow(data) {
+function insertTransactionRow(data, isNew = false) {
     const tbody = document.querySelector('#view-accounting tbody');
     if (!tbody) return;
     
@@ -356,19 +515,19 @@ function insertTransactionRow(data) {
     
     const cat = catMap[data.category] || catMap['other'];
     const formattedDate = new Date(data.transaction_date).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const formattedAmount = '฿' + data.amount.toLocaleString(undefined, { minimumFractionDigits: 0 });
+    const formattedAmount = '฿' + (parseFloat(data.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 0 });
     
     let typeBadge, statusBadge;
     if (data.transaction_type === 'credit') {
         typeBadge = `<span class="bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded text-[10px] font-bold tracking-wide">Credit</span>`;
-        statusBadge = `<span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-md text-[10px] font-bold border border-orange-100">รออนุมัติ</span>`;
+        statusBadge = `<span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-md text-[10px] font-bold border border-orange-100">${data.status || 'รออนุมัติ'}</span>`;
     } else {
         typeBadge = `<span class="bg-green-50 text-green-600 border border-green-100 px-2 py-1 rounded text-[10px] font-bold tracking-wide">Cash</span>`;
-        statusBadge = `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-green-200">จ่ายแล้ว</span>`;
+        statusBadge = `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-green-200">${data.status || 'จ่ายแล้ว'}</span>`;
     }
     
     const tr = document.createElement('tr');
-    tr.className = 'hover:bg-gray-50 transition-colors animate-fade-in-up bg-yellow-50'; // highlight new row
+    tr.className = `hover:bg-gray-50 transition-colors ${isNew ? 'animate-fade-in-up bg-yellow-50' : ''}`;
     
     tr.innerHTML = `
         <td class="px-6 py-4 text-xs text-gray-500">${formattedDate}</td>
@@ -383,25 +542,26 @@ function insertTransactionRow(data) {
         <td class="px-6 py-4 text-center">${statusBadge}</td>
         <td class="px-6 py-4">
             <div class="flex items-center gap-2">
-                <img src="https://ui-avatars.com/api/?name=You&background=random" class="w-6 h-6 rounded-full border border-gray-200">
-                <span class="text-xs text-gray-600">คุณ (Me)</span>
+                <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(data.author || 'User')}&background=random" class="w-6 h-6 rounded-full border border-gray-200">
+                <span class="text-xs text-gray-600">${data.author || 'คุณ (Me)'}</span>
             </div>
         </td>
         <td class="px-6 py-4 text-center"><button class="text-gray-400 hover:text-blue-500 transition-colors" onclick="this.closest('tr').click()"><i class="fa-regular fa-comment-dots"></i></button></td>
     `;
     
-    // Add click event for the new row to open Side panel
+    // Add click event for the row to open Side panel
     tr.addEventListener('click', () => {
         openFinancePanel(data.title, formattedAmount, typeBadge, statusBadge, tr.querySelector('td:nth-child(3)').innerHTML, formattedDate, tr.querySelector('td:nth-child(7)').innerHTML);
     });
     
-    // Prepend to top of table
-    tbody.insertBefore(tr, tbody.firstChild);
-    
-    // Remove highlight after a few seconds
-    setTimeout(() => {
-        tr.classList.remove('bg-yellow-50');
-    }, 3000);
+    if (isNew) {
+        tbody.insertBefore(tr, tbody.firstChild);
+        setTimeout(() => {
+            tr.classList.remove('bg-yellow-50');
+        }, 3000);
+    } else {
+        tbody.appendChild(tr);
+    }
 }
 
 // Category Submission
@@ -414,7 +574,11 @@ async function submitFinanceCategory() {
     const colorInput = document.querySelector('input[name="category_color"]:checked').value;
     
     if (!nameInput) {
-        alert('กรุณากรอกชื่อหมวดหมู่');
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('กรุณากรอกชื่อหมวดหมู่', 'warning');
+        } else {
+            alert('กรุณากรอกชื่อหมวดหมู่');
+        }
         return;
     }
     
@@ -455,11 +619,17 @@ async function submitFinanceCategory() {
         document.getElementById('add-category-name').value = '';
         
         closeFinanceModal('finance-add-category-modal');
-        alert('เพิ่มหมวดหมู่สำเร็จ!');
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เพิ่มหมวดหมู่สำเร็จ!', 'success');
+        }
         
     } catch (error) {
         console.error(error);
-        alert('เกิดข้อผิดพลาดในการบันทึกหมวดหมู่');
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เกิดข้อผิดพลาดในการบันทึกหมวดหมู่', 'error');
+        } else {
+            alert('เกิดข้อผิดพลาดในการบันทึกหมวดหมู่');
+        }
     }
 }
 
