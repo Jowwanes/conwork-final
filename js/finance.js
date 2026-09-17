@@ -30,7 +30,7 @@ const FINANCE_MASTER_BUDGET_KEY = 'conwork_master_budget';
 const DEFAULT_MASTER_BUDGET = {
     totalBudget: 0,
     initialCash: 0,
-    projectAllocations: {}
+    categoryAllocations: {}
 };
 
 function getMasterBudget() {
@@ -40,19 +40,23 @@ function getMasterBudget() {
             const parsed = JSON.parse(saved);
             if (parsed && typeof parsed === 'object') {
                 // If saved data still contains old mock defaults (200000 / 50000 with no allocations), reset to 0
-                if (parsed.totalBudget === 200000 && parsed.initialCash === 50000 && (!parsed.projectAllocations || Object.keys(parsed.projectAllocations).length === 0)) {
+                if (parsed.totalBudget === 200000 && parsed.initialCash === 50000 && (!parsed.categoryAllocations || Object.keys(parsed.categoryAllocations).length === 0) && (!parsed.projectAllocations || Object.keys(parsed.projectAllocations).length === 0)) {
                     saveMasterBudget(DEFAULT_MASTER_BUDGET);
-                    return { ...DEFAULT_MASTER_BUDGET, projectAllocations: {} };
+                    return { ...DEFAULT_MASTER_BUDGET, categoryAllocations: {}, projectAllocations: {} };
                 }
+                const catAlloc = (parsed.categoryAllocations && typeof parsed.categoryAllocations === 'object')
+                    ? parsed.categoryAllocations
+                    : ((parsed.projectAllocations && typeof parsed.projectAllocations === 'object') ? parsed.projectAllocations : {});
                 return {
                     totalBudget: typeof parsed.totalBudget === 'number' ? parsed.totalBudget : (parseFloat(parsed.totalBudget) || 0),
                     initialCash: typeof parsed.initialCash === 'number' ? parsed.initialCash : (parseFloat(parsed.initialCash) || 0),
-                    projectAllocations: (parsed.projectAllocations && typeof parsed.projectAllocations === 'object') ? parsed.projectAllocations : {}
+                    categoryAllocations: catAlloc,
+                    projectAllocations: catAlloc
                 };
             }
         }
     } catch (e) {}
-    return { ...DEFAULT_MASTER_BUDGET, projectAllocations: {} };
+    return { ...DEFAULT_MASTER_BUDGET, categoryAllocations: {}, projectAllocations: {} };
 }
 
 function saveMasterBudget(budgetData) {
@@ -492,44 +496,11 @@ function recalculateFinanceTotals() {
 
     const cashRemaining = Math.max(0, initialCash + cashInflow - cashUsed);
 
-    // --- 1. Project-Based Budget Computations ---
-    const projects = getFinanceProjects();
-    const allocations = masterBudget.projectAllocations || {};
-    let sumAllocated = 0;
-    const projectData = [];
-
-    projects.forEach(p => {
-        const allocated = parseFloat(allocations[p.id]) || 0;
-        sumAllocated += allocated;
-        
-        const projTxs = txs.filter(t => t.project_id && String(t.project_id) === String(p.id));
-        const projSpent = projTxs.filter(t => t.transaction_type === 'cash' && !t.is_inflow)
-                                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-        const projCredit = projTxs.filter(t => t.transaction_type === 'credit')
-                                 .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-        const projRemaining = Math.max(0, allocated - projSpent);
-        const projUsedPct = allocated > 0 ? Math.min(100, Math.round((projSpent / allocated) * 100)) : 0;
-
-        projectData.push({
-            id: p.id,
-            name: p.name,
-            status: p.status || 'active',
-            color: p.color || 'bg-blue-500',
-            allocated: allocated,
-            spent: projSpent,
-            credit: projCredit,
-            remaining: projRemaining,
-            usedPct: projUsedPct,
-            txs: projTxs
-        });
-    });
-
-    const unallocatedReserve = Math.max(0, totalMasterBudget - sumAllocated);
-
-    // --- 2. Category Computations ---
+    // --- 1. Category-Based Budget Computations ---
     const categories = getFinanceCategories();
     const catKeys = Object.keys(categories);
-    let totalPlannedCredit = 0;
+    const allocations = masterBudget.categoryAllocations || masterBudget.projectAllocations || {};
+    let sumAllocated = 0;
     const catData = {};
 
     catKeys.forEach(k => {
@@ -540,21 +511,30 @@ function recalculateFinanceTotals() {
 
         const creditSum = creditTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
         const cashSum = cashTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-        const planned = Math.max(meta.defaultBudget || 0, creditSum);
+        
+        // Allocated budget for category: priority from masterBudget.categoryAllocations[k], fallback to meta.defaultBudget
+        const allocated = (typeof allocations[k] !== 'undefined' && allocations[k] !== null)
+            ? (parseFloat(allocations[k]) || 0)
+            : (parseFloat(meta.defaultBudget) || 0);
 
-        totalPlannedCredit += planned;
+        sumAllocated += allocated;
+        const planned = Math.max(allocated, creditSum);
+
         catData[k] = {
             key: k,
+            id: k,
             name: meta.name,
             icon: meta.icon || 'fa-box',
             color: meta.color || '#64748b',
             bgClass: meta.bgClass || 'bg-gray-100',
             textClass: meta.textClass || 'text-gray-500',
+            allocated: allocated,
             planned: planned,
             creditSum: creditSum,
             cashSum: cashSum,
-            remaining: Math.max(0, planned - cashSum),
-            usedPct: planned > 0 ? Math.min(100, Math.round((cashSum / planned) * 100)) : 0,
+            spent: cashSum,
+            remaining: Math.max(0, (allocated > 0 ? allocated : planned) - cashSum),
+            usedPct: (allocated > 0 ? allocated : planned) > 0 ? Math.min(100, Math.round((cashSum / (allocated > 0 ? allocated : planned)) * 100)) : 0,
             txs: catTxs
         };
     });
@@ -570,20 +550,38 @@ function recalculateFinanceTotals() {
                     catData[fallbackKey].creditSum += amt;
                 } else {
                     catData[fallbackKey].cashSum += amt;
+                    catData[fallbackKey].spent += amt;
                 }
                 catData[fallbackKey].txs.push(t);
             });
-            catData[fallbackKey].planned = Math.max(categories[fallbackKey].defaultBudget || 0, catData[fallbackKey].creditSum);
-            catData[fallbackKey].remaining = Math.max(0, catData[fallbackKey].planned - catData[fallbackKey].cashSum);
-            catData[fallbackKey].usedPct = catData[fallbackKey].planned > 0 ? Math.min(100, Math.round((catData[fallbackKey].cashSum / catData[fallbackKey].planned) * 100)) : 0;
+            const alloc = catData[fallbackKey].allocated;
+            catData[fallbackKey].planned = Math.max(alloc, catData[fallbackKey].creditSum);
+            catData[fallbackKey].remaining = Math.max(0, (alloc > 0 ? alloc : catData[fallbackKey].planned) - catData[fallbackKey].cashSum);
+            catData[fallbackKey].usedPct = (alloc > 0 ? alloc : catData[fallbackKey].planned) > 0 ? Math.min(100, Math.round((catData[fallbackKey].cashSum / (alloc > 0 ? alloc : catData[fallbackKey].planned)) * 100)) : 0;
         }
     }
 
-    // --- 3. Summary Cards (5 Cards) ---
+    const unallocatedReserve = Math.max(0, totalMasterBudget - sumAllocated);
+
+    // Keep projectData calculation available for project references
+    const projects = getFinanceProjects();
+    const projectData = projects.map(p => {
+        const projTxs = txs.filter(t => t.project_id && String(t.project_id) === String(p.id));
+        const projSpent = projTxs.filter(t => t.transaction_type === 'cash' && !t.is_inflow)
+                                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        return {
+            id: p.id,
+            name: p.name,
+            spent: projSpent,
+            txs: projTxs
+        };
+    });
+
+    // --- 2. Summary Cards (5 Cards) ---
     const c1El = document.getElementById('finance-card-total-budget');
     if (c1El) c1El.textContent = '฿' + totalMasterBudget.toLocaleString();
     const c1Sub = document.getElementById('finance-card-budget-subtext');
-    if (c1Sub) c1Sub.textContent = `จัดสรรแล้ว ฿${sumAllocated.toLocaleString()} (คงเหลือยังไม่จัดสรร ฿${unallocatedReserve.toLocaleString()})`;
+    if (c1Sub) c1Sub.textContent = `จัดสรรให้หมวดหมู่แล้ว ฿${sumAllocated.toLocaleString()} (คงเหลือยังไม่จัดสรร ฿${unallocatedReserve.toLocaleString()})`;
 
     const c2El = document.getElementById('finance-card-cash-used');
     if (c2El) c2El.textContent = '฿' + cashUsed.toLocaleString();
@@ -629,7 +627,7 @@ function recalculateFinanceTotals() {
         }
     }
 
-    // --- 4. Comparison Progress Bar ---
+    // --- 3. Comparison Progress Bar ---
     const pAllocText = document.getElementById('finance-progress-allocated-text');
     if (pAllocText) pAllocText.textContent = '฿' + sumAllocated.toLocaleString();
 
@@ -649,7 +647,7 @@ function recalculateFinanceTotals() {
     if (allocBar) {
         const extraAllocWidth = Math.max(0, allocPct - spentPct);
         allocBar.style.width = `${extraAllocWidth}%`;
-        allocBar.textContent = extraAllocWidth > 12 ? `จัดสรรแล้ว ${allocPct}%` : '';
+        allocBar.textContent = extraAllocWidth > 12 ? `จัดสรรให้หมวดหมู่ ${allocPct}%` : '';
     }
     const remainingBar = document.getElementById('finance-progress-remaining-bar');
     if (remainingBar) {
@@ -657,15 +655,15 @@ function recalculateFinanceTotals() {
         remainingBar.textContent = `คงเหลือยังไม่จัดสรร ${unallocPct}% (฿${unallocatedReserve.toLocaleString()})`;
     }
 
-    // --- 5. Col 1: Credit Donut Chart & Legends (Master Budget & Project Allocations) ---
+    // --- 4. Col 1: Credit Donut Chart & Legends (Master Budget & Category Allocations) ---
     let currentPct = 0;
     const gradientSlices = [];
     const creditLegendItems = [];
-    const projectColorList = ['#6366f1', '#3b82f6', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
 
-    projectData.forEach((p, idx) => {
-        const color = projectColorList[idx % projectColorList.length];
-        const pct = totalMasterBudget > 0 ? (p.allocated / totalMasterBudget) * 100 : 0;
+    catKeys.forEach(k => {
+        const d = catData[k];
+        const color = d.color || '#6366f1';
+        const pct = totalMasterBudget > 0 ? (d.allocated / totalMasterBudget) * 100 : 0;
         if (pct > 0) {
             const start = currentPct;
             currentPct += pct;
@@ -673,12 +671,12 @@ function recalculateFinanceTotals() {
         }
 
         creditLegendItems.push(`
-            <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1 -mx-1 rounded transition-colors cursor-pointer" onclick="filterTransactionsByProject('${p.id}')" title="คลิกเพื่อกรองรายการของโครงการนี้">
+            <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1 -mx-1 rounded transition-colors cursor-pointer" onclick="filterTransactionsByCategory('${k}')" title="คลิกเพื่อกรองรายการของหมวดนี้">
                 <div class="flex items-center gap-2.5 truncate max-w-[150px]">
                     <div class="w-3 h-3 rounded-full shrink-0" style="background-color: ${color};"></div>
-                    <span class="text-gray-700 truncate font-medium">${p.name}</span>
+                    <span class="text-gray-700 truncate font-medium">${d.name}</span>
                 </div>
-                <span class="font-medium text-gray-800 text-right">฿${p.allocated.toLocaleString()} <span class="text-gray-400 font-normal ml-1 w-8 inline-block text-right">(${pct.toFixed(0)}%)</span></span>
+                <span class="font-medium text-gray-800 text-right">฿${(d.allocated || 0).toLocaleString()} <span class="text-gray-400 font-normal ml-1 w-8 inline-block text-right">(${pct.toFixed(0)}%)</span></span>
             </div>
         `);
     });
@@ -712,7 +710,7 @@ function recalculateFinanceTotals() {
         creditLegendEl.innerHTML = creditLegendItems.join('');
     }
 
-    // --- 6. Col 2: Cash Donut Chart & Legend ---
+    // --- 5. Col 2: Cash Donut Chart & Legend ---
     const totalCashPool = initialCash + cashInflow;
     const cashRemainingPct = totalCashPool > 0 ? Math.max(0, Math.min(100, Math.round((cashRemaining / totalCashPool) * 100))) : 0;
 
@@ -746,9 +744,8 @@ function recalculateFinanceTotals() {
         `;
     }
 
-    // --- 7. Col 3: Render Both Breakdown Views ---
-    renderProjectBudgetBreakdown(projectData, totalMasterBudget, sumAllocated, cashUsed);
-    renderCategoryBreakdown(catKeys, catData, totalPlannedCredit, cashUsed);
+    // --- 6. Col 3: Render Breakdown View ---
+    renderCategoryBreakdown(catKeys, catData, sumAllocated, cashUsed);
 }
 
 function renderProjectBudgetBreakdown(projectData, totalMasterBudget, sumAllocated, totalCashUsed) {
@@ -833,14 +830,17 @@ function renderProjectBudgetBreakdown(projectData, totalMasterBudget, sumAllocat
     if (sumRemEl) sumRemEl.textContent = '฿' + Math.max(0, sumAllocated - totalCashUsed).toLocaleString();
 }
 
-function renderCategoryBreakdown(catKeys, catData, totalPlannedCredit, totalCashUsed) {
+function renderCategoryBreakdown(catKeys, catData, totalAllocated, totalCashUsed) {
     const breakdownListEl = document.getElementById('finance-category-breakdown-list');
     if (!breakdownListEl) return;
 
     let totalCatCash = 0;
+    let totalCatAllocated = 0;
     const breakdownHTML = catKeys.map((k, idx) => {
         const d = catData[k];
+        const allocated = parseFloat(d.allocated) || 0;
         totalCatCash += (d.cashSum || 0);
+        totalCatAllocated += allocated;
         const collapseId = `cat-breakdown-details-${idx}`;
         const hasTxs = d.txs && d.txs.length > 0;
         
@@ -865,18 +865,21 @@ function renderCategoryBreakdown(catKeys, catData, totalPlannedCredit, totalCash
                         <div class="w-6 h-6 rounded ${d.bgClass} flex items-center justify-center shrink-0">
                             <i class="fa-solid ${d.icon} ${d.textClass} text-[10px]"></i>
                         </div>
-                        <span class="truncate">${d.name}</span>
+                        <span class="truncate font-semibold">${d.name}</span>
                         <i class="fa-solid fa-angle-down text-gray-300 ml-auto text-[10px] group-hover:text-gray-500 transition-transform"></i>
                     </div>
-                    <div class="w-1/5 text-right text-gray-500">฿${d.planned.toLocaleString()}</div>
-                    <div class="w-1/5 text-right text-gray-500">฿${d.cashSum.toLocaleString()}</div>
-                    <div class="w-1/5 text-right font-bold text-gray-800">฿${d.remaining.toLocaleString()}</div>
+                    <div class="w-1/5 text-right font-medium text-indigo-700">฿${allocated.toLocaleString()}</div>
+                    <div class="w-1/5 text-right font-medium text-gray-600">฿${d.cashSum.toLocaleString()}</div>
+                    <div class="w-1/5 text-right font-bold ${d.remaining > 0 ? 'text-gray-800' : 'text-red-500'}">฿${d.remaining.toLocaleString()}</div>
                 </div>
                 <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
-                    <div class="bg-green-500 h-full transition-all duration-500" style="width: ${d.usedPct}%;"></div>
-                    <div class="bg-blue-400 h-full opacity-30 transition-all duration-500" style="width: ${100 - d.usedPct}%;"></div>
+                    <div class="bg-indigo-500 h-full transition-all duration-500" style="width: ${d.usedPct}%;"></div>
+                    <div class="bg-blue-300 h-full opacity-30 transition-all duration-500" style="width: ${100 - d.usedPct}%;"></div>
                 </div>
-                <div class="text-[9px] text-gray-400 text-right mt-1">ใช้ไปแล้ว ${d.usedPct}%</div>
+                <div class="flex items-center justify-between text-[9px] text-gray-400 mt-1 px-0.5">
+                    <span>${d.txs ? d.txs.length : 0} รายการ</span>
+                    <span>ใช้ไปแล้ว ${d.usedPct}%</span>
+                </div>
                 
                 <div id="${collapseId}" class="hidden mt-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
                     <div class="flex justify-between text-[9px] font-bold text-gray-400 border-b border-gray-200/60 pb-1 mb-1 px-2">
@@ -896,13 +899,13 @@ function renderCategoryBreakdown(catKeys, catData, totalPlannedCredit, totalCash
     breakdownListEl.innerHTML = breakdownHTML;
 
     const plannedEl = document.getElementById('finance-cat-sum-planned');
-    if (plannedEl) plannedEl.textContent = '฿' + totalPlannedCredit.toLocaleString();
+    if (plannedEl) plannedEl.textContent = '฿' + totalCatAllocated.toLocaleString();
 
     const cashEl = document.getElementById('finance-cat-sum-cash');
     if (cashEl) cashEl.textContent = '฿' + totalCatCash.toLocaleString();
 
     const remEl = document.getElementById('finance-cat-sum-remaining');
-    if (remEl) remEl.textContent = '฿' + Math.max(0, totalPlannedCredit - totalCatCash).toLocaleString();
+    if (remEl) remEl.textContent = '฿' + Math.max(0, totalCatAllocated - totalCatCash).toLocaleString();
 }
 
 function switchBreakdownView(mode) {
@@ -956,7 +959,7 @@ function calculateAdjustModalPreview() {
     const totalVal = parseFloat(inputBudget ? inputBudget.value : 0) || 0;
 
     const mb = getMasterBudget();
-    const allocations = mb.projectAllocations || {};
+    const allocations = mb.categoryAllocations || mb.projectAllocations || {};
     let sumAllocated = 0;
     Object.values(allocations).forEach(v => {
         sumAllocated += (parseFloat(v) || 0);
@@ -1020,59 +1023,64 @@ function submitAdjustBudget() {
     }
 }
 
-// Project Allocation Modal Handlers
+// Category Allocation Modal Handlers
 function openAllocateBudgetModal() {
-    renderProjectAllocationList();
+    renderCategoryAllocationList();
     openFinanceModal('finance-allocate-budget-modal');
 }
 
-function renderProjectAllocationList() {
-    const container = document.getElementById('project-allocation-list-container');
+function renderCategoryAllocationList() {
+    const container = document.getElementById('category-allocation-list-container') || document.getElementById('project-allocation-list-container');
     if (!container) return;
 
-    const projects = getFinanceProjects();
+    const categories = getFinanceCategories();
+    const catKeys = Object.keys(categories);
     const mb = getMasterBudget();
-    const allocations = mb.projectAllocations || {};
+    const allocations = mb.categoryAllocations || mb.projectAllocations || {};
     const txs = getStoredTransactions();
 
     const totalMasterBudget = parseFloat(mb.totalBudget) || 0;
     const totalEl = document.getElementById('alloc-modal-total-budget');
     if (totalEl) totalEl.textContent = '฿' + totalMasterBudget.toLocaleString();
 
-    if (projects.length === 0) {
+    if (catKeys.length === 0) {
         container.innerHTML = `
             <div class="text-center py-8 text-gray-400">
-                <i class="fa-solid fa-diagram-project text-3xl mb-2 text-gray-300"></i>
-                <p class="text-sm">ไม่พบโครงการในระบบ</p>
-                <p class="text-xs text-gray-400 mt-1">กรุณาสร้างโครงการที่หน้า "โครงการ" ก่อนจัดสรรงบประมาณ</p>
+                <i class="fa-solid fa-layer-group text-3xl mb-2 text-gray-300"></i>
+                <p class="text-sm">ไม่พบหมวดหมู่ในระบบ</p>
+                <p class="text-xs text-gray-400 mt-1">กรุณาสร้างหมวดหมู่ก่อนจัดสรรงบประมาณ</p>
             </div>
         `;
         return;
     }
 
-    const html = projects.map(p => {
-        const allocated = parseFloat(allocations[p.id]) || 0;
-        const projTxs = txs.filter(t => t.project_id && String(t.project_id) === String(p.id));
-        const projSpent = projTxs.filter(t => t.transaction_type === 'cash' && !t.is_inflow)
-                                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-        const remaining = Math.max(0, allocated - projSpent);
-        const usedPct = allocated > 0 ? Math.min(100, Math.round((projSpent / allocated) * 100)) : 0;
+    const html = catKeys.map(k => {
+        const cat = categories[k];
+        const allocated = (typeof allocations[k] !== 'undefined' && allocations[k] !== null)
+            ? (parseFloat(allocations[k]) || 0)
+            : (parseFloat(cat.defaultBudget) || 0);
+
+        const catTxs = txs.filter(t => t.category === k);
+        const catSpent = catTxs.filter(t => t.transaction_type === 'cash' && !t.is_inflow)
+                               .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const remaining = Math.max(0, allocated - catSpent);
+        const usedPct = allocated > 0 ? Math.min(100, Math.round((catSpent / allocated) * 100)) : 0;
 
         return `
             <div class="p-3.5 bg-white border border-gray-200 rounded-2xl shadow-2xs hover:border-indigo-300 transition-all">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div class="w-full sm:w-2/5 flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 font-bold text-sm">
-                            <i class="fa-solid fa-diagram-project"></i>
+                        <div class="w-9 h-9 rounded-xl ${cat.bgClass || 'bg-indigo-50'} ${cat.textClass || 'text-indigo-600'} flex items-center justify-center shrink-0 font-bold text-sm" style="${cat.color ? `background-color: ${cat.color}18; color: ${cat.color};` : ''}">
+                            <i class="fa-solid ${cat.icon || 'fa-box'}"></i>
                         </div>
                         <div class="truncate">
-                            <h4 class="text-sm font-bold text-gray-800 truncate">${p.name}</h4>
-                            <span class="text-[10px] text-gray-400 font-medium">${p.status === 'active' || p.status === 'in_progress' ? '🟢 กำลังดำเนินงาน' : '⚪ ดำเนินการ'}</span>
+                            <h4 class="text-sm font-bold text-gray-800 truncate">${cat.name}</h4>
+                            <span class="text-[10px] text-gray-400 font-medium">รหัส: ${cat.id || k}</span>
                         </div>
                     </div>
 
                     <div class="w-full sm:w-1/4 text-left sm:text-center">
-                        <span class="text-xs font-semibold text-gray-600">ใช้ไป ฿${projSpent.toLocaleString()}</span>
+                        <span class="text-xs font-semibold text-gray-600">ใช้ไป ฿${catSpent.toLocaleString()}</span>
                         <span class="text-[10px] text-gray-400 block">คงเหลือ ฿${remaining.toLocaleString()} (${100 - usedPct}%)</span>
                     </div>
 
@@ -1080,8 +1088,9 @@ function renderProjectAllocationList() {
                         <div class="relative w-full max-w-[200px]">
                             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">฿</span>
                             <input type="number" step="any" min="0" 
-                                class="project-alloc-input w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-right" 
-                                data-proj-id="${p.id}" 
+                                class="category-alloc-input project-alloc-input w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2 text-sm font-bold text-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-right" 
+                                data-cat-id="${k}" 
+                                data-proj-id="${k}"
                                 value="${allocated > 0 ? allocated : ''}" 
                                 placeholder="0.00" 
                                 oninput="calculateAllocationPreview()">
@@ -1101,7 +1110,7 @@ function renderProjectAllocationList() {
 }
 
 function calculateAllocationPreview() {
-    const inputs = document.querySelectorAll('.project-alloc-input');
+    const inputs = document.querySelectorAll('.category-alloc-input, .project-alloc-input');
     const mb = getMasterBudget();
     const totalMaster = parseFloat(mb.totalBudget) || 0;
 
@@ -1128,7 +1137,7 @@ function calculateAllocationPreview() {
 }
 
 function distributeBudgetEqually() {
-    const inputs = document.querySelectorAll('.project-alloc-input');
+    const inputs = document.querySelectorAll('.category-alloc-input, .project-alloc-input');
     if (inputs.length === 0) return;
 
     const mb = getMasterBudget();
@@ -1142,40 +1151,69 @@ function distributeBudgetEqually() {
     calculateAllocationPreview();
 }
 
-function clearAllProjectAllocations() {
-    const inputs = document.querySelectorAll('.project-alloc-input');
+function clearAllCategoryAllocations() {
+    const inputs = document.querySelectorAll('.category-alloc-input, .project-alloc-input');
     inputs.forEach(inp => {
         inp.value = '';
     });
     calculateAllocationPreview();
 }
+const clearAllProjectAllocations = clearAllCategoryAllocations;
 
-function submitProjectAllocation() {
-    const inputs = document.querySelectorAll('.project-alloc-input');
+async function submitCategoryAllocation() {
+    const inputs = document.querySelectorAll('.category-alloc-input, .project-alloc-input');
     const mb = getMasterBudget();
     const newAllocations = {};
+    const categories = getFinanceCategories();
 
     let sumAllocated = 0;
     inputs.forEach(inp => {
-        const pId = inp.getAttribute('data-proj-id');
+        const catId = inp.getAttribute('data-cat-id') || inp.getAttribute('data-proj-id');
         const val = parseFloat(inp.value) || 0;
-        if (pId) {
-            newAllocations[pId] = val;
+        if (catId) {
+            newAllocations[catId] = val;
             sumAllocated += val;
+            if (categories[catId]) {
+                categories[catId].defaultBudget = val;
+            }
         }
     });
 
-    mb.projectAllocations = newAllocations;
+    mb.categoryAllocations = newAllocations;
+    mb.projectAllocations = newAllocations; // for backwards compatibility
     mb.updatedAt = new Date().toISOString();
 
     saveMasterBudget(mb);
+    saveFinanceCategories(categories);
+
+    // Sync categories with defaultBudget to Supabase if client is available
+    try {
+        if (window.conworkSupabase && typeof window.conworkSupabase.saveFinanceCategory === 'function') {
+            for (const catId of Object.keys(newAllocations)) {
+                if (categories[catId]) {
+                    window.conworkSupabase.saveFinanceCategory({
+                        id: catId,
+                        name: categories[catId].name,
+                        icon: categories[catId].icon,
+                        color: categories[catId].color,
+                        default_budget: newAllocations[catId]
+                    }).catch(e => console.warn('Sync category budget error:', e));
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Supabase category budget sync failed:', e);
+    }
+
     closeFinanceModal('finance-allocate-budget-modal');
     recalculateFinanceTotals();
 
     if (window.App && typeof App._showToast === 'function') {
-        App._showToast(`บันทึกการจัดสรรงบประมาณ ${inputs.length} โครงการ เรียบร้อยแล้ว!`, 'success');
+        App._showToast(`บันทึกการจัดสรรงบประมาณ ${inputs.length} หมวดหมู่ เรียบร้อยแล้ว!`, 'success');
     }
 }
+const submitProjectAllocation = submitCategoryAllocation;
+const renderProjectAllocationList = renderCategoryAllocationList;
 
 function filterTransactionsByProject(projectId) {
     const tableRows = document.querySelectorAll('#view-accounting tbody tr');
@@ -2335,3 +2373,14 @@ window.deleteFinanceCategory = deleteFinanceCategory;
 window.submitFinanceCategory = submitFinanceCategory;
 window.submitFinanceRequest = submitFinanceRequest;
 window.getFinanceBudgetSummary = getFinanceBudgetSummary;
+window.openAllocateBudgetModal = openAllocateBudgetModal;
+window.renderCategoryAllocationList = renderCategoryAllocationList;
+window.calculateAllocationPreview = calculateAllocationPreview;
+window.distributeBudgetEqually = distributeBudgetEqually;
+window.clearAllCategoryAllocations = clearAllCategoryAllocations;
+window.submitCategoryAllocation = submitCategoryAllocation;
+window.clearAllProjectAllocations = clearAllProjectAllocations;
+window.submitProjectAllocation = submitProjectAllocation;
+window.renderProjectAllocationList = renderProjectAllocationList;
+window.filterTransactionsByCategory = filterTransactionsByCategory;
+window.filterTransactionsByProject = filterTransactionsByProject;

@@ -1498,7 +1498,7 @@
                             </button>
                             <div class="h-6 w-px bg-gray-200 mx-1 hidden lg:block"></div>
                             <button id="btn-finance-allocate-budget" onclick="openAllocateBudgetModal()" class="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/70 px-4 py-2.5 rounded-xl transition-all text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-2xs hover:shadow-xs">
-                                <i class="fa-solid fa-diagram-project text-indigo-600"></i> แบ่งงบตามโครงการ
+                                <i class="fa-solid fa-layer-group text-indigo-600"></i> แบ่งงบตามหมวดหมู่
                             </button>
                             <button id="btn-finance-adjust-budget" onclick="openAdjustBudgetModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl transition-all text-sm font-medium flex items-center gap-2 whitespace-nowrap shadow-2xs hover:shadow-xs">
                                 <i class="fa-solid fa-sliders text-gray-600"></i> ปรับยอด
@@ -1594,7 +1594,7 @@
                                 <i class="fa-regular fa-circle-question text-gray-400 text-xs cursor-help" title="แสดงสัดส่วนงบประมาณรวมทั้งหมด ที่ถูกจัดสรรให้กับแต่ละโครงการ และเงินสดที่จ่ายจริง"></i>
                             </div>
                             <div class="text-xs text-gray-500 flex items-center gap-4">
-                                <span>จัดสรรให้โครงการ: <strong id="finance-progress-allocated-text" class="text-indigo-600">฿0</strong></span>
+                                <span>จัดสรรให้หมวดหมู่: <strong id="finance-progress-allocated-text" class="text-indigo-600">฿0</strong></span>
                                 <span>คงเหลือยังไม่จัดสรร: <strong id="finance-progress-remaining-text" class="text-emerald-600">฿0</strong></span>
                             </div>
                         </div>
@@ -1670,53 +1670,25 @@
                             </div>
                         </div>
 
-                        <!-- Col 3: Breakdown (Projects & Categories Switchable) -->
+                        <!-- Col 3: Category Breakdown -->
                         <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col h-full hover:shadow-md transition-shadow">
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-                                <div class="flex items-center gap-1.5 p-1 bg-gray-100 rounded-xl w-fit">
-                                    <button id="btn-breakdown-tab-project" onclick="switchBreakdownView('project')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-indigo-700 shadow-xs flex items-center gap-1.5">
-                                        <i class="fa-solid fa-diagram-project"></i> แบ่งตามโครงการ
-                                    </button>
-                                    <button id="btn-breakdown-tab-category" onclick="switchBreakdownView('category')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 transition-all flex items-center gap-1.5">
-                                        <i class="fa-solid fa-layer-group"></i> ตามหมวดหมู่
-                                    </button>
-                                </div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2 tracking-wide uppercase"><i class="fa-solid fa-layer-group text-indigo-600"></i> งบประมาณตามหมวดหมู่</h3>
                                 <div class="flex items-center gap-2">
-                                    <button id="btn-col3-action-alloc" onclick="openAllocateBudgetModal()" class="text-[11px] text-indigo-600 font-semibold hover:bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1">
+                                    <button onclick="openAllocateBudgetModal()" class="text-[11px] text-indigo-600 font-semibold hover:bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1">
                                         <i class="fa-solid fa-sliders text-[10px]"></i> จัดสรรงบ
                                     </button>
-                                    <button id="btn-col3-action-cat" onclick="openFinanceCategoryManager('list')" class="hidden text-[11px] text-gray-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1 border border-gray-200 px-2.5 py-1 rounded-lg">
+                                    <button onclick="openFinanceCategoryManager('list')" class="text-[11px] text-gray-500 font-medium hover:text-blue-600 transition-colors flex items-center gap-1 border border-gray-200 px-2.5 py-1 rounded-lg">
                                         <i class="fa-solid fa-gear text-[10px]"></i> จัดการหมวด
                                     </button>
                                 </div>
                             </div>
                             
-                            <!-- Project Breakdown View -->
-                            <div id="finance-project-breakdown-view" class="flex-1 flex flex-col">
-                                <div class="text-[10px] text-gray-400 flex justify-between mb-3 px-1 border-b border-gray-100 pb-2">
-                                    <div class="w-2/5">โครงการ</div>
-                                    <div class="w-1/5 text-right">งบจัดสรร</div>
-                                    <div class="w-1/5 text-right">ใช้จริง</div>
-                                    <div class="w-1/5 text-right">คงเหลือ</div>
-                                </div>
-                                
-                                <div id="finance-project-breakdown-list" class="space-y-4 overflow-y-auto flex-1 pr-1 custom-scrollbar max-h-[290px]">
-                                    <!-- Populated dynamically by JS -->
-                                </div>
-
-                                <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between text-[11px] font-bold text-gray-800 px-1">
-                                    <div class="w-2/5 text-gray-600">รวมทุกโครงการ</div>
-                                    <div id="finance-project-sum-allocated" class="w-1/5 text-right text-indigo-600">฿0</div>
-                                    <div id="finance-project-sum-spent" class="w-1/5 text-right text-green-600">฿0</div>
-                                    <div id="finance-project-sum-remaining" class="w-1/5 text-right text-gray-800">฿0</div>
-                                </div>
-                            </div>
-
-                            <!-- Category Breakdown View (Hidden by default) -->
-                            <div id="finance-category-breakdown-view" class="hidden flex-1 flex flex-col">
+                            <!-- Category Breakdown View -->
+                            <div id="finance-category-breakdown-view" class="flex-1 flex flex-col">
                                 <div class="text-[10px] text-gray-400 flex justify-between mb-3 px-1 border-b border-gray-100 pb-2">
                                     <div class="w-2/5">หมวดหมู่</div>
-                                    <div class="w-1/5 text-right">แผนงบ</div>
+                                    <div class="w-1/5 text-right">งบจัดสรร</div>
                                     <div class="w-1/5 text-right">ใช้จริง</div>
                                     <div class="w-1/5 text-right">คงเหลือ</div>
                                 </div>
@@ -1727,7 +1699,7 @@
 
                                 <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between text-[11px] font-bold text-gray-800 px-1">
                                     <div class="w-2/5 text-gray-600">รวมตามหมวดหมู่</div>
-                                    <div id="finance-cat-sum-planned" class="w-1/5 text-right text-blue-600">฿0</div>
+                                    <div id="finance-cat-sum-planned" class="w-1/5 text-right text-indigo-600">฿0</div>
                                     <div id="finance-cat-sum-cash" class="w-1/5 text-right text-green-600">฿0</div>
                                     <div id="finance-cat-sum-remaining" class="w-1/5 text-right text-gray-800">฿0</div>
                                 </div>
@@ -6351,17 +6323,17 @@
         </div>
     </div>
 
-    <!-- 6. Project Budget Allocation Modal -->
+    <!-- 6. Category Budget Allocation Modal -->
     <div id="finance-allocate-budget-modal" class="hidden fixed inset-0 z-[120] flex items-center justify-center bg-black/50 py-4 px-2" onclick="closeFinanceModal('finance-allocate-budget-modal')">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] overflow-hidden animate-fade-in" onclick="event.stopPropagation()">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-indigo-50/80 to-blue-50/50">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-sm">
-                        <i class="fa-solid fa-diagram-project"></i>
+                        <i class="fa-solid fa-layer-group"></i>
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">แบ่งงบประมาณตามโครงการ</h2>
-                        <p class="text-xs text-gray-500 mt-0.5">จัดสรรงบประมาณหลักกระจายลงสู่แต่ละโครงการในระบบ</p>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">แบ่งงบประมาณตามหมวดหมู่</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">จัดสรรงบประมาณหลักกระจายลงสู่แต่ละหมวดหมู่ค่าใช้จ่ายในระบบ</p>
                     </div>
                 </div>
                 <button onclick="closeFinanceModal('finance-allocate-budget-modal')" class="text-gray-400 hover:text-gray-600 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200">
@@ -6391,7 +6363,7 @@
                     <button type="button" onclick="distributeBudgetEqually()" class="text-xs bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium px-3 py-1.5 rounded-lg shadow-2xs transition-colors flex items-center gap-1.5">
                         <i class="fa-solid fa-equals text-blue-500 text-[10px]"></i> แบ่งเท่ากัน
                     </button>
-                    <button type="button" onclick="clearAllProjectAllocations()" class="text-xs bg-white border border-gray-200 hover:bg-red-50 text-red-600 font-medium px-3 py-1.5 rounded-lg shadow-2xs transition-colors">
+                    <button type="button" onclick="clearAllCategoryAllocations()" class="text-xs bg-white border border-gray-200 hover:bg-red-50 text-red-600 font-medium px-3 py-1.5 rounded-lg shadow-2xs transition-colors">
                         ล้างยอด
                     </button>
                 </div>
@@ -6400,11 +6372,11 @@
             <!-- Allocation List Table/Cards -->
             <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
                 <div class="flex items-center justify-between text-xs text-gray-400 px-3 font-semibold border-b border-gray-100 pb-2">
-                    <span class="w-2/5">โครงการ</span>
+                    <span class="w-2/5">หมวดหมู่</span>
                     <span class="w-1/4 text-center">ใช้จริง / คงเหลืองบ</span>
                     <span class="w-1/3 text-right">งบประมาณที่จัดสรร (บาท)</span>
                 </div>
-                <div id="project-allocation-list-container" class="space-y-3">
+                <div id="category-allocation-list-container" class="space-y-3">
                     <!-- Populated dynamically by JS -->
                 </div>
             </div>
@@ -6416,7 +6388,7 @@
                     <button type="button" onclick="closeFinanceModal('finance-allocate-budget-modal'); openAdjustBudgetModal();" class="px-4 py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 rounded-xl transition-colors">
                         <i class="fa-solid fa-sliders mr-1"></i> ปรับยอดงบรวม
                     </button>
-                    <button type="button" onclick="submitProjectAllocation()" class="px-6 py-2.5 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2">
+                    <button type="button" onclick="submitCategoryAllocation()" class="px-6 py-2.5 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-check"></i> บันทึกการจัดสรรงบประมาณ
                     </button>
                 </div>
