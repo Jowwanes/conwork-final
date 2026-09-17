@@ -975,11 +975,15 @@ const App = {
                                             id: t.id,
                                             projectId: t.project_id,
                                             sectionId: t.section_id,
+                                            creatorId: t.creator_id || '',
+                                            creator: t.creator_id || '',
+                                            createdAt: t.created_at || '',
+                                            updatedAt: t.updated_at || '',
                                             title: t.title,
                                             description: t.description || '',
                                             dueDate: t.due_date ? t.due_date.split('T')[0] : '',
                                             dueTime: t.due_date && t.due_date.includes('T') ? t.due_date.split('T')[1].substring(0,5) : '',
-                                            status: t.status === 'in_progress' ? 'in-progress' : (t.status === 'in_review' ? 'pending-review' : t.status),
+                                            status: t.status === 'in_progress' ? 'in-progress' : (t.status === 'in_review' ? 'pending-review' : (t.status === 'done' ? 'completed' : t.status)),
                                             priority: t.priority || 'medium',
                                             subtasks: t.subtasks || [],
                                             assignees: t.task_assignees ? t.task_assignees.map(ta => ta.user_id) : []
@@ -1670,17 +1674,10 @@ const App = {
         }
     },
     clearGlobalDateFilter() {
-        const now = new Date();
-        const fDate = (d) => {
-            const y = d.getFullYear();
-            const m = String(d.getMonth()+1).padStart(2, '0');
-            const dt = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${dt}`;
-        };
         const startEl = document.getElementById('dash-global-start');
         const endEl = document.getElementById('dash-global-end');
-        if (startEl) startEl.value = fDate(new Date(now.getFullYear(), now.getMonth(), 1));
-        if (endEl) endEl.value = fDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+        if (startEl) startEl.value = '';
+        if (endEl) endEl.value = '';
         this.renderPersonalDashboard();
     },
 
@@ -2015,88 +2012,150 @@ const App = {
         if (m) m.classList.add('hidden');
     },
 
+    getUserTasks(user = this.state.currentUser, selectedProjectId = null) {
+        if (!user) return [];
+        
+        const userKeys = new Set();
+        if (user.id) userKeys.add(String(user.id).toLowerCase());
+        if (user.email) userKeys.add(String(user.email).toLowerCase());
+        if (user.username) userKeys.add(String(user.username).toLowerCase());
+        
+        const matchedUser = mockUsers.find(mu => 
+            (user.id && String(mu.id) === String(user.id)) || 
+            (user.email && mu.email && String(mu.email).toLowerCase() === String(user.email).toLowerCase())
+        );
+        if (matchedUser) {
+            if (matchedUser.id) userKeys.add(String(matchedUser.id).toLowerCase());
+            if (matchedUser.email) userKeys.add(String(matchedUser.email).toLowerCase());
+        }
+
+        const isLeader = this.isCeoOrAdmin(user) || 
+            (user.role && (user.role.includes('manager') || user.role.includes('admin') || user.role.includes('reviewer') || String(user.role).toLowerCase().includes('ceo')));
+
+        // Find projects owned, managed, or joined by this user
+        const myProjectIds = new Set();
+        mockProjects.forEach(p => {
+            const pId = String(p.id);
+            if (this.isCeoOrAdmin(user)) {
+                myProjectIds.add(pId);
+                return;
+            }
+            if (p.owner_id && userKeys.has(String(p.owner_id).toLowerCase())) myProjectIds.add(pId);
+            if (p.ownerId && userKeys.has(String(p.ownerId).toLowerCase())) myProjectIds.add(pId);
+            if (Array.isArray(p.managers) && p.managers.some(m => userKeys.has(String(m).toLowerCase()))) myProjectIds.add(pId);
+            if (Array.isArray(p.comanagers) && p.comanagers.some(m => userKeys.has(String(m).toLowerCase()))) myProjectIds.add(pId);
+            if (p.manager && userKeys.has(String(p.manager).toLowerCase())) myProjectIds.add(pId);
+            if (Array.isArray(p.team) && p.team.some(m => userKeys.has(String(m).toLowerCase()))) myProjectIds.add(pId);
+        });
+
+        let filteredTasks = mockTasks.filter(t => {
+            // 1. Assignees
+            const isAssigned = Array.isArray(t.assignees) && t.assignees.some(a => userKeys.has(String(a).toLowerCase()));
+            const isSingleAssignee = (t.assignee && userKeys.has(String(t.assignee).toLowerCase())) ||
+                                     (t.assigneeId && userKeys.has(String(t.assigneeId).toLowerCase())) ||
+                                     (t.assignee_id && userKeys.has(String(t.assignee_id).toLowerCase()));
+            // 2. Related users
+            const isRelated = Array.isArray(t.relatedUsers) && t.relatedUsers.some(r => userKeys.has(String(r).toLowerCase()));
+            // 3. Creator
+            const isCreator = (t.creatorId && userKeys.has(String(t.creatorId).toLowerCase())) ||
+                              (t.creator_id && userKeys.has(String(t.creator_id).toLowerCase())) ||
+                              (t.creator && userKeys.has(String(t.creator).toLowerCase())) ||
+                              (t.createdBy && userKeys.has(String(t.createdBy).toLowerCase())) ||
+                              (t.userId && userKeys.has(String(t.userId).toLowerCase()));
+            // 4. Reviewer
+            const isReviewer = Array.isArray(t.reviewers) && t.reviewers.some(r => userKeys.has(String(r.userId || r.id || r).toLowerCase()));
+            // 5. Project ownership / leadership
+            const isProjectTask = isLeader && t.projectId && myProjectIds.has(String(t.projectId));
+
+            return isAssigned || isSingleAssignee || isRelated || isCreator || isReviewer || isProjectTask;
+        });
+
+        if (selectedProjectId) {
+            filteredTasks = filteredTasks.filter(t => String(t.projectId) === String(selectedProjectId));
+        }
+
+        return filteredTasks;
+    },
+
     renderPersonalDashboard() {
         if (!this.state.currentUser) return;
         
         const u = this.state.currentUser;
         const nameEl = document.getElementById('dash-user-name');
         if (nameEl) nameEl.textContent = u.name || u.username || 'ผู้ใช้';
-        const currentUserId = String(u.id);
-        let myTasks = mockTasks.filter(t => t.assignees && t.assignees.some(id => String(id) === currentUserId || id == currentUserId));
         
         // Populate Project Filter
         const projFilterEl = document.getElementById('dash-project-filter');
+        let selectedProj = '';
         if (projFilterEl) {
-            if (projFilterEl.options.length <= 1) {
-                const userProjects = [...new Set(myTasks.map(t => t.projectId).filter(p => p))];
-                userProjects.forEach(pid => {
-                    const p = mockProjects.find(pr => String(pr.id) === String(pid));
-                    if (p) {
-                        const opt = document.createElement('option');
-                        opt.value = p.id;
-                        opt.textContent = p.name;
-                        projFilterEl.appendChild(opt);
-                    }
+            selectedProj = projFilterEl.value;
+            const accessibleProjects = this.isCeoOrAdmin(u)
+                ? mockProjects.filter(p => p.status !== 'deleted' && p.status !== 'hidden')
+                : mockProjects.filter(p => {
+                    if (p.status === 'deleted' || p.status === 'hidden') return false;
+                    const uId = String(u.id);
+                    const isOwner = String(p.owner_id || p.ownerId) === uId;
+                    const isMgr = Array.isArray(p.managers) && p.managers.some(m => String(m) === uId);
+                    const isTeam = Array.isArray(p.team) && p.team.some(m => String(m) === uId);
+                    const hasTask = mockTasks.some(t => String(t.projectId) === String(p.id));
+                    return isOwner || isMgr || isTeam || hasTask;
                 });
-            }
             
-            const selectedProj = projFilterEl.value;
-            if (selectedProj) {
-                myTasks = myTasks.filter(t => String(t.projectId) === String(selectedProj));
-            }
+            let optionsHtml = '<option value="">ทุกโปรเจกต์</option>';
+            accessibleProjects.forEach(p => {
+                const isSel = String(p.id) === String(selectedProj) ? ' selected' : '';
+                optionsHtml += `<option value="${p.id}"${isSel}>${p.name || 'ไม่มีชื่อ'}</option>`;
+            });
+            projFilterEl.innerHTML = optionsHtml;
+            selectedProj = projFilterEl.value;
         }
+        
+        let myTasks = this.getUserTasks(u, selectedProj);
         
         const startEl = document.getElementById('dash-global-start');
         const endEl = document.getElementById('dash-global-end');
-        if (startEl && !startEl.value && endEl && !endEl.value) {
-            const now = new Date();
-            const fDate = (d) => {
-                const y = d.getFullYear();
-                const m = String(d.getMonth()+1).padStart(2, '0');
-                const dt = String(d.getDate()).padStart(2, '0');
-                return `${y}-${m}-${dt}`;
-            };
-            startEl.value = fDate(new Date(now.getFullYear(), now.getMonth(), 1));
-            endEl.value = fDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-        }
-        
-        // Global Date Filter
         const globalStart = startEl?.value;
         const globalEnd = endEl?.value;
         
         if (globalStart || globalEnd) {
             myTasks = myTasks.filter(t => {
-                const d = t.dueDate ? new Date(t.dueDate) : (t.updatedAt ? new Date(t.updatedAt) : new Date(t.createdAt || new Date()));
-                let isValid = true;
+                if (!t.dueDate && t.status !== 'completed' && t.status !== 'done') {
+                    return true;
+                }
+                const dateStr = t.dueDate || t.updatedAt || t.createdAt;
+                if (!dateStr) return true;
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return true;
                 if (globalStart) {
                     const start = new Date(globalStart);
                     start.setHours(0,0,0,0);
-                    if (d < start) isValid = false;
+                    if (d < start) return false;
                 }
                 if (globalEnd) {
                     const end = new Date(globalEnd);
                     end.setHours(23,59,59,999);
-                    if (d > end) isValid = false;
+                    if (d > end) return false;
                 }
-                return isValid;
+                return true;
             });
         }
         
         const total = myTasks.length;
         const completed = myTasks.filter(t => t.status === 'completed' || t.status === 'done').length;
-        const inProgress = myTasks.filter(t => t.status === 'in-progress' || t.status === 'in_progress' || t.status === 'pending-review' || t.status === 'pending_review' || t.status === 'active').length;
-        const pending = myTasks.filter(t => t.status === 'pending' || t.status === 'todo' || t.status === 'plan').length;
+        const inProgress = myTasks.filter(t => t.status === 'in-progress' || t.status === 'in_progress' || t.status === 'pending-review' || t.status === 'pending_review' || t.status === 'active' || t.status === 'in_review').length;
+        const pending = myTasks.filter(t => t.status === 'pending' || t.status === 'todo' || t.status === 'plan' || !t.status).length;
         
         // Stalled or due soon - let's check due dates
         const now = new Date();
         const threeDaysLater = new Date();
         threeDaysLater.setDate(now.getDate() + 3);
+        threeDaysLater.setHours(23,59,59,999);
         
         let dueSoonCount = 0;
         myTasks.forEach(t => {
             if (t.status !== 'completed' && t.status !== 'done' && t.dueDate) {
                 const due = new Date(t.dueDate);
-                if (due <= threeDaysLater) {
+                if (!isNaN(due.getTime()) && due <= threeDaysLater) {
                     dueSoonCount++;
                 }
             }
@@ -2121,21 +2180,19 @@ const App = {
             const prevEnd = new Date(start.getTime() - (24*60*60*1000));
             prevEnd.setHours(23,59,59,999);
             
-            let prevTasksRaw = mockTasks.filter(t => t.assignees && t.assignees.some(id => String(id) === currentUserId || id == currentUserId));
-            const projFilterEl = document.getElementById('dash-project-filter');
-            if (projFilterEl && projFilterEl.value) {
-                prevTasksRaw = prevTasksRaw.filter(t => String(t.projectId) === String(projFilterEl.value));
-            }
+            let prevTasksRaw = this.getUserTasks(u, selectedProj);
             
             const prevTasks = prevTasksRaw.filter(t => {
-                const d = t.dueDate ? new Date(t.dueDate) : (t.updatedAt ? new Date(t.updatedAt) : new Date(t.createdAt || new Date()));
-                return d >= prevStart && d <= prevEnd;
+                const dateStr = t.dueDate || t.updatedAt || t.createdAt;
+                if (!dateStr) return false;
+                const d = new Date(dateStr);
+                return !isNaN(d.getTime()) && d >= prevStart && d <= prevEnd;
             });
             
             prevTotal = prevTasks.length;
             prevCompleted = prevTasks.filter(t => t.status === 'completed' || t.status === 'done').length;
-            prevInProgress = prevTasks.filter(t => t.status === 'in-progress' || t.status === 'in_progress' || t.status === 'pending-review' || t.status === 'pending_review' || t.status === 'active').length;
-            prevPending = prevTasks.filter(t => t.status === 'pending' || t.status === 'todo' || t.status === 'plan').length;
+            prevInProgress = prevTasks.filter(t => t.status === 'in-progress' || t.status === 'in_progress' || t.status === 'pending-review' || t.status === 'pending_review' || t.status === 'active' || t.status === 'in_review').length;
+            prevPending = prevTasks.filter(t => t.status === 'pending' || t.status === 'todo' || t.status === 'plan' || !t.status).length;
         }
 
         // Update cards
@@ -2179,7 +2236,7 @@ const App = {
         let compPct = total ? Math.round((completed / total) * 100) : 0;
         let inProgPct = total ? Math.round((inProgress / total) * 100) : 0;
         let pendPct = total ? Math.round((pending / total) * 100) : 0;
-        let stallPct = 100 - compPct - inProgPct - pendPct; // Fill the rest to be safe visually
+        let stallPct = 100 - compPct - inProgPct - pendPct;
         if (stallPct < 0) stallPct = 0;
         
         safeSetText('dash-donut-percent', `${compPct}%`);
@@ -2218,9 +2275,18 @@ const App = {
         // Render Recent Projects
         const recentProjectsContainer = document.getElementById('dash-recent-projects');
         if (recentProjectsContainer) {
-            // Sort projects by newest first, take top 3
-            const recentProjects = [...mockProjects]
-                .filter(p => p.status !== 'deleted' && p.status !== 'hidden')
+            const accessibleProjects = this.isCeoOrAdmin(u)
+                ? mockProjects.filter(p => p.status !== 'deleted' && p.status !== 'hidden')
+                : mockProjects.filter(p => {
+                    if (p.status === 'deleted' || p.status === 'hidden') return false;
+                    const uId = String(u.id);
+                    return String(p.owner_id || p.ownerId) === uId ||
+                           (Array.isArray(p.managers) && p.managers.some(m => String(m) === uId)) ||
+                           (Array.isArray(p.team) && p.team.some(m => String(m) === uId)) ||
+                           mockTasks.some(t => String(t.projectId) === String(p.id));
+                });
+
+            const recentProjects = [...accessibleProjects]
                 .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
                 .slice(0, 3);
             
@@ -2238,28 +2304,32 @@ const App = {
                     const color = colors[idx % colors.length];
                     
                     let progress = 0;
-                    if (p.tasksTotal > 0) {
+                    const projTasks = mockTasks.filter(t => String(t.projectId) === String(p.id));
+                    if (projTasks.length > 0) {
+                        const doneCount = projTasks.filter(t => t.status === 'completed' || t.status === 'done').length;
+                        progress = Math.round((doneCount / projTasks.length) * 100);
+                    } else if (p.tasksTotal > 0) {
                         progress = Math.round((p.tasksDone / p.tasksTotal) * 100);
                     } else if (p.progress) {
                         progress = p.progress;
                     }
 
                     projectsHtml += `
-                        <div onclick="App.state.currentProject='${p.id}'; App.switchView('tasks')" class="flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
+                        <div onclick="App.state.currentProject='${p.id}'; App.switchView('tasks')" class="flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors border border-transparent hover:border-gray-100 dark:hover:border-slate-700">
                             <div class="w-12 h-12 rounded-xl ${color.bg} ${color.text} flex items-center justify-center text-xl shrink-0"><i class="fa-solid ${color.icon}"></i></div>
                             <div class="flex-1 min-w-0">
-                                <h4 class="font-bold text-gray-800 truncate">${p.name || 'ไม่มีชื่อ'}</h4>
+                                <h4 class="font-bold text-gray-800 dark:text-slate-100 truncate">${p.name || 'ไม่มีชื่อ'}</h4>
                                 <div class="flex items-center gap-4 mt-1">
-                                    <div class="text-xs text-gray-500 font-medium">${progress}%</div>
-                                    <div class="text-xs text-gray-400"><i class="fa-regular fa-clock"></i> Due: ${p.endDate || 'ไม่มีกำหนด'}</div>
+                                    <div class="text-xs text-gray-500 dark:text-slate-400 font-medium">${progress}%</div>
+                                    <div class="text-xs text-gray-400 dark:text-slate-500"><i class="fa-regular fa-clock"></i> Due: ${p.dueDate || p.endDate || 'ไม่มีกำหนด'}</div>
                                 </div>
                             </div>
-                            <div class="w-full md:w-64 h-6 rounded-full bg-red-100 relative shrink-0 overflow-hidden">
-                                <div class="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center rounded-full" style="width: ${progress}%;">
-                                    <span class="text-[10px] font-bold text-white ${progress < 10 ? 'hidden' : ''}">${progress}%</span>
+                            <div class="w-full md:w-64 h-6 rounded-full bg-slate-100 dark:bg-slate-700 relative shrink-0 overflow-hidden flex items-center">
+                                <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-center rounded-full transition-all duration-500" style="width: ${progress}%;">
+                                    <span class="text-[10px] font-bold text-white ${progress < 12 ? 'hidden' : ''}">${progress}%</span>
                                 </div>
-                                <div class="absolute top-0 right-0 h-full w-[${100 - progress}%] flex items-center justify-center">
-                                    <span class="text-[10px] font-bold text-gray-600 ${100 - progress < 10 ? 'hidden' : ''}">${100 - progress}%</span>
+                                <div class="absolute top-0 right-0 h-full flex items-center justify-end pr-2.5">
+                                    <span class="text-[10px] font-bold text-gray-400 ${progress >= 90 ? 'hidden' : ''}">${progress}%</span>
                                 </div>
                             </div>
                         </div>
@@ -2274,22 +2344,20 @@ const App = {
     },
 
     clearChartFilter() {
-        document.getElementById('chart-date-start').value = '';
-        document.getElementById('chart-date-end').value = '';
+        const s = document.getElementById('chart-date-start');
+        const e = document.getElementById('chart-date-end');
+        if (s) s.value = '';
+        if (e) e.value = '';
         this.renderDashboardChart('yearly');
     },
 
     renderDashboardChart(timeframe = 'yearly', payload = null) {
         const u = this.state.currentUser;
         if (!u) return;
-        const currentUserId = String(u.id);
-        let myTasks = mockTasks.filter(t => t.assignees && t.assignees.some(id => String(id) === currentUserId || id == currentUserId));
         
-        // Apply Global Project Filter
         const projFilterEl = document.getElementById('dash-project-filter');
-        if (projFilterEl && projFilterEl.value) {
-            myTasks = myTasks.filter(t => String(t.projectId) === String(projFilterEl.value));
-        }
+        const selectedProj = projFilterEl ? projFilterEl.value : '';
+        let myTasks = this.getUserTasks(u, selectedProj);
         
         // Apply Global Date Filter if exists, ONLY IF timeframe is not custom
         if (timeframe !== 'custom') {
@@ -2298,19 +2366,24 @@ const App = {
             
             if (globalStart || globalEnd) {
                 myTasks = myTasks.filter(t => {
-                    const d = t.dueDate ? new Date(t.dueDate) : (t.updatedAt ? new Date(t.updatedAt) : new Date(t.createdAt || new Date()));
-                    let isValid = true;
+                    if (!t.dueDate && t.status !== 'completed' && t.status !== 'done') {
+                        return true;
+                    }
+                    const dateStr = t.dueDate || t.updatedAt || t.createdAt;
+                    if (!dateStr) return true;
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) return true;
                     if (globalStart) {
                         const start = new Date(globalStart);
                         start.setHours(0,0,0,0);
-                        if (d < start) isValid = false;
+                        if (d < start) return false;
                     }
                     if (globalEnd) {
                         const end = new Date(globalEnd);
                         end.setHours(23,59,59,999);
-                        if (d > end) isValid = false;
+                        if (d > end) return false;
                     }
-                    return isValid;
+                    return true;
                 });
             }
         }
@@ -2318,11 +2391,10 @@ const App = {
         // Find unique projects involved
         const projectMap = {};
         myTasks.forEach(t => {
-            if (t.projectId && !projectMap[t.projectId]) {
-                const proj = mockProjects.find(p => String(p.id) === String(t.projectId));
-                if (proj) {
-                    projectMap[t.projectId] = proj.name || `Project ${t.projectId}`;
-                }
+            const pid = t.projectId || 'general';
+            if (!projectMap[pid]) {
+                const proj = mockProjects.find(p => String(p.id) === String(pid));
+                projectMap[pid] = proj ? (proj.name || `Project ${pid}`) : 'งานทั่วไป';
             }
         });
         
@@ -2335,7 +2407,7 @@ const App = {
             let legendHtml = '';
             projectIds.forEach((pid, idx) => {
                 const color = colors[idx % colors.length];
-                legendHtml += `<div class="flex items-center gap-2 text-xs text-gray-600"><div class="w-2.5 h-2.5 rounded-full" style="background-color: ${color}"></div> <span class="truncate max-w-[120px]" title="${projectMap[pid]}">${projectMap[pid]}</span></div>`;
+                legendHtml += `<div class="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300"><div class="w-2.5 h-2.5 rounded-full" style="background-color: ${color}"></div> <span class="truncate max-w-[120px]" title="${projectMap[pid]}">${projectMap[pid]}</span></div>`;
             });
             if (projectIds.length === 0) {
                 legendHtml = '<div class="text-xs text-gray-400">ยังไม่มีข้อมูลโปรเจกต์</div>';
@@ -2357,11 +2429,16 @@ const App = {
             }
             
             myTasks.forEach(t => {
-                const d = t.dueDate ? new Date(t.dueDate) : (t.updatedAt ? new Date(t.updatedAt) : new Date(t.createdAt || new Date()));
-                if (d.getFullYear() === now.getFullYear()) {
-                    const month = d.getMonth(); 
-                    if (t.projectId && projectMap[t.projectId]) {
-                        bins[month].projects[t.projectId] = (bins[month].projects[t.projectId] || 0) + 1;
+                const dateStr = t.dueDate || t.updatedAt || t.createdAt;
+                const d = dateStr ? new Date(dateStr) : new Date();
+                const validDate = isNaN(d.getTime()) ? new Date() : d;
+                if (validDate.getFullYear() === now.getFullYear()) {
+                    const month = validDate.getMonth(); 
+                    const pid = t.projectId || 'general';
+                    if (projectMap[pid]) {
+                        bins[month].projects[pid] = (bins[month].projects[pid] || 0) + 1;
+                        bins[month].total += 1;
+                    } else {
                         bins[month].total += 1;
                     }
                 }

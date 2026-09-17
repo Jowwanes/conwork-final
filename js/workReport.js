@@ -125,24 +125,33 @@ const WorkReport = {
             this.state.endDate
         );
 
+        const uid = String(userId).toLowerCase();
+        const userKeys = new Set([uid]);
+        if (user.email) userKeys.add(String(user.email).toLowerCase());
+        if (user.id) userKeys.add(String(user.id).toLowerCase());
+
         const projects = (typeof mockProjects !== 'undefined' ? mockProjects : [])
             .filter(p => {
-                const uid = parseInt(userId);
-                const isTeam = Array.isArray(p.team) && p.team.some(id => parseInt(id) === uid);
-                const isManager = Array.isArray(p.managers) && p.managers.some(id => parseInt(id) === uid);
-                const isComanager = Array.isArray(p.comanagers) && p.comanagers.some(id => parseInt(id) === uid);
-                return isTeam || isManager || isComanager;
+                const isOwner = userKeys.has(String(p.owner_id || p.ownerId || '').toLowerCase());
+                const isTeam = Array.isArray(p.team) && p.team.some(id => userKeys.has(String(id).toLowerCase()));
+                const isManager = Array.isArray(p.managers) && p.managers.some(id => userKeys.has(String(id).toLowerCase()));
+                const isComanager = Array.isArray(p.comanagers) && p.comanagers.some(id => userKeys.has(String(id).toLowerCase()));
+                const isSingleMgr = userKeys.has(String(p.manager || '').toLowerCase());
+                return isOwner || isTeam || isManager || isComanager || isSingleMgr;
             });
 
-        const myProjectIds = new Set(projects.map(p => p.id));
+        const myProjectIds = new Set(projects.map(p => String(p.id)));
         const allTasks = typeof mockTasks !== 'undefined' ? mockTasks : [];
-        const isLeader = user.role.includes('manager') || user.role.includes('admin') || user.role.includes('reviewer') || user.role === 'CEO';
+        const roleStr = String(user.role || '').toLowerCase();
+        const isLeader = roleStr.includes('manager') || roleStr.includes('admin') || roleStr.includes('reviewer') || roleStr.includes('ceo');
         
         const myTasks = allTasks.filter(t => {
-            const uid = parseInt(userId);
-            const isAssigned = Array.isArray(t.assignees) && t.assignees.some(id => parseInt(id) === uid);
-            const isProjectTaskAndLeader = isLeader && myProjectIds.has(t.projectId);
-            return isAssigned || isProjectTaskAndLeader;
+            const isAssigned = Array.isArray(t.assignees) && t.assignees.some(id => userKeys.has(String(id).toLowerCase()));
+            const isSingleAssignee = userKeys.has(String(t.assignee || t.assigneeId || t.assignee_id || '').toLowerCase());
+            const isRelated = Array.isArray(t.relatedUsers) && t.relatedUsers.some(id => userKeys.has(String(id).toLowerCase()));
+            const isCreator = userKeys.has(String(t.creatorId || t.creator_id || t.creator || t.createdBy || t.userId || '').toLowerCase());
+            const isProjectTaskAndLeader = isLeader && myProjectIds.has(String(t.projectId));
+            return isAssigned || isSingleAssignee || isRelated || isCreator || isProjectTaskAndLeader;
         });
         
         const periodTasks = myTasks.filter(t => this._inRange(t.submittedAt || t.dueDate, start, end));
