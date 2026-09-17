@@ -28,8 +28,8 @@ const STATUS_TO_DB = {
 const FINANCE_MASTER_BUDGET_KEY = 'conwork_master_budget';
 
 const DEFAULT_MASTER_BUDGET = {
-    totalBudget: 200000,
-    initialCash: 50000,
+    totalBudget: 0,
+    initialCash: 0,
     projectAllocations: {}
 };
 
@@ -39,9 +39,14 @@ function getMasterBudget() {
         if (saved) {
             const parsed = JSON.parse(saved);
             if (parsed && typeof parsed === 'object') {
+                // If saved data still contains old mock defaults (200000 / 50000 with no allocations), reset to 0
+                if (parsed.totalBudget === 200000 && parsed.initialCash === 50000 && (!parsed.projectAllocations || Object.keys(parsed.projectAllocations).length === 0)) {
+                    saveMasterBudget(DEFAULT_MASTER_BUDGET);
+                    return { ...DEFAULT_MASTER_BUDGET, projectAllocations: {} };
+                }
                 return {
-                    totalBudget: typeof parsed.totalBudget === 'number' ? parsed.totalBudget : (parseFloat(parsed.totalBudget) || DEFAULT_MASTER_BUDGET.totalBudget),
-                    initialCash: typeof parsed.initialCash === 'number' ? parsed.initialCash : (parseFloat(parsed.initialCash) || DEFAULT_MASTER_BUDGET.initialCash),
+                    totalBudget: typeof parsed.totalBudget === 'number' ? parsed.totalBudget : (parseFloat(parsed.totalBudget) || 0),
+                    initialCash: typeof parsed.initialCash === 'number' ? parsed.initialCash : (parseFloat(parsed.initialCash) || 0),
                     projectAllocations: (parsed.projectAllocations && typeof parsed.projectAllocations === 'object') ? parsed.projectAllocations : {}
                 };
             }
@@ -86,18 +91,9 @@ function saveMasterBudget(budgetData) {
 function getFinanceProjects() {
     let projs = [];
     if (typeof mockProjects !== 'undefined' && Array.isArray(mockProjects) && mockProjects.length > 0) {
-        projs = mockProjects.filter(p => p.status !== 'deleted');
+        projs = mockProjects.filter(p => p.status !== 'deleted' && p.status !== 'hidden');
     } else if (window.App && App.state && Array.isArray(App.state.projects) && App.state.projects.length > 0) {
-        projs = App.state.projects.filter(p => p.status !== 'deleted');
-    }
-
-    if (projs.length === 0) {
-        projs = [
-            { id: 'proj-1', name: 'ระบบการตลาดออนไลน์ (Digital Campaign)', status: 'active', color: 'bg-blue-500' },
-            { id: 'proj-2', name: 'พัฒนาแอปพลิเคชันเวอร์ชัน 2.0 (Mobile App)', status: 'active', color: 'bg-indigo-500' },
-            { id: 'proj-3', name: 'งานปรับปรุงและตกแต่งสำนักงานใหม่', status: 'active', color: 'bg-emerald-500' },
-            { id: 'proj-4', name: 'จัดอบรมสัมมนาประจำปีบุคลากร (Annual Seminar)', status: 'active', color: 'bg-amber-500' }
-        ];
+        projs = App.state.projects.filter(p => p.status !== 'deleted' && p.status !== 'hidden');
     }
     return projs;
 }
@@ -139,11 +135,11 @@ const FINANCE_COLOR_PRESETS = {
 };
 
 const DEFAULT_FINANCE_CATEGORIES = {
-    'welfare': { id: 'welfare', name: 'สวัสดิการอาหารและเบรก', icon: 'fa-utensils', color: '#f97316', bgClass: 'bg-orange-100', textClass: 'text-orange-500', defaultBudget: 5400 },
-    'supplies': { id: 'supplies', name: 'พัสดุและอุปกรณ์', icon: 'fa-box', color: '#a855f7', bgClass: 'bg-purple-100', textClass: 'text-purple-500', defaultBudget: 4000 },
-    'activity': { id: 'activity', name: 'กิจกรรมโครงการ', icon: 'fa-palette', color: '#ec4899', bgClass: 'bg-pink-100', textClass: 'text-pink-500', defaultBudget: 6000 },
-    'travel': { id: 'travel', name: 'การเดินทางและขนส่ง', icon: 'fa-car', color: '#0ea5e9', bgClass: 'bg-sky-100', textClass: 'text-sky-500', defaultBudget: 2600 },
-    'other': { id: 'other', name: 'อื่น ๆ', icon: 'fa-ellipsis', color: '#94a3b8', bgClass: 'bg-gray-100', textClass: 'text-gray-500', defaultBudget: 2000 }
+    'welfare': { id: 'welfare', name: 'สวัสดิการอาหารและเบรก', icon: 'fa-utensils', color: '#f97316', bgClass: 'bg-orange-100', textClass: 'text-orange-500', defaultBudget: 0 },
+    'supplies': { id: 'supplies', name: 'พัสดุและอุปกรณ์', icon: 'fa-box', color: '#a855f7', bgClass: 'bg-purple-100', textClass: 'text-purple-500', defaultBudget: 0 },
+    'activity': { id: 'activity', name: 'กิจกรรมโครงการ', icon: 'fa-palette', color: '#ec4899', bgClass: 'bg-pink-100', textClass: 'text-pink-500', defaultBudget: 0 },
+    'travel': { id: 'travel', name: 'การเดินทางและขนส่ง', icon: 'fa-car', color: '#0ea5e9', bgClass: 'bg-sky-100', textClass: 'text-sky-500', defaultBudget: 0 },
+    'other': { id: 'other', name: 'อื่น ๆ', icon: 'fa-ellipsis', color: '#94a3b8', bgClass: 'bg-gray-100', textClass: 'text-gray-500', defaultBudget: 0 }
 };
 
 function getFinanceCategories() {
@@ -152,6 +148,16 @@ function getFinanceCategories() {
         if (saved) {
             const parsed = JSON.parse(saved);
             if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                // Clear old mock default budgets (5400, 4000, 6000, 2600, 2000)
+                let hasMockBudget = false;
+                if (parsed.welfare && parsed.welfare.defaultBudget === 5400) { parsed.welfare.defaultBudget = 0; hasMockBudget = true; }
+                if (parsed.supplies && parsed.supplies.defaultBudget === 4000) { parsed.supplies.defaultBudget = 0; hasMockBudget = true; }
+                if (parsed.activity && parsed.activity.defaultBudget === 6000) { parsed.activity.defaultBudget = 0; hasMockBudget = true; }
+                if (parsed.travel && parsed.travel.defaultBudget === 2600) { parsed.travel.defaultBudget = 0; hasMockBudget = true; }
+                if (parsed.other && parsed.other.defaultBudget === 2000) { parsed.other.defaultBudget = 0; hasMockBudget = true; }
+                if (hasMockBudget) {
+                    try { localStorage.setItem(FINANCE_CATEGORIES_STORAGE_KEY, JSON.stringify(parsed)); } catch (e) {}
+                }
                 return parsed;
             }
         }
@@ -361,15 +367,20 @@ function deleteFinanceCategory(catKey) {
 function getStoredTransactions() {
     try {
         const saved = localStorage.getItem(FINANCE_STORAGE_KEY);
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+            const list = JSON.parse(saved);
+            if (Array.isArray(list)) {
+                // Filter out any leftover mock transactions (tx-1, tx-2, tx-3, or mock titles)
+                const mockIds = ['tx-1', 'tx-2', 'tx-3'];
+                const filtered = list.filter(t => !mockIds.includes(t.id) && !['ค่าอาหารกลางวันทีมสำรวจหน้างาน', 'จัดซื้อสายไฟและอุปกรณ์ความปลอดภัย VAF', 'ค่าน้ำมันรถกระบะขนส่งวัสดุ'].includes(t.title));
+                if (filtered.length !== list.length) {
+                    try { localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(filtered)); } catch (e) {}
+                }
+                return filtered;
+            }
+        }
     } catch (e) {}
-    const initial = [
-        { id: 'tx-1', title: 'ค่าอาหารกลางวันทีมสำรวจหน้างาน', category: 'welfare', amount: 1200, transaction_type: 'cash', status: 'จ่ายแล้ว', transaction_date: '2026-05-18', author: 'คุณ (Me)' },
-        { id: 'tx-2', title: 'จัดซื้อสายไฟและอุปกรณ์ความปลอดภัย VAF', category: 'supplies', amount: 8450, transaction_type: 'credit', status: 'รออนุมัติ', transaction_date: '2026-05-16', author: 'วิชัย มั่นคง' },
-        { id: 'tx-3', title: 'ค่าน้ำมันรถกระบะขนส่งวัสดุ', category: 'travel', amount: 1500, transaction_type: 'cash', status: 'จ่ายแล้ว', transaction_date: '2026-05-14', author: 'คุณ (Me)' }
-    ];
-    try { localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(initial)); } catch (e) {}
-    return initial;
+    return [];
 }
 
 function saveTransactionToStorage(tx) {
@@ -454,8 +465,8 @@ async function syncFinanceWithSupabase() {
 function recalculateFinanceTotals() {
     const txs = getStoredTransactions();
     const masterBudget = getMasterBudget();
-    const totalMasterBudget = parseFloat(masterBudget.totalBudget) || 200000;
-    const initialCash = parseFloat(masterBudget.initialCash) || 50000;
+    const totalMasterBudget = typeof masterBudget.totalBudget === 'number' ? masterBudget.totalBudget : (parseFloat(masterBudget.totalBudget) || 0);
+    const initialCash = typeof masterBudget.initialCash === 'number' ? masterBudget.initialCash : (parseFloat(masterBudget.initialCash) || 0);
 
     let cashUsed = 0;
     let pendingAmount = 0;
@@ -585,6 +596,13 @@ function recalculateFinanceTotals() {
 
     const c5El = document.getElementById('finance-card-approved');
     if (c5El) c5El.textContent = '฿' + approvedAmount.toLocaleString();
+
+    // Update pending tab count badge
+    const pendingTabBadge = document.getElementById('finance-tab-pending-count');
+    if (pendingTabBadge) {
+        const pendingCount = txs.filter(t => t.status === 'รออนุมัติ' || t.status === 'pending').length;
+        pendingTabBadge.textContent = pendingCount;
+    }
 
     // Fallback for card queries
     const cards = document.querySelectorAll('#view-accounting .grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5 > div');
@@ -1240,9 +1258,23 @@ function loadStoredTransactionsToTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
     const txs = getStoredTransactions();
-    txs.forEach(tx => {
-        insertTransactionRow(tx, false);
-    });
+    if (txs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-12 text-gray-400">
+                    <div class="flex flex-col items-center justify-center gap-2">
+                        <i class="fa-solid fa-receipt text-3xl text-gray-300 mb-1"></i>
+                        <p class="text-sm font-medium text-gray-500">ยังไม่มีรายการบันทึกทางการเงิน</p>
+                        <p class="text-xs text-gray-400">กดปุ่ม "+ เพิ่มรายการ" หรือ "+ ขอใช้งบ" เพื่อเริ่มต้นบันทึกข้อมูล</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+    } else {
+        txs.forEach(tx => {
+            insertTransactionRow(tx, false);
+        });
+    }
     recalculateFinanceTotals();
 }
 
@@ -1982,6 +2014,10 @@ async function submitFinanceTransaction() {
 function insertTransactionRow(data, isNew = false) {
     const tbody = document.querySelector('#view-accounting tbody');
     if (!tbody) return;
+    
+    // Remove empty state placeholder if present
+    const emptyRow = tbody.querySelector('td[colspan="8"]')?.closest('tr');
+    if (emptyRow) emptyRow.remove();
     
     // Dynamic category resolution from stored categories
     const categories = getFinanceCategories();
