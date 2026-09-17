@@ -729,7 +729,7 @@ const WorkReport = {
 
     /* ── Main Render ── */
     render() {
-        const root = document.getElementById('view-work-report');
+        const root = document.getElementById('work-report-modal-body') || document.getElementById('view-work-report');
         if (!root) return;
 
         const step = this.state.currentStep;

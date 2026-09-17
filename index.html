@@ -1214,92 +1214,308 @@
                     </div>
                 </div>
 
-                <!-- 0. DASHBOARD VIEW (Personal) -->
-                <div id="view-dashboard" class="view-section h-full flex flex-col overflow-y-auto hidden custom-scrollbar p-6 pb-24">
+                <!-- 0. CEO EXECUTIVE DASHBOARD VIEW (ภาพรวมทั้งระบบสำหรับ CEO) -->
+                <div id="view-dashboard" class="view-section h-full flex flex-col overflow-y-auto hidden custom-scrollbar p-6 pb-24 space-y-6">
                     
-                    <!-- 1. Top Header Section -->
-                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 px-2">
-                        <div>
-                            <h2 class="text-3xl font-bold text-gray-800">สวัสดีตอนเช้า, <span id="dash-user-name">พิมพ์ชนก</span> 👋</h2>
-                            <p class="text-gray-500 mt-1 cursor-pointer hover:text-gray-700 transition">วันนี้เป็นวันที่ดีสำหรับการทำงานให้สำเร็จ!</p>
+                    <!-- 1. CEO Executive Header Section -->
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-6 rounded-2xl shadow-sm relative overflow-hidden">
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                <span class="px-2.5 py-1 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-full text-xs font-semibold flex items-center gap-1.5">
+                                    <i class="fa-solid fa-crown text-amber-400 text-xs"></i> ผู้บริหารระดับสูง (CEO)
+                                </span>
+                                <span class="px-2.5 py-1 bg-white/10 text-slate-200 rounded-full text-xs font-medium border border-white/10">
+                                    <i class="fa-regular fa-building text-xs mr-1"></i> ภาพรวมทั้งระบบ (System Overview)
+                                </span>
+                            </div>
+                            <h1 class="text-2xl lg:text-3xl font-bold tracking-tight">แดชบอร์ดภาพรวมองค์กร</h1>
+                            <p class="text-slate-300 text-sm mt-1">ติดตามสถานะโครงการ การเงิน ความคืบหน้างาน และข้อมูลพนักงานทั้งหมดในระบบ</p>
                         </div>
-                        <div class="flex items-center gap-2 bg-white border border-gray-200 px-3 py-2 rounded-xl shadow-sm">
-                            <i class="fa-regular fa-calendar text-gray-400"></i>
-                            <input type="date" id="dash-global-start" onchange="App.renderDashboard()" class="text-sm outline-none text-gray-600 bg-transparent cursor-pointer">
-                            <span class="text-gray-400 text-xs">-</span>
-                            <input type="date" id="dash-global-end" onchange="App.renderDashboard()" class="text-sm outline-none text-gray-600 bg-transparent cursor-pointer">
-                            <button onclick="App.clearGlobalDateFilter()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs transition-colors" title="ล้างค่า">ล้าง</button>
+                        <div class="flex items-center gap-3 relative z-10 self-start lg:self-center flex-wrap">
+                            <button onclick="App.renderDashboard()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-medium backdrop-blur-xs border border-white/20 transition-all flex items-center gap-2 shadow-xs">
+                                <i class="fa-solid fa-arrows-rotate text-xs"></i> รีเฟรชข้อมูล
+                            </button>
+                            <button onclick="App.switchView('accounting')" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-all flex items-center gap-2 shadow-sm">
+                                <i class="fa-solid fa-file-invoice-dollar text-xs"></i> ระบบบัญชี
+                            </button>
+                            <button onclick="App.switchView('projects')" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all flex items-center gap-2 shadow-sm">
+                                <i class="fa-solid fa-briefcase text-xs"></i> งานทั้งหมด
+                            </button>
+                        </div>
+                        <!-- Background glow effect -->
+                        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                    </div>
+
+                    <!-- 2. Core KPI Cards Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                        
+                        <!-- Card 1: Projects Overview -->
+                        <div onclick="App.switchView('projects')" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">โครงการทั้งหมด</span>
+                                <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-folder-tree"></i>
+                                </div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
+                                <span id="ceo-total-projects">0</span> <span class="text-xs font-normal text-slate-400">โครงการ</span>
+                            </div>
+                            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 my-2.5 overflow-hidden">
+                                <div id="ceo-projects-bar" class="bg-indigo-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                                <span>กำลังทำ <strong id="ceo-active-projects" class="text-indigo-600 dark:text-indigo-400">0</strong></span>
+                                <span>เสร็จสิ้น <strong id="ceo-completed-projects" class="text-emerald-600 dark:text-emerald-400">0</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Total Tasks -->
+                        <div onclick="App.switchView('projects')" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">ภารกิจ/งานทั้งระบบ</span>
+                                <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-list-check"></i>
+                                </div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
+                                <span id="ceo-total-tasks">0</span> <span class="text-xs font-normal text-slate-400">งาน</span>
+                            </div>
+                            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 my-2.5 overflow-hidden">
+                                <div id="ceo-tasks-bar" class="bg-blue-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                                <span>เสร็จสิ้น <strong id="ceo-done-tasks" class="text-emerald-600 dark:text-emerald-400">0</strong></span>
+                                <span>ค้าง/ทำอยู่ <strong id="ceo-pending-tasks" class="text-amber-500">0</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Financial Overview -->
+                        <div onclick="App.switchView('accounting')" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">สถานะการเงิน (คงเหลือ)</span>
+                                <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-wallet"></i>
+                                </div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
+                                <span id="ceo-net-balance">฿0</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-slate-500 dark:text-slate-400">
+                                <span>รับ: <strong id="ceo-total-income" class="text-emerald-600">฿0</strong></span>
+                                <span>จ่าย: <strong id="ceo-total-expense" class="text-rose-500">฿0</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Total Workforce -->
+                        <div onclick="App.switchView('team')" class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">บุคลากรทั้งหมด</span>
+                                <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg">
+                                    <i class="fa-solid fa-users-gear"></i>
+                                </div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
+                                <span id="ceo-total-employees">0</span> <span class="text-xs font-normal text-slate-400">คน</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700/60 text-slate-500 dark:text-slate-400">
+                                <span><strong id="ceo-total-depts" class="text-purple-600 dark:text-purple-400">0</strong> แผนก</span>
+                                <span>ออนไลน์ <strong id="ceo-online-employees" class="text-emerald-600">0</strong> คน</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- 3. Middle Section: Key Projects & Department Performance -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
+                        <!-- Left: Active Projects Pipeline (7 cols) -->
+                        <div class="lg:col-span-7 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 p-6 shadow-xs">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">ความคืบหน้าโครงการสำคัญ</h3>
+                                    <p class="text-xs text-slate-400">โครงการที่มีความเคลื่อนไหวและสถานะล่าสุด</p>
+                                </div>
+                                <button onclick="App.switchView('projects')" class="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
+                                    ดูทั้งหมด <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                                </button>
+                            </div>
+                            <div id="ceo-active-projects-list" class="space-y-3">
+                                <!-- Populated dynamically by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Right: Department Performance Matrix (5 cols) -->
+                        <div class="lg:col-span-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 p-6 shadow-xs">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base">ผลงานจำแนกตามแผนก</h3>
+                                    <p class="text-xs text-slate-400">อัตราความสำเร็จและภาระงานของแต่ละฝ่าย</p>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold" id="ceo-dept-count-badge">5 แผนก</span>
+                            </div>
+                            <div id="ceo-department-breakdown" class="space-y-4">
+                                <!-- Populated dynamically by JS -->
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- 4. Highlight Section: ข้อมูลพนักงานทั้งหมด (All Employee Directory & Performance) -->
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 p-6 shadow-xs">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-slate-800 dark:text-slate-100 text-lg">ข้อมูลพนักงานและผลการปฏิบัติงานทั้งหมด</h3>
+                                    <span id="ceo-emp-total-badge" class="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-bold border border-blue-200/50">0 คน</span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-0.5">ตรวจสอบรายชื่อ บทบาทหน้าที่ จำนวนโครงการ ภาระงาน และอัตราความสำเร็จของบุคลากรทุกคน</p>
+                            </div>
+                            
+                            <!-- Search and Filters -->
+                            <div class="flex flex-wrap items-center gap-3">
+                                <!-- Search -->
+                                <div class="relative min-w-[200px]">
+                                    <i class="fa-solid fa-search absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+                                    <input type="text" id="ceo-emp-search" oninput="App.renderCeoEmployees()" placeholder="ค้นหาชื่อ, อีเมล, ตำแหน่ง..."
+                                        class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 placeholder-slate-400 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+                                </div>
+                                
+                                <!-- Department Filter -->
+                                <select id="ceo-emp-filter-dept" onchange="App.renderCeoEmployees()"
+                                    class="appearance-none px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer">
+                                    <option value="">ทุกแผนก</option>
+                                </select>
+                                
+                                <!-- Status Filter -->
+                                <select id="ceo-emp-filter-status" onchange="App.renderCeoEmployees()"
+                                    class="appearance-none px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer">
+                                    <option value="all">สถานะทั้งหมด</option>
+                                    <option value="online">ออนไลน์</option>
+                                    <option value="offline">ออฟไลน์</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Employee Table Container -->
+                        <div class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700/60">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-5 py-3.5 font-semibold">พนักงาน</th>
+                                        <th class="px-5 py-3.5 font-semibold">ตำแหน่งและแผนก</th>
+                                        <th class="px-5 py-3.5 font-semibold text-center">โครงการ</th>
+                                        <th class="px-5 py-3.5 font-semibold text-center">งานที่รับผิดชอบ</th>
+                                        <th class="px-5 py-3.5 font-semibold">อัตราความสำเร็จ</th>
+                                        <th class="px-5 py-3.5 font-semibold text-center">สถานะ</th>
+                                        <th class="px-5 py-3.5 font-semibold text-center">ติดต่อ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ceo-employee-table-body" class="divide-y divide-slate-100 dark:divide-slate-700/60 bg-white dark:bg-slate-850">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    <!-- 2. Summary Cards (Horizontal Scroll) -->
-                    <div class="flex overflow-x-auto gap-4 pb-4 px-2 -mx-2 custom-scrollbar snap-x min-h-[140px] w-full">
+                </div>
+
+                <!-- WORK REPORT VIEW (สร้างรายงาน & แดชบอร์ดส่วนตัว) -->
+                <div id="view-work-report" class="view-section h-full flex flex-col overflow-y-auto hidden custom-scrollbar p-6 pb-24 space-y-6">
+                    
+                    <!-- 1. Top Header Section with "สร้างรายงาน" Button on Top-Right -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-semibold border border-blue-200/50">แดชบอร์ดส่วนตัว</span>
+                            </div>
+                            <h2 class="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-slate-100">สวัสดีตอนเช้า, <span id="dash-user-name">คุณ</span> 👋</h2>
+                            <p class="text-gray-500 dark:text-slate-400 text-sm mt-1">วันนี้เป็นวันที่ดีสำหรับการทำงานให้สำเร็จ!</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-3 py-2 rounded-xl shadow-xs">
+                                <i class="fa-regular fa-calendar text-gray-400 text-xs"></i>
+                                <input type="date" id="dash-global-start" onchange="App.renderPersonalDashboard()" class="text-xs outline-none text-gray-600 dark:text-slate-300 bg-transparent cursor-pointer">
+                                <span class="text-gray-400 text-xs">-</span>
+                                <input type="date" id="dash-global-end" onchange="App.renderPersonalDashboard()" class="text-xs outline-none text-gray-600 dark:text-slate-300 bg-transparent cursor-pointer">
+                                <button onclick="App.clearGlobalDateFilter()" class="bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 text-gray-600 dark:text-slate-300 px-2 py-0.5 rounded text-xs transition-colors" title="ล้างค่า">ล้าง</button>
+                            </div>
+
+                            <!-- Button สร้างรายงาน on Top-Right as requested! -->
+                            <button onclick="App.openWorkReportModal()" class="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium px-4 py-2.5 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 text-sm shrink-0">
+                                <i class="fa-solid fa-file-circle-plus"></i>
+                                <span>สร้างรายงาน</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Personal Summary Cards (Horizontal Scroll) -->
+                    <div class="flex overflow-x-auto gap-4 pb-2 px-2 -mx-2 custom-scrollbar snap-x min-h-[140px] w-full">
                         
                         <!-- Card 1 -->
-                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
+                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
                             <div class="flex gap-4 items-center">
-                                <div class="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 text-2xl">
+                                <div class="w-14 h-14 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-500 text-2xl">
                                     <i class="fa-solid fa-clipboard-list"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium mb-0.5">งานทั้งหมด</h3>
-                                    <div class="text-3xl font-bold text-gray-800"><span id="dash-total-tasks">64</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
+                                    <h3 class="text-gray-500 dark:text-slate-400 text-sm font-medium mb-0.5">งานทั้งหมดของฉัน</h3>
+                                    <div class="text-3xl font-bold text-gray-800 dark:text-slate-100"><span id="dash-total-tasks">0</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
                                     <div id="dash-trend-total" class="text-gray-400 text-xs font-medium mt-1 flex items-center gap-1">...</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Card 2 -->
-                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
+                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
                             <div class="flex gap-4 items-center">
-                                <div class="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 text-2xl">
+                                <div class="w-14 h-14 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-500 text-2xl">
                                     <i class="fa-solid fa-clock-rotate-left"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium mb-0.5">งานที่กำลังทำ</h3>
-                                    <div class="text-3xl font-bold text-gray-800"><span id="dash-in-progress-tasks">28</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
+                                    <h3 class="text-gray-500 dark:text-slate-400 text-sm font-medium mb-0.5">งานที่กำลังทำ</h3>
+                                    <div class="text-3xl font-bold text-gray-800 dark:text-slate-100"><span id="dash-in-progress-tasks">0</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
                                     <div id="dash-trend-in-progress" class="text-gray-400 text-xs font-medium mt-1 flex items-center gap-1">...</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Card 3 -->
-                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
+                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
                             <div class="flex gap-4 items-center">
-                                <div class="w-14 h-14 rounded-xl bg-green-50 flex items-center justify-center text-green-500 text-2xl">
+                                <div class="w-14 h-14 rounded-xl bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-500 text-2xl">
                                     <i class="fa-solid fa-check-circle"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium mb-0.5">งานที่เสร็จสิ้น</h3>
-                                    <div class="text-3xl font-bold text-gray-800"><span id="dash-completed-tasks">18</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
+                                    <h3 class="text-gray-500 dark:text-slate-400 text-sm font-medium mb-0.5">งานที่เสร็จสิ้น</h3>
+                                    <div class="text-3xl font-bold text-gray-800 dark:text-slate-100"><span id="dash-completed-tasks">0</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
                                     <div id="dash-trend-completed" class="text-gray-400 text-xs font-medium mt-1 flex items-center gap-1">...</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Card 4 -->
-                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
+                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
                             <div class="flex gap-4 items-center">
-                                <div class="w-14 h-14 rounded-xl bg-orange-50 flex items-center justify-center text-orange-500 text-2xl">
+                                <div class="w-14 h-14 rounded-xl bg-orange-50 dark:bg-orange-950/40 flex items-center justify-center text-orange-500 text-2xl">
                                     <i class="fa-regular fa-folder-open"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium mb-0.5">งานที่ค้าง</h3>
-                                    <div class="text-3xl font-bold text-gray-800"><span id="dash-pending-tasks">12</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
+                                    <h3 class="text-gray-500 dark:text-slate-400 text-sm font-medium mb-0.5">งานที่ค้าง</h3>
+                                    <div class="text-3xl font-bold text-gray-800 dark:text-slate-100"><span id="dash-pending-tasks">0</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
                                     <div id="dash-trend-pending" class="text-gray-400 text-xs font-medium mt-1 flex items-center gap-1">...</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Card 5 -->
-                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
+                        <div onclick="App.switchView('projects')" class="min-w-[220px] bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 flex-shrink-0 cursor-pointer hover:shadow-lg transition-all active:scale-95 snap-start">
                             <div class="flex gap-4 items-center">
-                                <div class="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center text-red-500 text-2xl">
+                                <div class="w-14 h-14 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center text-red-500 text-2xl">
                                     <i class="fa-regular fa-flag"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium mb-0.5">ใกล้ถึงกำหนด</h3>
-                                    <div class="text-3xl font-bold text-gray-800"><span id="dash-due-soon-tasks">7</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
+                                    <h3 class="text-gray-500 dark:text-slate-400 text-sm font-medium mb-0.5">ใกล้ถึงกำหนด</h3>
+                                    <div class="text-3xl font-bold text-gray-800 dark:text-slate-100"><span id="dash-due-soon-tasks">0</span><span class="text-sm font-normal text-gray-500 ml-1">งาน</span></div>
                                     <div class="text-red-500 text-xs font-medium mt-1 flex items-center gap-1"><i class="fa-regular fa-clock"></i> ภายใน 3 วัน</div>
                                 </div>
                             </div>
@@ -1308,156 +1524,92 @@
                     </div>
 
                     <!-- 3. Middle Section (Charts) -->
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 px-2 mt-4">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 px-2">
                         
                         <!-- Donut Chart -->
-                        <div class="lg:col-span-4 bg-white rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 cursor-pointer hover:shadow-lg transition-all">
-                            <div class="flex justify-between items-center mb-8">
-                                <h3 class="text-lg font-bold text-gray-800">ภาพรวมความคืบหน้า</h3>
-                                <select id="dash-project-filter" onchange="App.renderDashboard()" class="text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg outline-none cursor-pointer transition-colors max-w-[150px] truncate">
+                        <div class="lg:col-span-4 bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 cursor-pointer hover:shadow-lg transition-all">
+                            <div class="flex justify-between items-center mb-6">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">ภาพรวมความคืบหน้า</h3>
+                                <select id="dash-project-filter" onchange="App.renderPersonalDashboard()" class="text-xs text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 px-3 py-1.5 rounded-lg outline-none cursor-pointer transition-colors max-w-[150px] truncate">
                                     <option value="">ทุกโปรเจกต์</option>
                                 </select>
                             </div>
                             
                             <div class="flex flex-col items-center justify-center">
-                                <div class="relative w-48 h-48 mb-6">
+                                <div class="relative w-44 h-44 mb-6">
                                     <div id="dash-donut-chart" class="w-full h-full rounded-full" style="background: conic-gradient(#4285F4 0% 28%, #34A853 28% 72%, #FBBC05 72% 91%, #EA4335 91% 100%);"></div>
-                                    <div class="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-                                        <span id="dash-donut-percent" class="text-3xl font-bold text-gray-800">64%</span>
-                                        <span class="text-xs text-gray-500 font-medium">ความคืบหน้ารวม</span>
+                                    <div class="absolute inset-3.5 bg-white dark:bg-slate-800 rounded-full flex flex-col items-center justify-center shadow-inner">
+                                        <span id="dash-donut-percent" class="text-3xl font-bold text-gray-800 dark:text-slate-100">0%</span>
+                                        <span class="text-xs text-gray-500 dark:text-slate-400 font-medium">ความคืบหน้ารวม</span>
                                     </div>
                                 </div>
                                 
-                                <div class="w-full space-y-3 px-4">
-                                    <div class="flex justify-between items-center text-sm">
-                                        <div class="flex items-center gap-2 text-gray-700 font-medium"><div class="w-3 h-3 rounded-full bg-[#4285F4]"></div> Completed</div>
-                                        <div><span id="dash-legend-completed-count" class="font-bold text-gray-800">18</span> <span id="dash-legend-completed-pct" class="text-gray-400 text-xs ml-1">(28%)</span></div>
+                                <div class="w-full space-y-2.5 px-2">
+                                    <div class="flex justify-between items-center text-xs">
+                                        <div class="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-medium"><div class="w-2.5 h-2.5 rounded-full bg-[#4285F4]"></div> เสร็จสิ้น (Completed)</div>
+                                        <div><span id="dash-legend-completed-count" class="font-bold text-gray-800 dark:text-slate-100">0</span> <span id="dash-legend-completed-pct" class="text-gray-400 text-xs ml-1">(0%)</span></div>
                                     </div>
-                                    <div class="flex justify-between items-center text-sm">
-                                        <div class="flex items-center gap-2 text-gray-700 font-medium"><div class="w-3 h-3 rounded-full bg-[#34A853]"></div> In Progress</div>
-                                        <div><span id="dash-legend-inprogress-count" class="font-bold text-gray-800">28</span> <span id="dash-legend-inprogress-pct" class="text-gray-400 text-xs ml-1">(44%)</span></div>
+                                    <div class="flex justify-between items-center text-xs">
+                                        <div class="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-medium"><div class="w-2.5 h-2.5 rounded-full bg-[#34A853]"></div> กำลังทำ (In Progress)</div>
+                                        <div><span id="dash-legend-inprogress-count" class="font-bold text-gray-800 dark:text-slate-100">0</span> <span id="dash-legend-inprogress-pct" class="text-gray-400 text-xs ml-1">(0%)</span></div>
                                     </div>
-                                    <div class="flex justify-between items-center text-sm">
-                                        <div class="flex items-center gap-2 text-gray-700 font-medium"><div class="w-3 h-3 rounded-full bg-[#FBBC05]"></div> Pending</div>
-                                        <div><span id="dash-legend-pending-count" class="font-bold text-gray-800">12</span> <span id="dash-legend-pending-pct" class="text-gray-400 text-xs ml-1">(19%)</span></div>
+                                    <div class="flex justify-between items-center text-xs">
+                                        <div class="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-medium"><div class="w-2.5 h-2.5 rounded-full bg-[#FBBC05]"></div> รอดำเนินการ (Pending)</div>
+                                        <div><span id="dash-legend-pending-count" class="font-bold text-gray-800 dark:text-slate-100">0</span> <span id="dash-legend-pending-pct" class="text-gray-400 text-xs ml-1">(0%)</span></div>
                                     </div>
-                                    <div class="flex justify-between items-center text-sm">
-                                        <div class="flex items-center gap-2 text-gray-700 font-medium"><div class="w-3 h-3 rounded-full bg-[#EA4335]"></div> Stalled / Due Soon</div>
-                                        <div><span id="dash-legend-stalled-count" class="font-bold text-gray-800">6</span> <span id="dash-legend-stalled-pct" class="text-gray-400 text-xs ml-1">(9%)</span></div>
+                                    <div class="flex justify-between items-center text-xs">
+                                        <div class="flex items-center gap-2 text-gray-700 dark:text-slate-300 font-medium"><div class="w-2.5 h-2.5 rounded-full bg-[#EA4335]"></div> ใกล้กำหนด / ล่าช้า</div>
+                                        <div><span id="dash-legend-stalled-count" class="font-bold text-gray-800 dark:text-slate-100">0</span> <span id="dash-legend-stalled-pct" class="text-gray-400 text-xs ml-1">(0%)</span></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Bar/Line Chart (Dynamic) -->
-                        <div class="lg:col-span-8 bg-white rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col">
+                        <div class="lg:col-span-8 bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 flex flex-col">
                             <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
                                 <div class="flex items-center gap-3">
-                                    <button id="chart-btn-back" onclick="App.renderDashboardChart('yearly')" class="hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors" title="ย้อนกลับ">
+                                    <button id="chart-btn-back" onclick="App.renderDashboardChart('yearly')" class="hidden w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 text-gray-600 dark:text-slate-300 transition-colors" title="ย้อนกลับ">
                                         <i class="fa-solid fa-arrow-left"></i>
                                     </button>
-                                    <h3 id="dash-chart-title" class="text-lg font-bold text-gray-800">รายละเอียดผลงาน</h3>
+                                    <h3 id="dash-chart-title" class="text-lg font-bold text-gray-800 dark:text-slate-100">รายละเอียดผลงาน</h3>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <button id="chart-filter-yearly" onclick="App.renderDashboardChart('yearly')" class="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow-sm border border-gray-200 text-gray-800 transition-colors hover:bg-gray-50">ภาพรวมปีนี้</button>
+                                    <button id="chart-filter-yearly" onclick="App.renderDashboardChart('yearly')" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-700 shadow-2xs border border-gray-200 dark:border-slate-600 text-gray-800 dark:text-slate-200 transition-colors hover:bg-gray-50">ภาพรวมปีนี้</button>
                                     
-                                    <div class="flex items-center gap-1 bg-white border border-gray-200 rounded-md p-1 shadow-sm">
-                                        <input type="date" id="chart-date-start" class="text-xs p-1 outline-none text-gray-600 bg-transparent cursor-pointer">
+                                    <div class="flex items-center gap-1 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg p-1 shadow-2xs">
+                                        <input type="date" id="chart-date-start" class="text-xs p-1 outline-none text-gray-600 dark:text-slate-200 bg-transparent cursor-pointer">
                                         <span class="text-gray-400 text-xs">-</span>
-                                        <input type="date" id="chart-date-end" class="text-xs p-1 outline-none text-gray-600 bg-transparent cursor-pointer">
-                                        <button onclick="App.renderDashboardChart('custom')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded text-xs font-bold transition-colors">ค้นหา</button>
-                                        <button id="chart-btn-clear" onclick="App.clearChartFilter()" class="hidden bg-gray-50 text-gray-500 hover:bg-gray-200 px-2 py-1 rounded text-xs transition-colors" title="ล้างการค้นหา"><i class="fa-solid fa-times"></i></button>
+                                        <input type="date" id="chart-date-end" class="text-xs p-1 outline-none text-gray-600 dark:text-slate-200 bg-transparent cursor-pointer">
+                                        <button onclick="App.renderDashboardChart('custom')" class="bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 px-2.5 py-1 rounded text-xs font-bold transition-colors">ค้นหา</button>
+                                        <button id="chart-btn-clear" onclick="App.clearChartFilter()" class="hidden bg-gray-50 dark:bg-slate-600 text-gray-500 hover:bg-gray-200 px-2 py-1 rounded text-xs transition-colors" title="ล้างการค้นหา"><i class="fa-solid fa-times"></i></button>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div id="dash-chart-legend" class="flex flex-wrap gap-4 mb-8">
+                            <div id="dash-chart-legend" class="flex flex-wrap gap-4 mb-6">
                                 <!-- Legend generated by JS -->
                             </div>
 
-                            <div id="dash-chart-container" class="flex-1 relative flex items-end justify-between px-2 min-h-[220px]">
+                            <div id="dash-chart-container" class="flex-1 relative flex items-end justify-between px-2 min-h-[200px]">
                                 <!-- Chart generated by JS -->
                             </div>
                         </div>
                     </div>
 
                     <!-- 4. Bottom Section (Recent Projects) -->
-                    <div class="bg-white rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 mx-2 mb-8">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-lg font-bold text-gray-800">โปรเจกต์ล่าสุด</h3>
-                            <button onclick="App.switchView('projects')" class="text-sm text-blue-600 font-medium hover:underline flex items-center gap-1 transition-colors">
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-[0_2px_10px_rgba(0,0,0,0.04)] border border-gray-100 dark:border-slate-700 mx-2">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-slate-100">โปรเจกต์ล่าสุดของฉัน</h3>
+                            <button onclick="App.switchView('projects')" class="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1 transition-colors">
                                 ดูทั้งหมด <i class="fa-solid fa-chevron-right text-xs"></i>
                             </button>
                         </div>
                         
-                        <div id="dash-recent-projects" class="flex flex-col space-y-4">
-                            <!-- Project 1 -->
-                            <div onclick="App.switchView('projects')" class="flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
-                                <div class="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-code"></i></div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-bold text-gray-800 truncate">Open House 2024</h4>
-                                    <div class="flex items-center gap-4 mt-1">
-                                        <div class="text-xs text-gray-500 font-medium">72%</div>
-                                        <div class="text-xs text-gray-400"><i class="fa-regular fa-clock"></i> Due: 30 พ.ค. 2567</div>
-                                    </div>
-                                </div>
-                                <div class="w-full md:w-64 h-6 rounded-full bg-red-100 relative shrink-0 overflow-hidden">
-                                    <div class="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center rounded-full" style="width: 72%;">
-                                        <span class="text-[10px] font-bold text-white">72%</span>
-                                    </div>
-                                    <div class="absolute top-0 right-0 h-full w-[28%] flex items-center justify-center">
-                                        <span class="text-[10px] font-bold text-gray-600">28%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Project 2 -->
-                            <div onclick="App.switchView('projects')" class="flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
-                                <div class="w-12 h-12 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-laptop-code"></i></div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-bold text-gray-800 truncate">โครงการพัฒนาไอที 2024</h4>
-                                    <div class="flex items-center gap-4 mt-1">
-                                        <div class="text-xs text-gray-500 font-medium">58%</div>
-                                        <div class="text-xs text-gray-400"><i class="fa-regular fa-clock"></i> Due: 20 มิ.ย. 2567</div>
-                                    </div>
-                                </div>
-                                <div class="w-full md:w-64 h-6 rounded-full bg-red-100 relative shrink-0 overflow-hidden">
-                                    <div class="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center rounded-full" style="width: 58%;">
-                                        <span class="text-[10px] font-bold text-white">58%</span>
-                                    </div>
-                                    <div class="absolute top-0 right-0 h-full w-[42%] flex items-center justify-center">
-                                        <span class="text-[10px] font-bold text-gray-600">42%</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Project 3 -->
-                            <div onclick="App.switchView('projects')" class="flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
-                                <div class="w-12 h-12 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-book-open-reader"></i></div>
-                                <div class="flex-1 min-w-0">
-                                    <h4 class="font-bold text-gray-800 truncate">โครงการห้องสมุดดิจิทัล</h4>
-                                    <div class="flex items-center gap-4 mt-1">
-                                        <div class="text-xs text-gray-500 font-medium">35%</div>
-                                        <div class="text-xs text-gray-400"><i class="fa-regular fa-clock"></i> Due: 1 ส.ค. 2567</div>
-                                    </div>
-                                </div>
-                                <div class="w-full md:w-64 h-6 rounded-full bg-red-100 relative shrink-0 overflow-hidden">
-                                    <div class="absolute top-0 left-0 h-full bg-green-500 flex items-center justify-center rounded-full" style="width: 35%;">
-                                        <span class="text-[10px] font-bold text-white">35%</span>
-                                    </div>
-                                    <div class="absolute top-0 right-0 h-full w-[65%] flex items-center justify-center">
-                                        <span class="text-[10px] font-bold text-gray-600">65%</span>
-                                    </div>
-                                </div>
-                            </div>
+                        <div id="dash-recent-projects" class="flex flex-col space-y-3">
+                            <!-- Recent projects generated by JS -->
                         </div>
                     </div>
-                </div>
-    
-
-                <!-- WORK REPORT VIEW (สร้างรายงาน) -->
-                <div id="view-work-report" class="view-section hidden h-full flex flex-col overflow-hidden p-6">
-                    <!-- Rendered by WorkReport.init() -->
                 </div>
 
                 <!-- 1. PROJECTS VIEW (งานทั้งหมด) -->
@@ -5529,6 +5681,30 @@
             </div>
         </div>
     </div>
+
+    <!-- WORK REPORT MODAL (โมดอลสร้างรายงานการทำงาน) -->
+    <div id="work-report-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-850 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-file-circle-plus"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-lg">สร้างรายงานการทำงาน (Work Report Generator)</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">สร้างและส่งออกรายงานสรุปผลงานในรูปแบบ PDF, Word หรือ Excel</p>
+                    </div>
+                </div>
+                <button onclick="App.closeWorkReportModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-colors" title="ปิดหน้าต่าง">
+                    <i class="fa-solid fa-times text-base"></i>
+                </button>
+            </div>
+            <div id="work-report-modal-body" class="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                <!-- Rendered by WorkReport -->
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/mockData.js?v=8"></script>

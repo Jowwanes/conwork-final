@@ -1484,8 +1484,8 @@ const App = {
                 this.renderMessages();
             });
         }
-        if (viewName === 'work-report' && typeof WorkReport !== 'undefined') {
-            WorkReport.init();
+        if (viewName === 'work-report') {
+            this.renderPersonalDashboard();
         }
         if (viewName === 'accounting') {
             if (typeof recalculateFinanceTotals === 'function') recalculateFinanceTotals();
@@ -1578,10 +1578,297 @@ const App = {
         const endEl = document.getElementById('dash-global-end');
         if (startEl) startEl.value = fDate(new Date(now.getFullYear(), now.getMonth(), 1));
         if (endEl) endEl.value = fDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-        this.renderDashboard();
+        this.renderPersonalDashboard();
     },
 
     renderDashboard() {
+        // CEO Executive Dashboard: System-wide overview & All Employee info
+        const totalProjects = mockProjects.filter(p => p.status !== 'deleted' && p.status !== 'hidden');
+        const completedProjects = totalProjects.filter(p => p.status === 'completed');
+        const activeProjects = totalProjects.filter(p => p.status === 'in-progress' || p.status === 'todo');
+        const planProjects = totalProjects.filter(p => p.status === 'plan' || p.status === 'planned');
+
+        let totalProgressSum = 0;
+        totalProjects.forEach(p => { totalProgressSum += (p.progress || 0); });
+        const avgProjectRate = totalProjects.length > 0 ? Math.round(totalProgressSum / totalProjects.length) : 0;
+
+        const totalTasks = mockTasks.length;
+        const doneTasks = mockTasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+        const pendingTasks = totalTasks - doneTasks;
+        const taskDonePct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+        // Financial totals from stored transactions
+        let totalIncome = 0;
+        let totalExpense = 0;
+        try {
+            const rawTrans = localStorage.getItem('conwork_finance_transactions');
+            if (rawTrans) {
+                const transactions = JSON.parse(rawTrans);
+                transactions.forEach(t => {
+                    const amt = Number(t.amount) || 0;
+                    if (t.type === 'income') totalIncome += amt;
+                    else totalExpense += amt;
+                });
+            }
+        } catch (e) {
+            console.warn('Finance calc error:', e);
+        }
+
+        // Fallback demo figures if empty
+        if (totalIncome === 0 && totalExpense === 0) {
+            totalIncome = 250000;
+            totalExpense = 84500;
+        }
+        const netBalance = totalIncome - totalExpense;
+
+        // Workforce totals
+        const totalEmployees = mockUsers.length;
+        const depts = [...new Set(mockUsers.map(u => u.department).filter(Boolean))];
+        const onlineEmployees = mockUsers.filter(u => u.status === 'online').length;
+
+        // Update KPI values
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+
+        setVal('ceo-total-projects', totalProjects.length);
+        setVal('ceo-active-projects', activeProjects.length);
+        setVal('ceo-completed-projects', completedProjects.length);
+        const pBar = document.getElementById('ceo-projects-bar');
+        if (pBar) pBar.style.width = `${avgProjectRate}%`;
+
+        setVal('ceo-total-tasks', totalTasks);
+        setVal('ceo-done-tasks', doneTasks);
+        setVal('ceo-pending-tasks', pendingTasks);
+        const tBar = document.getElementById('ceo-tasks-bar');
+        if (tBar) tBar.style.width = `${taskDonePct}%`;
+
+        setVal('ceo-net-balance', '฿' + netBalance.toLocaleString());
+        setVal('ceo-total-income', '฿' + totalIncome.toLocaleString());
+        setVal('ceo-total-expense', '฿' + totalExpense.toLocaleString());
+
+        setVal('ceo-total-employees', totalEmployees);
+        setVal('ceo-total-depts', depts.length);
+        setVal('ceo-online-employees', onlineEmployees);
+
+        const deptBadge = document.getElementById('ceo-dept-count-badge');
+        if (deptBadge) deptBadge.textContent = `${depts.length} แผนก`;
+
+        // Render Active Projects Pipeline
+        const projListEl = document.getElementById('ceo-active-projects-list');
+        if (projListEl) {
+            const displayProjs = activeProjects.slice(0, 4);
+            if (displayProjs.length === 0) {
+                projListEl.innerHTML = '<div class="py-6 text-center text-xs text-slate-400">ไม่มีโครงการที่กำลังดำเนินการ</div>';
+            } else {
+                projListEl.innerHTML = displayProjs.map(p => {
+                    const sections = this._getTaskSectionsForProject(p.id);
+                    const sectionsDone = sections.length > 0 ? Math.round(((p.progress || 0) / 100) * sections.length) : 0;
+                    return `
+                        <div onclick="App.openProject('${p.id}')" class="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-900/40 hover:bg-blue-50/50 dark:hover:bg-slate-900 border border-slate-100 dark:border-slate-700/50 transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">${p.name}</h4>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/50">กำลังทำ</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-xs text-slate-400">
+                                    <span><i class="fa-regular fa-folder-closed text-[10px] mr-1"></i>${sectionsDone}/${sections.length} หัวข้อ</span>
+                                    <span><i class="fa-regular fa-user text-[10px] mr-1"></i>${p.team ? p.team.length : 0} สมาชิก</span>
+                                </div>
+                            </div>
+                            <div class="w-full sm:w-44 shrink-0 flex items-center gap-3">
+                                <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full" style="width: ${p.progress || 0}%"></div>
+                                </div>
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-300 w-9 text-right">${p.progress || 0}%</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Render Department Performance Breakdown
+        const deptBreakdownEl = document.getElementById('ceo-department-breakdown');
+        if (deptBreakdownEl) {
+            const deptColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+            deptBreakdownEl.innerHTML = depts.slice(0, 5).map((dName, idx) => {
+                const deptUsers = mockUsers.filter(u => u.department === dName);
+                const deptUserIds = deptUsers.map(u => String(u.id));
+                const deptTasks = mockTasks.filter(t => t.assignees && t.assignees.some(id => deptUserIds.includes(String(id))));
+                const deptDoneTasks = deptTasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+                const deptRate = deptTasks.length > 0 ? Math.round((deptDoneTasks / deptTasks.length) * 100) : 75;
+                const color = deptColors[idx % deptColors.length];
+
+                return `
+                    <div>
+                        <div class="flex items-center justify-between text-xs mb-1.5 font-medium">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${color}"></span>
+                                <span class="text-slate-700 dark:text-slate-200 font-semibold">${dName}</span>
+                                <span class="text-slate-400">(${deptUsers.length} คน)</span>
+                            </div>
+                            <span class="text-slate-600 dark:text-slate-300 font-bold">${deptRate}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                            <div class="h-full rounded-full transition-all duration-500" style="width: ${deptRate}%; background-color: ${color}"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render All Employees
+        this.renderCeoEmployees();
+    },
+
+    renderCeoEmployees() {
+        const tableBody = document.getElementById('ceo-employee-table-body');
+        if (!tableBody) return;
+
+        const searchInput = document.getElementById('ceo-emp-search');
+        const deptFilter = document.getElementById('ceo-emp-filter-dept');
+        const statusFilter = document.getElementById('ceo-emp-filter-status');
+
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const selectedDept = deptFilter ? deptFilter.value : '';
+        const selectedStatus = statusFilter ? statusFilter.value : 'all';
+
+        // Populate Dept dropdown if empty
+        if (deptFilter && deptFilter.options.length <= 1) {
+            const depts = [...new Set(mockUsers.map(u => u.department).filter(Boolean))];
+            depts.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                deptFilter.appendChild(opt);
+            });
+        }
+
+        let users = [...mockUsers];
+
+        if (query) {
+            users = users.filter(u => 
+                (u.name && u.name.toLowerCase().includes(query)) ||
+                (u.email && u.email.toLowerCase().includes(query)) ||
+                (u.role && u.role.toLowerCase().includes(query)) ||
+                (u.department && u.department.toLowerCase().includes(query))
+            );
+        }
+
+        if (selectedDept) {
+            users = users.filter(u => u.department === selectedDept);
+        }
+
+        if (selectedStatus !== 'all') {
+            users = users.filter(u => u.status === selectedStatus);
+        }
+
+        const badgeEl = document.getElementById('ceo-emp-total-badge');
+        if (badgeEl) badgeEl.textContent = `${users.length} คน`;
+
+        if (users.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="px-5 py-8 text-center text-xs text-slate-400">ไม่พบข้อมูลพนักงานที่ตรงกับเงื่อนไขการค้นหา</td></tr>';
+            return;
+        }
+
+        const roleLabels = {
+            'admin': 'ผู้ดูแลระบบ (Admin)',
+            'reviewer2': 'ผู้บริหาร (CEO)',
+            'reviewer1': 'หัวหน้าแผนก (Manager)',
+            'worker': 'พนักงานปฏิบัติการ',
+            'requester': 'ผู้มอบหมายงาน'
+        };
+
+        tableBody.innerHTML = users.map(u => {
+            const uId = String(u.id);
+            const joinedProjects = mockProjects.filter(p => p.team && p.team.some(id => String(id) === uId));
+            const assignedTasks = mockTasks.filter(t => t.assignees && t.assignees.some(id => String(id) === uId));
+            const completedTasks = assignedTasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+            const completionRate = assignedTasks.length > 0 ? Math.round((completedTasks / assignedTasks.length) * 100) : 0;
+
+            const isOnline = u.status === 'online';
+            const roleText = roleLabels[u.role] || u.role || 'พนักงาน';
+
+            const rateColor = completionRate >= 75 ? 'text-emerald-600 bg-emerald-50 border-emerald-200/60'
+                : completionRate >= 40 ? 'text-blue-600 bg-blue-50 border-blue-200/60'
+                : 'text-amber-600 bg-amber-50 border-amber-200/60';
+
+            const rateBarGradient = completionRate >= 75 ? 'bg-emerald-500'
+                : completionRate >= 40 ? 'bg-blue-500'
+                : 'bg-amber-500';
+
+            return `
+                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
+                    <td class="px-5 py-3.5 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <img src="${u.avatar}" class="w-9 h-9 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 bg-slate-100" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || 'U')}&background=e2e8f0&color=475569'">
+                                <span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white dark:ring-slate-800 ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800 dark:text-slate-100 text-sm">${u.name}</div>
+                                <div class="text-xs text-slate-400">${u.email}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-3.5 whitespace-nowrap">
+                        <div class="flex flex-col gap-1 items-start">
+                            <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">${roleText}</span>
+                            <span class="text-xs text-slate-400">${u.department || 'ไม่ระบุแผนก'}</span>
+                        </div>
+                    </td>
+                    <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                        <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300" title="${joinedProjects.map(p => p.name).join(', ')}">
+                            ${joinedProjects.length}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                        <div class="text-xs font-bold text-slate-800 dark:text-slate-200">${completedTasks} / ${assignedTasks.length}</div>
+                        <div class="text-[10px] text-slate-400">งานเสร็จ / มอบหมาย</div>
+                    </td>
+                    <td class="px-5 py-3.5 whitespace-nowrap min-w-[140px]">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border ${rateColor}">${completionRate}%</span>
+                        </div>
+                        <div class="w-28 bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                            <div class="${rateBarGradient} h-full rounded-full transition-all duration-300" style="width: ${completionRate}%"></div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${isOnline ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-slate-100 text-slate-500 border border-slate-200'}">
+                            <span class="w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+                            ${isOnline ? 'ออนไลน์' : 'ออฟไลน์'}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                        <button onclick="App.startDirectChat('${u.id}')" class="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs mx-auto">
+                            <i class="fa-regular fa-comment-dots text-xs"></i>
+                            <span>แชท</span>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    openWorkReportModal() {
+        const m = document.getElementById('work-report-modal');
+        if (m) {
+            m.classList.remove('hidden');
+            if (typeof WorkReport !== 'undefined') {
+                WorkReport.init();
+            }
+        }
+    },
+
+    closeWorkReportModal() {
+        const m = document.getElementById('work-report-modal');
+        if (m) m.classList.add('hidden');
+    },
+
+    renderPersonalDashboard() {
         if (!this.state.currentUser) return;
         
         const u = this.state.currentUser;
