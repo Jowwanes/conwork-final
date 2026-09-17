@@ -368,7 +368,7 @@ CREATE TABLE IF NOT EXISTS public.finance_categories (
 
 CREATE TABLE IF NOT EXISTS public.finance_subcategories (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-    category_id TEXT REFERENCES public.finance_categories(id) ON DELETE CASCADE,
+    category_id TEXT, -- References category key/id (supports both UUID and custom text keys like 'welfare', 'supplies')
     name TEXT NOT NULL,
     budget NUMERIC(15,2) DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS public.finance_transactions (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
     company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
-    category_id TEXT REFERENCES public.finance_categories(id) ON DELETE SET NULL,
+    category_id TEXT,
     subcategory_id TEXT,
     subcategory_name TEXT,
     creator_id UUID REFERENCES public.profiles(id),
