@@ -763,6 +763,28 @@ function logout() {
     }
 }
 
+function backToLanding(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const login = document.getElementById('login-screen');
+    const landing = document.getElementById('landing-screen');
+    const app = document.getElementById('app-screen');
+    
+    if (login) {
+        login.style.display = 'none';
+        document.querySelectorAll('.auth-flow-wrapper .screen').forEach(el => el.classList.remove('active'));
+        const firstScreen = document.getElementById('screen-auth');
+        if (firstScreen) firstScreen.classList.add('active');
+        document.querySelectorAll('.auth-flow-wrapper .error-text').forEach(el => el.style.display = 'none');
+    }
+    if (app) app.classList.add('hidden');
+    if (landing) {
+        landing.style.display = 'flex';
+        landing.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+window.backToLanding = backToLanding;
+
 // Password Visibility Toggle
 function togglePassword(inputId, btn) {
     const input = document.getElementById(inputId);
