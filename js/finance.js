@@ -244,6 +244,13 @@ function deleteFinanceCategory(catKey) {
         localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(txs));
     }
 
+    // Sync category deletion to Supabase if available
+    if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+        try {
+            window.conworkSupabase.deleteFinanceCategory(catKey).catch(e => console.warn('Supabase delete category warning:', e));
+        } catch (e) {}
+    }
+
     renderCategoryManagementList();
     renderFinanceCategorySelects();
     loadStoredTransactionsToTable();
@@ -300,6 +307,33 @@ async function syncFinanceWithSupabase() {
     if (!window.conworkSupabase || !window.conworkSupabase.isAvailable()) return;
     try {
         const companyId = (window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null;
+        
+        // 1. Sync Categories from Supabase
+        try {
+            const remoteCats = await window.conworkSupabase.fetchFinanceCategories();
+            if (remoteCats && remoteCats.length > 0) {
+                const localCats = getFinanceCategories();
+                remoteCats.forEach(rc => {
+                    const preset = FINANCE_COLOR_PRESETS[rc.color] || { color: rc.color || '#3b82f6', bgClass: 'bg-blue-100', textClass: 'text-blue-500' };
+                    localCats[rc.id] = {
+                        id: rc.id,
+                        name: rc.name,
+                        color: preset.color,
+                        icon: rc.icon || 'fa-box',
+                        bgClass: preset.bgClass,
+                        textClass: preset.textClass,
+                        defaultBudget: 0
+                    };
+                });
+                saveFinanceCategories(localCats);
+                renderFinanceCategorySelects();
+                renderCategoryManagementList();
+            }
+        } catch (catErr) {
+            console.warn('Supabase fetch categories warning:', catErr);
+        }
+
+        // 2. Sync Transactions from Supabase
         const remoteTxs = await window.conworkSupabase.fetchFinanceTransactions(companyId);
         if (remoteTxs && remoteTxs.length > 0) {
             const mapped = remoteTxs.map(t => ({
@@ -1464,6 +1498,17 @@ async function submitFinanceCategory() {
         const categories = getFinanceCategories();
         categories[newId] = newCategory;
         saveFinanceCategories(categories);
+
+        // Sync category to Supabase if available
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                window.conworkSupabase.createFinanceCategory({
+                    name: name,
+                    icon: iconInput,
+                    color: preset.color
+                }).catch(e => console.warn('Supabase create category warning:', e));
+            } catch (e) {}
+        }
 
         // Reset inputs
         if (nameInput) nameInput.value = '';

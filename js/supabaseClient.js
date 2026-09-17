@@ -812,6 +812,43 @@ class ConWorkSupabaseService {
         }
     }
 
+    async createFinanceCategory(categoryData) {
+        if (!this.isAvailable()) return null;
+        try {
+            const { data, error } = await this.client
+                .from('finance_categories')
+                .insert([categoryData])
+                .select()
+                .single();
+            if (error) {
+                console.warn('Supabase createFinanceCategory warning:', error);
+                return null;
+            }
+            return data;
+        } catch (e) {
+            console.warn('Supabase createFinanceCategory error:', e);
+            return null;
+        }
+    }
+
+    async deleteFinanceCategory(catId) {
+        if (!this.isAvailable()) return false;
+        try {
+            const { error } = await this.client
+                .from('finance_categories')
+                .delete()
+                .eq('id', catId);
+            if (error) {
+                console.warn('Supabase deleteFinanceCategory warning:', error);
+                return false;
+            }
+            return true;
+        } catch (e) {
+            console.warn('Supabase deleteFinanceCategory error:', e);
+            return false;
+        }
+    }
+
     async deleteFinanceTransaction(txId) {
         if (!this.isAvailable()) return false;
         try {
