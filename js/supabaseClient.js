@@ -100,7 +100,7 @@ class ConWorkSupabaseService {
             }
 
             // 1. Update profiles table
-            const profileUpdates = { id: userId, updated_at: new Date().toISOString() };
+            const profileUpdates = { updated_at: new Date().toISOString() };
             if (fullName !== undefined) profileUpdates.full_name = fullName;
             if (avatarUrl !== undefined) profileUpdates.avatar_url = avatarUrl;
             if (department !== undefined) profileUpdates.department = department;
@@ -109,15 +109,15 @@ class ConWorkSupabaseService {
             if (Object.keys(profileUpdates).length > 1) {
                 const { error: profErr } = await this.client
                     .from('profiles')
-                    .upsert(profileUpdates);
+                    .update(profileUpdates)
+                    .eq('id', userId);
 
                 if (profErr) {
-                    console.warn('Supabase profile upsert warning (retrying basic fields):', profErr);
-                    // If columns department or job_title don't exist yet in profiles table, retry with standard columns
-                    const basicUpdates = { id: userId, updated_at: new Date().toISOString() };
+                    console.warn('Supabase profile update warning (retrying basic fields):', profErr);
+                    const basicUpdates = { updated_at: new Date().toISOString() };
                     if (fullName !== undefined) basicUpdates.full_name = fullName;
                     if (avatarUrl !== undefined) basicUpdates.avatar_url = avatarUrl;
-                    await this.client.from('profiles').upsert(basicUpdates);
+                    await this.client.from('profiles').update(basicUpdates).eq('id', userId);
                 }
             }
 
@@ -138,17 +138,15 @@ class ConWorkSupabaseService {
                 if (companyId) {
                     query = query.eq('company_id', companyId);
                 }
-                const { error: memErr } = await query;
-                if (memErr) {
-                    console.warn('Supabase company_members update warning (retrying without job_title):', memErr);
-                    // In case job_title column doesn't exist in company_members, retry without it
-                    if (memberUpdates.job_title !== undefined) {
+                const { data: updatedRows, error: memErr } = await query.select();
+                if (memErr || !updatedRows || updatedRows.length === 0) {
+                    console.warn('Supabase company_members update warning (retrying without company_id):', memErr || '0 rows updated');
+                    let retryQuery = this.client.from('company_members').update(memberUpdates).eq('user_id', userId);
+                    const { data: retryRows, error: retryErr } = await retryQuery.select();
+                    if (retryErr && memberUpdates.job_title !== undefined) {
                         delete memberUpdates.job_title;
-                        let retryQuery = this.client.from('company_members').update(memberUpdates).eq('user_id', userId);
-                        if (companyId) {
-                            retryQuery = retryQuery.eq('company_id', companyId);
-                        }
-                        await retryQuery;
+                        let noJobQuery = this.client.from('company_members').update(memberUpdates).eq('user_id', userId);
+                        await noJobQuery.select();
                     }
                 }
             }

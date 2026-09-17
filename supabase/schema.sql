@@ -208,7 +208,8 @@ DROP POLICY IF EXISTS "Users can view profiles" ON public.profiles;
 CREATE POLICY "Users can view profiles" ON public.profiles FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update profiles" ON public.profiles;
+CREATE POLICY "Users can update profiles" ON public.profiles FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "Users can insert profiles" ON public.profiles;
 CREATE POLICY "Users can insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
@@ -446,4 +447,13 @@ END $$;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS department TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS job_title TEXT;
 ALTER TABLE public.company_members ADD COLUMN IF NOT EXISTS job_title TEXT;
+
+-- Allow updating profiles and company members
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update profiles" ON public.profiles;
+CREATE POLICY "Users can update profiles" ON public.profiles FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Users update company members" ON public.company_members;
+CREATE POLICY "Users update company members" ON public.company_members FOR UPDATE USING (true);
+
 

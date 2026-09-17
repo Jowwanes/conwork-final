@@ -728,14 +728,10 @@ const App = {
                                 const isFirstUserInCompany = teamMembersData.length > 0 && String(teamMembersData[0].user_id) === String(uid);
                                 
                                 const defaultDept = (isCompanyCreator || isFirstUserInCompany) ? 'บริหาร' : 'พนักงานทั่วไป';
-                                const mDept = memberObj?.department || p?.department || savedPos.department || defaultDept;
-                                
-                                const isCurrentUser = this.state.currentUser && String(uid) === String(this.state.currentUser.id);
-                                const defaultName = isCurrentUser ? (this.state.currentUser.name || this.state.currentUser.username) : `พนักงาน (${uid.substring(0, 5)})`;
-                                const defaultEmail = isCurrentUser ? this.state.currentUser.email : '';
-                                const name = (p && p.full_name) ? p.full_name : (isCurrentUser && this.state.currentUser?.name ? this.state.currentUser.name : defaultName);
-                                const email = (p && p.email) ? p.email : defaultEmail;
-                                const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
+                                let mDept = memberObj?.department || p?.department;
+                                if (!mDept || mDept === 'พนักงานทั่วไป') {
+                                    mDept = savedPos.department || mDept || defaultDept;
+                                }
 
                                 let mappedRole = 'worker';
                                 if (mRole === 'reviewer2' || mRole === 'super_admin' || mRole === 'ceo') {
@@ -744,15 +740,26 @@ const App = {
                                     mappedRole = 'reviewer1';
                                 } else if (mRole === 'admin' || mRole === 'company_admin') {
                                     mappedRole = 'admin';
-                                } else if (mRole === 'worker' || mRole === 'employee') {
-                                    mappedRole = savedPos.role || 'worker';
-                                } else if (isCompanyCreator || isFirstUserInCompany) {
-                                    mappedRole = 'admin';
                                 } else if (savedPos.role) {
                                     mappedRole = savedPos.role;
+                                } else if (mRole === 'worker' || mRole === 'employee') {
+                                    mappedRole = 'worker';
+                                } else if (isCompanyCreator || isFirstUserInCompany) {
+                                    mappedRole = 'admin';
                                 }
 
-                                const jobTitle = memberObj?.job_title || p?.job_title || savedPos.jobTitle || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
+                                let jobTitle = memberObj?.job_title || p?.job_title;
+                                if (!jobTitle || jobTitle === 'พนักงาน') {
+                                    jobTitle = savedPos.jobTitle || jobTitle || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
+                                }
+
+                                if (mDept || jobTitle) {
+                                    savedPositions[uid] = {
+                                        jobTitle: jobTitle,
+                                        role: mappedRole,
+                                        department: mDept
+                                    };
+                                }
 
                                 mockUsers.push({
                                     id: uid,
@@ -774,6 +781,9 @@ const App = {
                                     this.state.currentUser.jobTitle = jobTitle;
                                 }
                             });
+                            try {
+                                localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
+                            } catch (e) {}
                             this.updateProfile();
                             await this.loadUserChats();
                         }
