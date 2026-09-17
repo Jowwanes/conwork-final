@@ -23,6 +23,15 @@ const App = {
         members: []
     },
 
+    isCeoOrAdmin(user = this.state.currentUser) {
+        if (!user) return false;
+        const role = String(user.role || '').toLowerCase();
+        const jobTitle = String(user.jobTitle || '').toLowerCase();
+        return role === 'admin' || role === 'reviewer2' || role === 'ceo' || role === 'super_admin' || role === 'company_admin' ||
+               role.includes('admin') || role.includes('ceo') ||
+               jobTitle.includes('ceo') || jobTitle.includes('ผู้บริหาร') || jobTitle.includes('ประธาน') || jobTitle.includes('ผู้อำนวยการ');
+    },
+
     async init() {
         this._loadSettings();
         // Preload cached users immediately to avoid 0-employee flash on page load/refresh
@@ -1403,7 +1412,12 @@ const App = {
     hasPermission(featureName) {
         if (!this.state.currentUser) return false;
 
-        // First check for custom user-level permissions
+        // 1. Super Admin & CEO Master Bypass: Admins and CEOs ALWAYS have full access to everything!
+        if (this.isCeoOrAdmin()) {
+            return true;
+        }
+
+        // 2. First check for custom user-level permissions (for other users)
         if (this.state.currentUser.customPermissions && typeof this.state.currentUser.customPermissions[featureName] === 'boolean') {
             return this.state.currentUser.customPermissions[featureName];
         }
@@ -3141,7 +3155,7 @@ const App = {
         const isUserAssigned = curUserId && assignees.some(id => String(id) === curUserId);
         const isCreator = curUserId && (String(t.creatorId) === curUserId || String(t.creator) === curUserId);
         const isSupervisor = this.state.currentUser && this._canUserReviewTask(t, this.state.currentUser.id, this.state.currentUser.role);
-        const canEditSubtask = isUserAssigned || isCreator || isSupervisor;
+        const canEditSubtask = isUserAssigned || isCreator || isSupervisor || this.isCeoOrAdmin();
         let assigneesHtml = '<div></div>';
         if (assignees.length > 0) {
             const users = assignees.map(id => mockUsers.find(user => user.id == id)).filter(Boolean);
@@ -7019,7 +7033,7 @@ const App = {
         const isUserAssigned = curUserId && assignees.some(id => String(id) === curUserId);
         const isCreator = curUserId && (String(task.creatorId) === curUserId || String(task.creator) === curUserId);
         const isSupervisor = this.state.currentUser && this._canUserReviewTask(task, this.state.currentUser.id, this.state.currentUser.role);
-        const canEditSubtask = isUserAssigned || isCreator || isSupervisor;
+        const canEditSubtask = isUserAssigned || isCreator || isSupervisor || this.isCeoOrAdmin();
         
         const myActionsBox = document.getElementById('tdv-my-actions-box');
         const titleEl = document.getElementById('tdv-title');
@@ -10478,12 +10492,12 @@ const App = {
         const isEditingSelf = this.state.editingMemberId == this.state.currentUser.id;
 
         if (this.state.editingMemberId) {
-            if (!this.hasPermission('แก้ไขพนักงาน') && !isEditingSelf) {
+            if (!this.isCeoOrAdmin() && !this.hasPermission('แก้ไขพนักงาน') && !isEditingSelf) {
                 if (typeof this._showToast === 'function') this._showToast('คุณไม่มีสิทธิ์แก้ไขพนักงาน', 'error');
                 return;
             }
         } else {
-            if (!this.hasPermission('เพิ่มพนักงาน')) {
+            if (!this.isCeoOrAdmin() && !this.hasPermission('เพิ่มพนักงาน')) {
                 if (typeof this._showToast === 'function') this._showToast('คุณไม่มีสิทธิ์เพิ่มพนักงาน', 'error');
                 return;
             }
@@ -10585,7 +10599,7 @@ const App = {
                 }
 
                 // Only update work info if the user has permission
-                if (this.hasPermission('แก้ไขพนักงาน')) {
+                if (this.isCeoOrAdmin() || this.hasPermission('แก้ไขพนักงาน')) {
                     user.department = dept;
                     user.role = internalRole;
                     user.jobTitle = role; // Use dropdown value as job title as well
@@ -10810,7 +10824,12 @@ const App = {
         // Handle Edit Button Visibility
         const editBtn = document.getElementById('up-edit-btn');
         if (editBtn) {
-            if (this.state.currentUser && (this.state.currentUser.id === userId || this.state.currentUser.role === 'admin')) {
+            const canEdit = this.state.currentUser && (
+                this.state.currentUser.id === userId ||
+                this.isCeoOrAdmin() ||
+                this.hasPermission('แก้ไขพนักงาน')
+            );
+            if (canEdit) {
                 editBtn.classList.remove('hidden');
                 editBtn.classList.add('flex');
             } else {
@@ -10957,7 +10976,7 @@ const App = {
         const targetUserId = this.state.currentViewingUserId || this.state.currentUser.id;
 
         // Final permission check before opening
-        if (this.state.currentUser.id !== targetUserId && !this.hasPermission('แก้ไขพนักงาน')) {
+        if (this.state.currentUser.id !== targetUserId && !this.isCeoOrAdmin() && !this.hasPermission('แก้ไขพนักงาน')) {
             this._showToast('คุณไม่มีสิทธิ์แก้ไขข้อมูลของผู้อื่น', 'error');
             return;
         }
@@ -11094,7 +11113,7 @@ const App = {
         const roleEl = document.getElementById('am-role');
         const permCbs = document.querySelectorAll('.am-perm-cb');
 
-        if (!hasPerm && this.state.currentUser.role !== 'admin') {
+        if (!hasPerm && !this.isCeoOrAdmin()) {
             if (deptEl) {
                 deptEl.disabled = true;
                 deptEl.classList.add('bg-gray-100', 'cursor-not-allowed', 'text-gray-500');
@@ -11145,7 +11164,7 @@ const App = {
         if (!this.state.currentUser) return;
 
         const targetUserId = this.state.currentViewingUserId || this.state.currentUser.id;
-        if (this.state.currentUser.id !== targetUserId && this.state.currentUser.role !== 'admin') {
+        if (this.state.currentUser.id !== targetUserId && !this.isCeoOrAdmin() && this.state.currentUser.role !== 'admin') {
             return;
         }
 
