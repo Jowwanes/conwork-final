@@ -5,6 +5,35 @@
 
 const FINANCE_STORAGE_KEY = 'conwork_finance_transactions';
 
+const STATUS_TO_THAI = {
+    'pending': 'รออนุมัติ',
+    'approved': 'อนุมัติแล้ว',
+    'paid': 'จ่ายแล้ว',
+    'rejected': 'ปฏิเสธ',
+    'canceled': 'ยกเลิก',
+    'รออนุมัติ': 'รออนุมัติ',
+    'อนุมัติแล้ว': 'อนุมัติแล้ว',
+    'จ่ายแล้ว': 'จ่ายแล้ว'
+};
+
+const STATUS_TO_DB = {
+    'รออนุมัติ': 'pending',
+    'อนุมัติแล้ว': 'approved',
+    'จ่ายแล้ว': 'paid',
+    'ปฏิเสธ': 'rejected',
+    'pending': 'pending',
+    'approved': 'approved',
+    'paid': 'paid'
+};
+
+const DEFAULT_FINANCE_CATEGORIES = {
+    'welfare': { name: 'สวัสดิการอาหารและเบรก', icon: 'fa-utensils', color: '#f97316', bgClass: 'bg-orange-100', textClass: 'text-orange-500', defaultBudget: 5400 },
+    'supplies': { name: 'พัสดุและอุปกรณ์', icon: 'fa-box', color: '#a855f7', bgClass: 'bg-purple-100', textClass: 'text-purple-500', defaultBudget: 4000 },
+    'activity': { name: 'กิจกรรมโครงการ', icon: 'fa-palette', color: '#ec4899', bgClass: 'bg-pink-100', textClass: 'text-pink-500', defaultBudget: 6000 },
+    'travel': { name: 'การเดินทางและขนส่ง', icon: 'fa-car', color: '#0ea5e9', bgClass: 'bg-sky-100', textClass: 'text-sky-500', defaultBudget: 2600 },
+    'other': { name: 'อื่น ๆ', icon: 'fa-ellipsis', color: '#94a3b8', bgClass: 'bg-gray-100', textClass: 'text-gray-500', defaultBudget: 2000 }
+};
+
 function getStoredTransactions() {
     try {
         const saved = localStorage.getItem(FINANCE_STORAGE_KEY);
@@ -23,41 +52,119 @@ function saveTransactionToStorage(tx) {
     const list = getStoredTransactions();
     list.unshift(tx);
     try { localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+
+    // Sync to Supabase if available
     if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
         try {
-            window.conworkSupabase.client.from('finance_transactions').insert([tx]).then();
-        } catch (e) {}
+            const companyId = (window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null;
+            const dbStatus = STATUS_TO_DB[tx.status] || (tx.transaction_type === 'credit' ? 'pending' : 'paid');
+            const dbTx = {
+                title: tx.title,
+                transaction_type: tx.transaction_type,
+                amount: parseFloat(tx.amount) || 0,
+                status: dbStatus,
+                transaction_date: tx.transaction_date,
+                responsible_user: tx.author,
+                company_id: companyId
+            };
+            window.conworkSupabase.createFinanceTransaction(dbTx).then(res => {
+                if (res) console.log('Transaction synced to Supabase successfully:', res.id);
+            }).catch(e => console.warn('Supabase save error:', e));
+        } catch (e) {
+            console.warn('Supabase save error:', e);
+        }
+    }
+}
+
+async function syncFinanceWithSupabase() {
+    if (!window.conworkSupabase || !window.conworkSupabase.isAvailable()) return;
+    try {
+        const companyId = (window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null;
+        const remoteTxs = await window.conworkSupabase.fetchFinanceTransactions(companyId);
+        if (remoteTxs && remoteTxs.length > 0) {
+            const mapped = remoteTxs.map(t => ({
+                id: t.id,
+                title: t.title,
+                category: t.category_id || t.category || 'other',
+                amount: parseFloat(t.amount) || 0,
+                transaction_type: t.transaction_type || 'cash',
+                status: STATUS_TO_THAI[t.status] || t.status || 'จ่ายแล้ว',
+                transaction_date: t.transaction_date,
+                author: t.responsible_user || 'ทีมงาน'
+            }));
+            localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(mapped));
+            loadStoredTransactionsToTable();
+        }
+    } catch (err) {
+        console.warn('Supabase finance sync warning:', err);
     }
 }
 
 function recalculateFinanceTotals() {
     const txs = getStoredTransactions();
-    const initialCredit = 20000;
     const initialCash = 10000;
 
     let cashUsed = 0;
     let pendingAmount = 0;
     let approvedAmount = 0;
+    let cashInflow = 0;
 
     txs.forEach(t => {
         const amt = parseFloat(t.amount) || 0;
         if (t.transaction_type === 'cash') {
-            cashUsed += amt;
+            if (t.is_inflow) {
+                cashInflow += amt;
+            } else {
+                cashUsed += amt;
+            }
         }
 
-        if (t.status === 'รออนุมัติ') {
+        if (t.status === 'รออนุมัติ' || t.status === 'pending') {
             pendingAmount += amt;
-        } else if (t.status === 'จ่ายแล้ว' || t.status === 'อนุมัติแล้ว') {
+        } else if (t.status === 'จ่ายแล้ว' || t.status === 'อนุมัติแล้ว' || t.status === 'paid' || t.status === 'approved') {
             approvedAmount += amt;
         }
     });
 
-    const cashRemaining = Math.max(0, initialCash - cashUsed);
+    const cashRemaining = Math.max(0, initialCash + cashInflow - cashUsed);
 
+    // 1. Calculate per-category metrics for Credit & Cash
+    const catKeys = Object.keys(DEFAULT_FINANCE_CATEGORIES);
+    let totalPlannedCredit = 0;
+    const catData = {};
+
+    catKeys.forEach(k => {
+        const meta = DEFAULT_FINANCE_CATEGORIES[k];
+        const catTxs = txs.filter(t => t.category === k || (k === 'other' && !DEFAULT_FINANCE_CATEGORIES[t.category]));
+        const creditTxs = catTxs.filter(t => t.transaction_type === 'credit');
+        const cashTxs = catTxs.filter(t => t.transaction_type === 'cash');
+
+        const creditSum = creditTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const cashSum = cashTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const planned = Math.max(meta.defaultBudget, creditSum);
+
+        totalPlannedCredit += planned;
+        catData[k] = {
+            key: k,
+            name: meta.name,
+            icon: meta.icon,
+            color: meta.color,
+            bgClass: meta.bgClass,
+            textClass: meta.textClass,
+            planned: planned,
+            creditSum: creditSum,
+            cashSum: cashSum,
+            remaining: Math.max(0, planned - cashSum),
+            usedPct: planned > 0 ? Math.min(100, Math.round((cashSum / planned) * 100)) : 0,
+            txs: catTxs
+        };
+    });
+
+    // 2. Summary Cards (5 Cards)
     const cards = document.querySelectorAll('#view-accounting .grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5 > div');
     if (cards.length >= 5) {
         const c1Val = cards[0].querySelector('.text-2xl');
-        if (c1Val) c1Val.textContent = '฿' + initialCredit.toLocaleString();
+        if (c1Val) c1Val.textContent = '฿' + totalPlannedCredit.toLocaleString();
 
         const c2Val = cards[1].querySelector('.text-2xl');
         if (c2Val) c2Val.textContent = '฿' + cashUsed.toLocaleString();
@@ -71,6 +178,177 @@ function recalculateFinanceTotals() {
         const c5Val = cards[4].querySelector('.text-2xl');
         if (c5Val) c5Val.textContent = '฿' + approvedAmount.toLocaleString();
     }
+
+    // 3. Comparison Progress Bar
+    const remainingCreditBudget = Math.max(0, totalPlannedCredit - cashUsed);
+    const creditUsedPct = totalPlannedCredit > 0 ? Math.min(100, Math.round((cashUsed / totalPlannedCredit) * 100)) : 0;
+    const creditRemainingPct = 100 - creditUsedPct;
+
+    const progressRemainText = document.getElementById('finance-progress-remaining-text');
+    if (progressRemainText) {
+        progressRemainText.textContent = '฿' + remainingCreditBudget.toLocaleString();
+    }
+    const spentBar = document.getElementById('finance-progress-spent-bar');
+    if (spentBar) {
+        spentBar.style.width = `${creditUsedPct}%`;
+        spentBar.textContent = `ใช้จริง ${creditUsedPct}% (฿${cashUsed.toLocaleString()})`;
+    }
+    const remainingBar = document.getElementById('finance-progress-remaining-bar');
+    if (remainingBar) {
+        remainingBar.style.width = `${creditRemainingPct}%`;
+        remainingBar.textContent = `คงเหลือ ${creditRemainingPct}% (฿${remainingCreditBudget.toLocaleString()})`;
+    }
+
+    // 4. Col 1: Credit Donut Chart & Legends
+    let currentPct = 0;
+    const gradientSlices = [];
+    const creditLegendItems = [];
+
+    catKeys.forEach(k => {
+        const d = catData[k];
+        const pct = totalPlannedCredit > 0 ? (d.planned / totalPlannedCredit) * 100 : 0;
+        const start = currentPct;
+        currentPct += pct;
+        gradientSlices.push(`${d.color} ${start.toFixed(1)}% ${currentPct.toFixed(1)}%`);
+
+        creditLegendItems.push(`
+            <div class="flex items-center justify-between text-xs hover:bg-gray-50 p-1 -mx-1 rounded transition-colors cursor-pointer" onclick="filterTransactionsByCategory('${k}')" title="คลิกเพื่อกรองรายการ">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-3 h-3 rounded-full shrink-0" style="background-color: ${d.color};"></div>
+                    <span class="text-gray-700 truncate max-w-[140px]">${d.name}</span>
+                </div>
+                <span class="font-medium text-gray-800">฿${d.planned.toLocaleString()} <span class="text-gray-400 font-normal ml-1 w-8 inline-block text-right">(${pct.toFixed(0)}%)</span></span>
+            </div>
+        `);
+    });
+
+    const creditChartEl = document.getElementById('finance-credit-donut-chart');
+    if (creditChartEl) {
+        creditChartEl.style.background = `conic-gradient(${gradientSlices.join(', ')})`;
+    }
+    const creditTotalEl = document.getElementById('finance-credit-donut-total');
+    if (creditTotalEl) {
+        creditTotalEl.textContent = '฿' + totalPlannedCredit.toLocaleString();
+    }
+    const creditLegendEl = document.getElementById('finance-credit-donut-legend');
+    if (creditLegendEl) {
+        creditLegendEl.innerHTML = creditLegendItems.join('');
+    }
+
+    // 5. Col 2: Cash Donut Chart & Legend
+    const totalCashPool = initialCash + cashInflow;
+    const cashRemainingPct = totalCashPool > 0 ? Math.max(0, Math.min(100, Math.round((cashRemaining / totalCashPool) * 100))) : 0;
+
+    const cashChartEl = document.getElementById('finance-cash-donut-chart');
+    if (cashChartEl) {
+        cashChartEl.style.background = `conic-gradient(#22c55e 0% ${cashRemainingPct}%, #e2e8f0 ${cashRemainingPct}% 100%)`;
+    }
+    const cashTotalEl = document.getElementById('finance-cash-donut-total');
+    if (cashTotalEl) {
+        cashTotalEl.textContent = '฿' + cashRemaining.toLocaleString();
+    }
+    const cashLegendEl = document.getElementById('finance-cash-donut-legend');
+    if (cashLegendEl) {
+        cashLegendEl.innerHTML = `
+            <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2.5"><div class="w-3 h-3 rounded-full bg-[#22c55e]"></div><span class="text-gray-700">เงินสดตั้งต้น (Opening)</span></div>
+                <span class="font-medium text-gray-800">฿${initialCash.toLocaleString()}</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2.5"><div class="w-3 h-3 rounded-full bg-[#10b981]"></div><span class="text-gray-700">รับเข้า (Inflow)</span></div>
+                <span class="font-medium text-gray-800">฿${cashInflow.toLocaleString()}</span>
+            </div>
+            <div class="flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2.5"><div class="w-3 h-3 rounded-full bg-[#f43f5e]"></div><span class="text-gray-700">จ่ายออก (Actual Expenses)</span></div>
+                <span class="font-medium text-red-600">- ฿${cashUsed.toLocaleString()}</span>
+            </div>
+            <div class="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold">
+                <span class="text-gray-800">เงินสดคงเหลือปัจจุบัน</span>
+                <span class="text-green-600">฿${cashRemaining.toLocaleString()}</span>
+            </div>
+        `;
+    }
+
+    // 6. Col 3: Category Breakdown List
+    const breakdownListEl = document.getElementById('finance-category-breakdown-list');
+    if (breakdownListEl) {
+        const breakdownHTML = catKeys.map((k, idx) => {
+            const d = catData[k];
+            const collapseId = `cat-breakdown-details-${idx}`;
+            const hasTxs = d.txs && d.txs.length > 0;
+            
+            const subItemsHTML = hasTxs ? d.txs.map(tx => {
+                const isCash = tx.transaction_type === 'cash';
+                return `
+                    <div class="flex justify-between text-[10px] text-gray-600 py-1 hover:bg-white px-2 rounded transition-colors">
+                        <span class="truncate max-w-[150px] font-medium">${tx.title}</span>
+                        <div class="flex gap-3 shrink-0 text-right">
+                            <span class="${isCash ? 'text-gray-300' : 'text-blue-600 font-semibold'} w-14">${isCash ? '-' : '฿' + (parseFloat(tx.amount)||0).toLocaleString()}</span>
+                            <span class="${isCash ? 'text-green-600 font-semibold' : 'text-gray-300'} w-14">${isCash ? '฿' + (parseFloat(tx.amount)||0).toLocaleString() : '-'}</span>
+                            <span class="text-gray-400 w-12">${tx.status || 'เสร็จสิ้น'}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('') : `<div class="text-[10px] text-gray-400 py-1 pl-2 italic">ยังไม่มีรายการย่อยในหมวดนี้</div>`;
+
+            return `
+                <div>
+                    <div class="flex items-center justify-between text-[11px] mb-2 cursor-pointer group hover:bg-gray-50 p-1 -mx-1 rounded transition-colors" onclick="document.getElementById('${collapseId}').classList.toggle('hidden');">
+                        <div class="w-2/5 flex items-center gap-2.5 font-medium text-gray-700">
+                            <div class="w-6 h-6 rounded ${d.bgClass} flex items-center justify-center shrink-0">
+                                <i class="fa-solid ${d.icon} ${d.textClass} text-[10px]"></i>
+                            </div>
+                            <span class="truncate">${d.name}</span>
+                            <i class="fa-solid fa-angle-down text-gray-300 ml-auto text-[10px] group-hover:text-gray-500 transition-transform"></i>
+                        </div>
+                        <div class="w-1/5 text-right text-gray-500">฿${d.planned.toLocaleString()}</div>
+                        <div class="w-1/5 text-right text-gray-500">฿${d.cashSum.toLocaleString()}</div>
+                        <div class="w-1/5 text-right font-bold text-gray-800">฿${d.remaining.toLocaleString()}</div>
+                    </div>
+                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
+                        <div class="bg-green-500 h-full transition-all duration-500" style="width: ${d.usedPct}%;"></div>
+                        <div class="bg-blue-400 h-full opacity-30 transition-all duration-500" style="width: ${100 - d.usedPct}%;"></div>
+                    </div>
+                    <div class="text-[9px] text-gray-400 text-right mt-1">ใช้ไปแล้ว ${d.usedPct}%</div>
+                    
+                    <!-- Expandable Details -->
+                    <div id="${collapseId}" class="hidden mt-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100 space-y-1">
+                        <div class="flex justify-between text-[9px] font-bold text-gray-400 border-b border-gray-200/60 pb-1 mb-1 px-2">
+                            <span>รายการ</span>
+                            <div class="flex gap-3 text-right">
+                                <span class="w-14">Credit</span>
+                                <span class="w-14">Cash</span>
+                                <span class="w-12">สถานะ</span>
+                            </div>
+                        </div>
+                        ${subItemsHTML}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        breakdownListEl.innerHTML = breakdownHTML;
+    }
+}
+
+function filterTransactionsByCategory(catKey) {
+    const tableRows = document.querySelectorAll('#view-accounting tbody tr');
+    const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');
+    if (tabs.length > 0) tabs[0].click();
+
+    const meta = DEFAULT_FINANCE_CATEGORIES[catKey];
+    tableRows.forEach(row => {
+        const catCell = row.querySelector('td:nth-child(3)');
+        if (!catCell) return;
+        if (!meta || catKey === 'all') {
+            row.style.display = '';
+        } else {
+            const matches = catCell.textContent.includes(meta.name) || (catKey === 'welfare' && catCell.textContent.includes('สวัสดิการ'));
+            row.style.display = matches ? '' : 'none';
+        }
+    });
+
+    scrollToTable();
 }
 
 function showFinanceDetailModal(title, iconClass, items) {
@@ -128,6 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initFinanceDashboard() {
     loadStoredTransactionsToTable();
+    syncFinanceWithSupabase();
 
     // 1. Transaction Tabs Filtering
     const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');

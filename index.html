@@ -847,12 +847,12 @@
                                 <h3 class="text-sm font-bold text-gray-700">เปรียบเทียบ แผนงบประมาณ (Credit) vs เงินที่ใช้จริง (Cash)</h3>
                                 <i class="fa-regular fa-circle-question text-gray-400 text-xs cursor-help" title="Credit = แผนงบประมาณที่ตั้งไว้ หรือได้รับอนุมัติแล้ว&#10;Cash = เงินที่จ่ายออกไปจริงๆ"></i>
                             </div>
-                            <div class="text-xs text-gray-500">งบประมาณคงเหลือ <span class="font-bold text-gray-800 ml-1">฿11,550</span></div>
+                            <div class="text-xs text-gray-500">งบประมาณคงเหลือ <span id="finance-progress-remaining-text" class="font-bold text-gray-800 ml-1">฿11,550</span></div>
                         </div>
                         
                         <div class="flex w-full h-8 rounded-lg overflow-hidden bg-gray-100">
-                            <div class="bg-indigo-500 h-full flex items-center px-4 text-xs text-white font-medium shadow-inner" style="width: 42%;">ใช้จริง 42% (฿8,450)</div>
-                            <div class="bg-gray-200 h-full flex items-center justify-end px-4 text-xs text-gray-500 font-medium" style="width: 58%;">คงเหลือ 58% (฿11,550)</div>
+                            <div id="finance-progress-spent-bar" class="bg-indigo-500 h-full flex items-center px-4 text-xs text-white font-medium shadow-inner transition-all duration-500" style="width: 42%;">ใช้จริง 42% (฿8,450)</div>
+                            <div id="finance-progress-remaining-bar" class="bg-gray-200 h-full flex items-center justify-end px-4 text-xs text-gray-500 font-medium transition-all duration-500" style="width: 58%;">คงเหลือ 58% (฿11,550)</div>
                         </div>
                     </div>
 
@@ -867,14 +867,14 @@
                             
                             <div class="flex-1 flex flex-col items-center justify-center">
                                 <div class="relative w-52 h-52 mb-8">
-                                    <div class="absolute inset-0 rounded-full" style="background: conic-gradient(#818cf8 0% 27%, #a78bfa 27% 47%, #c084fc 47% 77%, #38bdf8 77% 90%, #94a3b8 90% 100%);"></div>
+                                    <div id="finance-credit-donut-chart" class="absolute inset-0 rounded-full transition-all duration-700" style="background: conic-gradient(#818cf8 0% 27%, #a78bfa 27% 47%, #c084fc 47% 77%, #38bdf8 77% 90%, #94a3b8 90% 100%);"></div>
                                     <div class="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-                                        <span class="text-2xl font-bold text-gray-800">฿20,000</span>
+                                        <span id="finance-credit-donut-total" class="text-2xl font-bold text-gray-800">฿20,000</span>
                                         <span class="text-[10px] text-gray-500 text-center px-2 leading-tight mt-1">งบที่วางแผน<br>ทั้งหมด</span>
                                     </div>
                                 </div>
                                 
-                                <div class="w-full space-y-3.5">
+                                <div id="finance-credit-donut-legend" class="w-full space-y-3.5">
                                     <div class="flex items-center justify-between text-xs">
                                         <div class="flex items-center gap-2.5"><div class="w-3 h-3 rounded-full bg-[#818cf8]"></div><span class="text-gray-700">สวัสดิการอาหารและเบรก</span></div>
                                         <span class="font-medium text-gray-800">฿5,400 <span class="text-gray-400 font-normal ml-1 w-8 inline-block text-right">(27%)</span></span>
@@ -909,14 +909,14 @@
                             
                             <div class="flex-1 flex flex-col items-center justify-center">
                                 <div class="relative w-52 h-52 mb-8">
-                                    <div class="absolute inset-0 rounded-full" style="background: conic-gradient(#22c55e 0% 75%, #e2e8f0 75% 100%);"></div>
+                                    <div id="finance-cash-donut-chart" class="absolute inset-0 rounded-full transition-all duration-700" style="background: conic-gradient(#22c55e 0% 75%, #e2e8f0 75% 100%);"></div>
                                     <div class="absolute inset-4 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-                                        <span class="text-2xl font-bold text-gray-800">฿6,000</span>
+                                        <span id="finance-cash-donut-total" class="text-2xl font-bold text-gray-800">฿6,000</span>
                                         <span class="text-[10px] text-gray-500 text-center px-2 leading-tight mt-1">เงินสด<br>คงเหลือ</span>
                                     </div>
                                 </div>
                                 
-                                <div class="w-full space-y-4">
+                                <div id="finance-cash-donut-legend" class="w-full space-y-4">
                                     <div class="flex items-center justify-between text-xs">
                                         <div class="flex items-center gap-2.5"><div class="w-3 h-3 rounded-full bg-[#22c55e]"></div><span class="text-gray-700">เงินสดตั้งต้น (Opening)</span></div>
                                         <span class="font-medium text-gray-800">฿8,000</span>
@@ -956,7 +956,7 @@
                                 <div class="w-1/5 text-right">คงเหลือ</div>
                             </div>
                             
-                            <div class="space-y-5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+                            <div id="finance-category-breakdown-list" class="space-y-5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
                                 <div>
                                     <div class="flex items-center justify-between text-[11px] mb-2 cursor-pointer group hover:bg-gray-50 p-1 -mx-1 rounded transition-colors" onclick="this.nextElementSibling.nextElementSibling.nextElementSibling.classList.toggle('hidden');">
                                         <div class="w-2/5 flex items-center gap-2.5 font-medium text-gray-700">

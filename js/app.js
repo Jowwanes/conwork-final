@@ -1434,7 +1434,17 @@ const App = {
         }
 
         // Update header title
-        const titleMap = { dashboard: 'แดชบอร์ดส่วนตัว', projects: 'งานทั้งหมด', calendar: 'ปฏิทิน', messages: 'ข้อความ', team: 'ทีมงาน', 'work-report': 'สร้างรายงาน', 'add-member': 'เพิ่มพนักงานใหม่', 'role-settings': 'ตั้งค่าพนักงาน' };
+        const titleMap = { 
+            dashboard: 'แดชบอร์ดส่วนตัว', 
+            projects: 'งานทั้งหมด', 
+            calendar: 'ปฏิทิน', 
+            messages: 'ข้อความ', 
+            team: 'ทีมงาน', 
+            'work-report': 'สร้างรายงาน', 
+            'add-member': 'เพิ่มพนักงานใหม่', 
+            'role-settings': 'ตั้งค่าพนักงาน',
+            accounting: 'การจัดการเงิน'
+        };
         const titleEl = document.getElementById('main-header-title');
         if (titleEl && titleMap[viewName]) titleEl.textContent = titleMap[viewName];
 
@@ -1448,6 +1458,9 @@ const App = {
                 subtitleEl.classList.remove('hidden');
             } else if (viewName === 'dashboard') {
                 subtitleEl.textContent = 'สรุปข้อมูลกิจกรรมและงานส่วนตัวของคุณ';
+                subtitleEl.classList.remove('hidden');
+            } else if (viewName === 'accounting') {
+                subtitleEl.textContent = 'วางแผนงบประมาณ ติดตามเงินสด และตรวจสอบการใช้จ่ายของโครงการ';
                 subtitleEl.classList.remove('hidden');
             } else {
                 subtitleEl.textContent = '';
@@ -1473,6 +1486,10 @@ const App = {
         }
         if (viewName === 'work-report' && typeof WorkReport !== 'undefined') {
             WorkReport.init();
+        }
+        if (viewName === 'accounting') {
+            if (typeof recalculateFinanceTotals === 'function') recalculateFinanceTotals();
+            if (typeof syncFinanceWithSupabase === 'function') syncFinanceWithSupabase();
         }
     },
 

@@ -710,6 +710,67 @@ class ConWorkSupabaseService {
         if (error) throw error;
         return true;
     }
+
+    // ==========================================
+    // 6. FINANCE & TRANSACTIONS
+    // ==========================================
+
+    async fetchFinanceTransactions(companyId = null, projectId = null) {
+        if (!this.isAvailable()) return [];
+        try {
+            let query = this.client
+                .from('finance_transactions')
+                .select('*')
+                .order('transaction_date', { ascending: false });
+
+            if (companyId) query = query.eq('company_id', companyId);
+            if (projectId) query = query.eq('project_id', projectId);
+
+            const { data, error } = await query;
+            if (error) {
+                console.warn('Supabase fetchFinanceTransactions warning:', error);
+                return [];
+            }
+            return data || [];
+        } catch (e) {
+            console.warn('Supabase fetchFinanceTransactions error:', e);
+            return [];
+        }
+    }
+
+    async createFinanceTransaction(txData) {
+        if (!this.isAvailable()) return null;
+        try {
+            const { data, error } = await this.client
+                .from('finance_transactions')
+                .insert([txData])
+                .select()
+                .single();
+            if (error) {
+                console.warn('Supabase createFinanceTransaction warning:', error);
+                return null;
+            }
+            return data;
+        } catch (e) {
+            console.warn('Supabase createFinanceTransaction error:', e);
+            return null;
+        }
+    }
+
+    async fetchFinanceCategories(projectId = null) {
+        if (!this.isAvailable()) return [];
+        try {
+            let query = this.client
+                .from('finance_categories')
+                .select('*');
+            if (projectId) query = query.eq('project_id', projectId);
+            const { data, error } = await query;
+            if (error) return [];
+            return data || [];
+        } catch (e) {
+            return [];
+        }
+    }
 }
 
 // Global Singleton Instance
