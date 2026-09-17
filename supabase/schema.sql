@@ -422,3 +422,17 @@ VALUES
     ('22222222-2222-2222-2222-222222222222', 'Pro Business', 50, 25, 499.00, '{"chat": true, "calendar": true, "export": true, "custom_reports": true}'::jsonb),
     ('33333333-3333-3333-3333-333333333333', 'Enterprise', 9999, 9999, 1999.00, '{"chat": true, "calendar": true, "export": true, "custom_reports": true, "dedicated_support": true}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================================
+-- 11. SUPABASE REALTIME CONFIGURATION
+-- =====================================================================
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_channels;
+    END IF;
+EXCEPTION WHEN OTHERS THEN
+    -- Ignore if already added to publication
+    NULL;
+END $$;
