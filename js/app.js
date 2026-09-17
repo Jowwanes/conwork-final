@@ -11968,7 +11968,10 @@ const App = {
 
     logout() {
         this.state.currentUser = null;
-        try { sessionStorage.removeItem('conwork_user'); } catch (e) { }
+        try { 
+            sessionStorage.removeItem('conwork_user'); 
+            localStorage.removeItem('conwork_user');
+        } catch (e) { }
         
         const dropdown = document.getElementById('profile-menu-dropdown');
         if (dropdown) dropdown.classList.add('hidden');
@@ -11976,7 +11979,28 @@ const App = {
         if (typeof window.logout === 'function') {
             window.logout();
         } else {
-            this.showLogin();
+            if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+                try { window.conworkSupabase.client.auth.signOut(); } catch (e) {}
+            }
+            const app = document.getElementById('app-screen');
+            if (app) app.classList.add('hidden');
+
+            const login = document.getElementById('login-screen');
+            if (login) login.style.display = 'none';
+
+            const landing = document.getElementById('landing-screen');
+            if (landing) {
+                landing.style.display = 'flex';
+                landing.scrollTop = 0;
+            }
+
+            if (window.location.hash) {
+                try {
+                    history.pushState("", document.title, window.location.pathname + window.location.search);
+                } catch (e) {
+                    window.location.hash = '';
+                }
+            }
         }
     },
 
