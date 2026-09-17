@@ -620,55 +620,274 @@ function toggleFinanceAddType() {
     }
 }
 
-// Side Panel Functions
-function openFinancePanel(title, amount, type, status, categoryHTML, date, userHTML) {
-    const panel = document.getElementById('finance-detail-panel');
-    const content = document.getElementById('finance-detail-content');
-    
-    if (panel && content) {
-        // Update data
-        document.getElementById('panel-title').innerText = title || 'รายละเอียดรายการ';
-        document.getElementById('panel-amount').innerText = amount || '฿0.00';
-        
-        // Update badges
-        const badgesContainer = document.getElementById('panel-badges');
-        badgesContainer.innerHTML = '';
-        
-        if (type && type.includes('Credit')) {
-            badgesContainer.innerHTML += `<span class="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-lg text-xs font-bold">Credit</span>`;
-            document.getElementById('panel-icon').innerHTML = '<i class="fa-solid fa-wallet"></i>';
-            document.getElementById('panel-icon').className = 'inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 text-blue-600 mb-3 text-xl';
-        } else if (type && type.includes('Cash')) {
-            badgesContainer.innerHTML += `<span class="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-lg text-xs font-bold">Cash</span>`;
-            document.getElementById('panel-icon').innerHTML = '<i class="fa-solid fa-hand-holding-dollar"></i>';
-            document.getElementById('panel-icon').className = 'inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-50 text-green-600 mb-3 text-xl';
+// Helper to resize/compress images for fast storage & previews
+function resizeImageIfNeeded(file, maxDimension = 1280, quality = 0.82) {
+    return new Promise((resolve) => {
+        if (!file.type.includes('image')) {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve({ dataUrl: e.target.result, size: (file.size / 1024 / 1024).toFixed(2) + ' MB' });
+            reader.readAsDataURL(file);
+            return;
         }
 
-        const approvalActions = document.getElementById('panel-approval-actions');
-        if (status && status.includes('รออนุมัติ')) {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                const approxKb = Math.round((compressedDataUrl.length * 0.75) / 1024);
+                const approxSize = approxKb > 1024 ? (approxKb / 1024).toFixed(2) + ' MB' : approxKb + ' KB';
+                resolve({ dataUrl: compressedDataUrl, size: approxSize });
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Side Panel Functions
+function openFinancePanel(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+    const panel = document.getElementById('finance-detail-panel');
+    const content = document.getElementById('finance-detail-content');
+    if (!panel || !content) return;
+
+    let tx;
+    if (typeof arg1 === 'object' && arg1 !== null) {
+        tx = arg1;
+    } else {
+        tx = arg8 || {
+            title: arg1,
+            amount: arg2,
+            transaction_type: (arg3 && arg3.includes('Credit')) ? 'credit' : 'cash',
+            status: arg4,
+            categoryHTML: arg5,
+            transaction_date: arg6,
+            userHTML: arg7
+        };
+    }
+
+    const title = tx.title || 'รายละเอียดรายการ';
+    const amountVal = typeof tx.amount === 'number' 
+        ? '฿' + tx.amount.toLocaleString(undefined, { minimumFractionDigits: 0 }) 
+        : (tx.amount ? (String(tx.amount).startsWith('฿') ? tx.amount : '฿' + tx.amount) : '฿0');
+    
+    const isCredit = tx.transaction_type === 'credit' || (tx.type && String(tx.type).includes('Credit'));
+    const statusText = tx.status || (isCredit ? 'รออนุมัติ' : 'จ่ายแล้ว');
+
+    // Title & Amount
+    const titleEl = document.getElementById('panel-title');
+    if (titleEl) titleEl.innerText = title;
+
+    const amountEl = document.getElementById('panel-amount');
+    if (amountEl) amountEl.innerText = amountVal;
+
+    // Badges & Icon
+    const badgesContainer = document.getElementById('panel-badges');
+    const panelIcon = document.getElementById('panel-icon');
+    if (badgesContainer) {
+        badgesContainer.innerHTML = '';
+        if (isCredit) {
+            badgesContainer.innerHTML += `<span class="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-lg text-xs font-bold">Credit</span>`;
+            if (panelIcon) {
+                panelIcon.innerHTML = '<i class="fa-solid fa-wallet"></i>';
+                panelIcon.className = 'inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 text-blue-600 mb-3 text-xl';
+            }
+        } else {
+            badgesContainer.innerHTML += `<span class="bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-lg text-xs font-bold">Cash</span>`;
+            if (panelIcon) {
+                panelIcon.innerHTML = '<i class="fa-solid fa-hand-holding-dollar"></i>';
+                panelIcon.className = 'inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-50 text-green-600 mb-3 text-xl';
+            }
+        }
+
+        if (statusText.includes('รออนุมัติ') || statusText === 'pending') {
             badgesContainer.innerHTML += `<span class="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1 rounded-lg text-xs font-bold">รออนุมัติ</span>`;
-            approvalActions.classList.remove('hidden');
-        } else if (status && status.includes('อนุมัติแล้ว')) {
+        } else if (statusText.includes('อนุมัติแล้ว') || statusText === 'approved') {
             badgesContainer.innerHTML += `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1 rounded-lg text-xs font-bold">อนุมัติแล้ว</span>`;
-            approvalActions.classList.add('hidden');
-        } else if (status && status.includes('จ่ายแล้ว')) {
+        } else {
             badgesContainer.innerHTML += `<span class="bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-lg text-xs font-bold">จ่ายแล้ว</span>`;
-            approvalActions.classList.add('hidden');
+        }
+    }
+
+    const approvalActions = document.getElementById('panel-approval-actions');
+    if (approvalActions) {
+        if (statusText.includes('รออนุมัติ') || statusText === 'pending') {
+            approvalActions.classList.remove('hidden');
         } else {
             approvalActions.classList.add('hidden');
         }
-        
-        // Category, Date, User
-        if (categoryHTML) document.getElementById('panel-category').innerHTML = categoryHTML;
-        if (date) document.getElementById('panel-date').innerText = date;
-        if (userHTML) document.getElementById('panel-user').innerHTML = userHTML;
+    }
 
-        // Show panel
-        panel.classList.remove('hidden');
-        // Slight delay to allow display:block to apply before animating transform
-        setTimeout(() => {
-            content.classList.remove('translate-x-full');
-        }, 10);
+    // Category
+    const catEl = document.getElementById('panel-category');
+    if (catEl) {
+        if (tx.categoryHTML) {
+            catEl.innerHTML = tx.categoryHTML;
+        } else {
+            const meta = DEFAULT_FINANCE_CATEGORIES[tx.category] || DEFAULT_FINANCE_CATEGORIES['other'];
+            catEl.innerHTML = `<i class="fa-solid ${meta.icon} ${meta.textClass}"></i> ${meta.name}`;
+        }
+    }
+
+    // Date
+    const dateEl = document.getElementById('panel-date');
+    if (dateEl) {
+        if (tx.date) {
+            dateEl.innerText = tx.date;
+        } else if (tx.transaction_date) {
+            dateEl.innerText = new Date(tx.transaction_date).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } else {
+            dateEl.innerText = '-';
+        }
+    }
+
+    // User
+    const userEl = document.getElementById('panel-user');
+    if (userEl) {
+        if (tx.userHTML) {
+            userEl.innerHTML = tx.userHTML;
+        } else {
+            const author = tx.author || 'คุณ (Me)';
+            userEl.innerText = author;
+        }
+    }
+
+    // Description
+    const descEl = document.getElementById('panel-description');
+    if (descEl) {
+        descEl.innerText = tx.description || 'ไม่มีรายละเอียดเพิ่มเติม';
+    }
+
+    // Attachment / Image Preview
+    const attachContainer = document.getElementById('panel-attachment-container');
+    if (attachContainer) {
+        const att = tx.attachment;
+        if (att && (att.dataUrl || att.url || att.name)) {
+            const fileUrl = att.dataUrl || att.url || '#';
+            const isImage = (att.type && att.type.includes('image')) || 
+                            (att.dataUrl && att.dataUrl.startsWith('data:image')) || 
+                            (att.name && /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name));
+            
+            if (isImage) {
+                attachContainer.innerHTML = `
+                    <div class="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all">
+                        <div class="relative group cursor-pointer overflow-hidden bg-gray-100 max-h-64 flex items-center justify-center p-1" onclick="window.open('${fileUrl}', '_blank')">
+                            <img src="${fileUrl}" alt="${att.name || 'รูปภาพหลักฐาน'}" class="w-full h-auto object-contain max-h-60 rounded-xl group-hover:scale-[1.02] transition-transform duration-300">
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white text-xs font-semibold rounded-xl backdrop-blur-[2px]">
+                                <i class="fa-solid fa-magnifying-glass-plus text-base"></i> คลิกเพื่อดูรูปขนาดเต็ม
+                            </div>
+                        </div>
+                        <div class="p-3 flex items-center justify-between bg-white border-t border-gray-100">
+                            <div class="flex items-center gap-2.5 truncate">
+                                <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-file-image"></i>
+                                </div>
+                                <div class="truncate">
+                                    <p class="text-xs font-bold text-gray-800 truncate max-w-[190px]">${att.name || 'รูปภาพหลักฐาน'}</p>
+                                    <p class="text-[10px] text-gray-400">${att.size || 'รูปภาพแนบ'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <label class="cursor-pointer text-gray-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors relative" title="เปลี่ยนรูปภาพ">
+                                    <i class="fa-solid fa-arrow-rotate-right"></i>
+                                    <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleSidePanelAttachmentUpload(this, '${tx.id}')">
+                                </label>
+                                <a href="${fileUrl}" download="${att.name || 'image.png'}" target="_blank" class="text-gray-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="ดาวน์โหลด">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                attachContainer.innerHTML = `
+                    <div class="border border-gray-200 rounded-2xl bg-white shadow-sm overflow-hidden p-3.5 hover:border-blue-200 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center shrink-0 text-xl">
+                                <i class="fa-solid fa-file-pdf"></i>
+                            </div>
+                            <div class="flex-1 truncate">
+                                <p class="text-xs font-bold text-gray-800 hover:text-blue-700 truncate cursor-pointer" onclick="window.open('${fileUrl}', '_blank')">${att.name || 'เอกสารแนบ.pdf'}</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">${att.size || 'เอกสารแนบ'}</p>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <label class="cursor-pointer text-gray-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors" title="เปลี่ยนไฟล์">
+                                    <i class="fa-solid fa-arrow-rotate-right"></i>
+                                    <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="handleSidePanelAttachmentUpload(this, '${tx.id}')">
+                                </label>
+                                <a href="${fileUrl}" download="${att.name || 'document.pdf'}" target="_blank" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="ดาวน์โหลด">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            attachContainer.innerHTML = `
+                <div class="p-4 rounded-2xl bg-gray-50 border border-dashed border-gray-300 text-center hover:bg-blue-50/50 hover:border-blue-300 transition-colors relative group cursor-pointer">
+                    <input type="file" class="absolute inset-0 opacity-0 cursor-pointer" accept=".pdf,.jpg,.jpeg,.png" onchange="handleSidePanelAttachmentUpload(this, '${tx.id}')">
+                    <div class="flex items-center justify-center gap-2 text-blue-600 text-xs font-semibold group-hover:scale-105 transition-transform">
+                        <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+                        <span>คลิกเพื่อแนบรูปภาพ / เอกสารหลักฐาน</span>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-1">รองรับรูปภาพ (JPG, PNG) และไฟล์ PDF</p>
+                </div>
+            `;
+        }
+    }
+
+    panel.classList.remove('hidden');
+    setTimeout(() => {
+        content.classList.remove('translate-x-full');
+    }, 10);
+}
+
+async function handleSidePanelAttachmentUpload(input, txId) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    
+    try {
+        const { dataUrl, size } = await resizeImageIfNeeded(file);
+        const attachmentData = {
+            name: file.name,
+            type: file.type,
+            size: size,
+            dataUrl: dataUrl
+        };
+
+        const txs = getStoredTransactions();
+        const target = txs.find(t => t.id === txId);
+        if (target) {
+            target.attachment = attachmentData;
+            localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(txs));
+            loadStoredTransactionsToTable();
+            openFinancePanel(target);
+            if (window.App && typeof App._showToast === 'function') {
+                App._showToast('อัปเดตรูปภาพหลักฐานเรียบร้อยแล้ว!', 'success');
+            }
+        }
+    } catch (err) {
+        console.error('Attachment upload error:', err);
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ', 'error');
+        }
     }
 }
 
@@ -709,6 +928,7 @@ async function submitFinanceTransaction() {
     const categorySelect = modal.querySelector('select')?.value;
     const amountInput = modal.querySelector('input[type="number"]')?.value;
     const dateInput = modal.querySelector('input[type="date"]')?.value;
+    const descInput = modal.querySelector('textarea')?.value?.trim() || '';
     
     // Basic Validation
     if (!titleInput || !categorySelect || !amountInput || !dateInput) {
@@ -726,6 +946,20 @@ async function submitFinanceTransaction() {
         const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
         submitBtn.disabled = true;
+
+        // Process file attachment if selected
+        let attachmentObj = null;
+        const fileInput = document.getElementById('finance-attachment-add');
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+            const file = fileInput.files[0];
+            const processed = await resizeImageIfNeeded(file);
+            attachmentObj = {
+                name: file.name,
+                type: file.type,
+                size: processed.size,
+                dataUrl: processed.dataUrl
+            };
+        }
         
         // 2. Prepare Transaction Data
         const newTx = {
@@ -736,6 +970,8 @@ async function submitFinanceTransaction() {
             transaction_type: type,
             status: type === 'credit' ? 'รออนุมัติ' : 'จ่ายแล้ว',
             transaction_date: dateInput,
+            description: descInput,
+            attachment: attachmentObj,
             author: (window.App && App.state && App.state.currentUser) ? App.state.currentUser.name : 'คุณ (Me)'
         };
         
@@ -751,9 +987,9 @@ async function submitFinanceTransaction() {
         // Reset inputs
         modal.querySelectorAll('input[type="text"]')[0].value = '';
         modal.querySelector('input[type="number"]').value = '';
+        if (modal.querySelector('textarea')) modal.querySelector('textarea').value = '';
         
         // Reset file input
-        const fileInput = document.getElementById('finance-attachment-add');
         if (fileInput) fileInput.value = '';
         const fileUI = document.getElementById('finance-attachment-add-ui');
         if (fileUI) {
@@ -766,7 +1002,7 @@ async function submitFinanceTransaction() {
         
         closeFinanceModal('finance-add-modal');
         if (window.App && typeof App._showToast === 'function') {
-            App._showToast('บันทึกรายการการเงินสำเร็จ!', 'success');
+            App._showToast('บันทึกรายการการเงินพร้อมรูปภาพสำเร็จ!', 'success');
         }
         
     } catch (error) {
@@ -964,36 +1200,39 @@ function insertCategoryBreakdown(data) {
 }
 
 // File Attachment Handler
-function handleFinanceAttachmentChange(input) {
+async function handleFinanceAttachmentChange(input) {
     const uiContainer = document.getElementById('finance-attachment-add-ui');
     if (!uiContainer) return;
     
     if (input.files && input.files[0]) {
         const file = input.files[0];
-        const fileSize = (file.size / 1024 / 1024).toFixed(2); // in MB
-        
-        // Determine icon based on type
-        let iconClass = 'fa-file-lines';
-        let iconColor = 'text-gray-500';
         
         if (file.type.includes('image')) {
-            iconClass = 'fa-file-image';
-            iconColor = 'text-blue-500';
-        } else if (file.type.includes('pdf')) {
-            iconClass = 'fa-file-pdf';
-            iconColor = 'text-red-500';
-        }
-        
-        uiContainer.innerHTML = `
-            <div class="flex items-center justify-center gap-3">
-                <i class="fa-solid ${iconClass} text-3xl ${iconColor}"></i>
-                <div class="text-left">
-                    <p class="text-sm font-bold text-gray-800 truncate max-w-[200px]">${file.name}</p>
-                    <p class="text-xs text-gray-500">${fileSize} MB</p>
+            const processed = await resizeImageIfNeeded(file);
+            uiContainer.innerHTML = `
+                <div class="flex items-center justify-center gap-3">
+                    <img src="${processed.dataUrl}" class="w-14 h-14 object-cover rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-left">
+                        <p class="text-sm font-bold text-gray-800 truncate max-w-[200px]">${file.name}</p>
+                        <p class="text-xs text-green-600 font-semibold">${processed.size} (พร้อมแสดงรูป)</p>
+                    </div>
                 </div>
-            </div>
-            <p class="text-[10px] text-blue-600 mt-3 font-medium hover:underline">คลิกเพื่อเปลี่ยนไฟล์</p>
-        `;
+                <p class="text-[10px] text-blue-600 mt-2.5 font-medium hover:underline">คลิกเพื่อเปลี่ยนรูปภาพ</p>
+            `;
+        } else {
+            const fileSize = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            const iconClass = file.type.includes('pdf') ? 'fa-file-pdf text-red-500' : 'fa-file-lines text-gray-500';
+            uiContainer.innerHTML = `
+                <div class="flex items-center justify-center gap-3">
+                    <i class="fa-solid ${iconClass} text-3xl"></i>
+                    <div class="text-left">
+                        <p class="text-sm font-bold text-gray-800 truncate max-w-[200px]">${file.name}</p>
+                        <p class="text-xs text-gray-500">${fileSize}</p>
+                    </div>
+                </div>
+                <p class="text-[10px] text-blue-600 mt-2.5 font-medium hover:underline">คลิกเพื่อเปลี่ยนไฟล์</p>
+            `;
+        }
     } else {
         // Reset UI if no file
         uiContainer.innerHTML = `
