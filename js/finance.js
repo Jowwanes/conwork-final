@@ -428,7 +428,7 @@ function saveTransactionToStorage(tx) {
     // Sync to Supabase if available
     if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
         try {
-            const companyId = (window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null;
+            const companyId = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || (window.App && App.state && App.state.currentCompanyId) || '858b9899-c231-4cd4-a193-9972be8cb816';
             const dbStatus = STATUS_TO_DB[tx.status] || (tx.transaction_type === 'credit' ? 'pending' : 'paid');
             const dbTx = {
                 id: tx.id,
@@ -455,13 +455,13 @@ function saveTransactionToStorage(tx) {
 async function syncFinanceWithSupabase() {
     if (!window.conworkSupabase || !window.conworkSupabase.isAvailable()) return;
     try {
-        const companyId = (window.App && App.state && App.state.workspaces && App.state.workspaces[0]) ? App.state.workspaces[0].id : null;
+        const companyId = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || (window.App && App.state && App.state.currentCompanyId) || '858b9899-c231-4cd4-a193-9972be8cb816';
         
         // 0. Sync Master Budget & Settings from Supabase
         try {
             if (typeof window.conworkSupabase.fetchFinanceSettings === 'function') {
                 const settings = await window.conworkSupabase.fetchFinanceSettings();
-                if (settings && (settings.total_budget || settings.category_allocations)) {
+                if (settings && (typeof settings.total_budget !== 'undefined' || typeof settings.initial_cash !== 'undefined' || settings.category_allocations)) {
                     const mb = {
                         totalBudget: parseFloat(settings.total_budget) || 0,
                         initialCash: parseFloat(settings.initial_cash) || 0,
@@ -834,6 +834,10 @@ function recalculateFinanceTotals() {
 
     // --- 6. Col 3: Render Breakdown View ---
     renderCategoryBreakdown(catKeys, catData, sumAllocated, cashUsed);
+
+    if (window.App && typeof window.App.renderDashboard === 'function' && window.App.state && window.App.state.currentView === 'dashboard') {
+        window.App.renderDashboard();
+    }
 }
 
 function renderProjectBudgetBreakdown(projectData, totalMasterBudget, sumAllocated, totalCashUsed) {
@@ -1893,15 +1897,17 @@ function initFinanceDashboard() {
     if (progressBarContainer) {
         progressBarContainer.addEventListener('click', () => {
             const txs = getStoredTransactions();
-            const cashSpent = txs.filter(t => t.transaction_type === 'cash').reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
+            const cashSpent = txs.filter(t => t.transaction_type === 'cash' && !t.is_inflow).reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
             const master = getMasterBudget();
-            const totalBudget = master.total_budget || 20000;
+            const totalMasterBudget = typeof master.totalBudget === 'number' ? master.totalBudget : (parseFloat(master.totalBudget) || 0);
+            const allocations = master.categoryAllocations || master.projectAllocations || {};
+            const allocated = Object.values(allocations).reduce((a, b) => a + (parseFloat(b) || 0), 0);
+            const totalBudget = totalMasterBudget > 0 ? totalMasterBudget : allocated;
             const pct = totalBudget > 0 ? ((cashSpent / totalBudget) * 100).toFixed(1) : '0.0';
-            const allocated = Object.values(master.project_allocations || {}).reduce((a, b) => a + (parseFloat(b) || 0), 0);
             const unallocated = Math.max(0, totalBudget - allocated);
             showFinanceDetailModal('อัตราการใช้งบประมาณ (Budget Utilization)', 'fa-solid fa-chart-pie text-blue-600', [
                 { label: 'งบประมาณรวมทั้งหมด (Master Budget)', value: '฿' + totalBudget.toLocaleString(), highlight: 'text-blue-600 font-extrabold text-base' },
-                { label: 'งบที่จัดสรรให้โครงการแล้ว (Allocated)', value: '฿' + allocated.toLocaleString() },
+                { label: 'งบที่จัดสรรให้หมวดหมู่แล้ว (Allocated)', value: '฿' + allocated.toLocaleString() },
                 { label: 'งบคงเหลือส่วนกลางสำรอง (Unallocated)', value: '฿' + unallocated.toLocaleString(), highlight: 'text-emerald-600' },
                 { label: 'ยอดเงินสดที่ใช้จ่ายจริง (Cash Spent)', value: '฿' + cashSpent.toLocaleString(), highlight: 'text-amber-600' },
                 { label: 'อัตราการใช้เงินรวม (Utilization Rate)', value: pct + '%' }
@@ -2771,33 +2777,42 @@ async function handleFinanceAttachmentChange(input) {
  */
 function getFinanceBudgetSummary() {
     const txs = getStoredTransactions();
-    let totalExpense = 0;
-    let totalIncome = 0;
-    let plannedBudget = 0;
+    const master = getMasterBudget();
+    const totalMasterBudget = typeof master.totalBudget === 'number' ? master.totalBudget : (parseFloat(master.totalBudget) || 0);
 
     const categories = getFinanceCategories();
     const catKeys = Object.keys(categories);
+    const allocations = master.categoryAllocations || master.projectAllocations || {};
+    let sumAllocated = 0;
+
     catKeys.forEach(k => {
-        const meta = categories[k];
-        const catTxs = txs.filter(t => t.category === k);
-        const creditTxs = catTxs.filter(t => t.transaction_type === 'credit');
-        const creditSum = creditTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-        plannedBudget += Math.max(meta.defaultBudget || 0, creditSum);
+        const meta = categories[k] || {};
+        const allocated = (typeof allocations[k] !== 'undefined' && allocations[k] !== null)
+            ? (parseFloat(allocations[k]) || 0)
+            : (parseFloat(meta.defaultBudget) || 0);
+        sumAllocated += allocated;
     });
+
+    const effectiveTotalBudget = totalMasterBudget > 0 ? totalMasterBudget : sumAllocated;
+
+    let totalExpense = 0;
+    let totalIncome = 0;
 
     txs.forEach(t => {
         const amt = parseFloat(t.amount) || 0;
-        if (t.type === 'income' || t.is_inflow) {
-            totalIncome += amt;
-        } else {
-            totalExpense += amt;
+        if (t.transaction_type === 'cash' || !t.transaction_type) {
+            if (t.is_inflow || t.type === 'income') {
+                totalIncome += amt;
+            } else {
+                totalExpense += amt;
+            }
         }
     });
 
-    const effectiveBudget = totalIncome > 0 ? totalIncome : (plannedBudget || 20000);
-    const remaining = effectiveBudget - totalExpense;
+    const effectiveBudget = effectiveTotalBudget > 0 ? effectiveTotalBudget : totalIncome;
+    const remaining = effectiveBudget > 0 ? (effectiveBudget - totalExpense) : (totalIncome > 0 ? (totalIncome - totalExpense) : 0);
     const usedPct = effectiveBudget > 0 ? Math.round((totalExpense / effectiveBudget) * 100) : 0;
-    const remainingPct = Math.max(0, 100 - usedPct);
+    const remainingPct = effectiveBudget > 0 ? Math.max(0, 100 - usedPct) : 0;
 
     return {
         totalBudget: effectiveBudget,

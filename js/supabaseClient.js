@@ -158,6 +158,119 @@ class ConWorkSupabaseService {
         }
     }
 
+    async createEmployeeAccount({ email, password, fullName, department, role, jobTitle, phone, companyId, avatarUrl }) {
+        if (!this.isAvailable()) return null;
+
+        const effectiveCompanyId = companyId || (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || '858b9899-c231-4cd4-a193-9972be8cb816';
+
+        // 1. Map internal role to company_role enum
+        let dbRole = 'employee';
+        if (role) {
+            const r = String(role).toLowerCase();
+            if (r === 'admin' || r === 'company_admin') dbRole = 'company_admin';
+            else if (r === 'reviewer2' || r === 'super_admin' || r.includes('ceo') || r.includes('ประธาน')) dbRole = 'super_admin';
+            else if (r === 'reviewer1' || r === 'manager' || r.includes('head') || r.includes('หัวหน้า') || r.includes('ผู้จัดการ')) dbRole = 'manager';
+            else if (r === 'guest') dbRole = 'guest';
+        }
+
+        // 2. Create user with isolated client to prevent overwriting active admin session
+        const tempClient = window.supabase.createClient(window.CONWORK_CONFIG.SUPABASE_URL, window.CONWORK_CONFIG.SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false
+            }
+        });
+
+        const defaultAvatar = avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random`;
+
+        const { data: authData, error: authErr } = await tempClient.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+                data: {
+                    full_name: fullName,
+                    avatar_url: defaultAvatar
+                }
+            }
+        });
+
+        if (authErr) {
+            console.error('Supabase create employee auth error:', authErr);
+            throw authErr;
+        }
+
+        const newUser = authData.user;
+        if (!newUser) throw new Error('Failed to create user');
+
+        // 3. Upsert profile
+        const profileData = {
+            id: newUser.id,
+            email: email,
+            full_name: fullName,
+            avatar_url: defaultAvatar,
+            department: department || null,
+            job_title: jobTitle || role || null,
+            phone: phone || null,
+            account_type: 'personal',
+            updated_at: new Date().toISOString()
+        };
+
+        const { error: profErr } = await this.client
+            .from('profiles')
+            .upsert([profileData], { onConflict: 'id' });
+
+        if (profErr) {
+            console.warn('Profile upsert warning:', profErr);
+        }
+
+        // 4. Link into company_members
+        const memberData = {
+            company_id: effectiveCompanyId,
+            user_id: newUser.id,
+            company_role: dbRole,
+            department: department || null,
+            job_title: jobTitle || role || null
+        };
+
+        const { error: memErr } = await this.client
+            .from('company_members')
+            .upsert([memberData], { onConflict: 'company_id,user_id' });
+
+        if (memErr) {
+            console.error('Failed to link member to company:', memErr);
+            throw memErr;
+        }
+
+        return {
+            id: newUser.id,
+            email: email,
+            name: fullName,
+            department: department,
+            jobTitle: jobTitle || role,
+            role: role,
+            phone: phone,
+            avatar: defaultAvatar,
+            status: 'offline'
+        };
+    }
+
+    async removeCompanyMember(companyId, userId) {
+        if (!this.isAvailable() || !userId) return false;
+        const effectiveCompanyId = companyId || (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || '858b9899-c231-4cd4-a193-9972be8cb816';
+
+        const { error } = await this.client
+            .from('company_members')
+            .delete()
+            .match({ company_id: effectiveCompanyId, user_id: userId });
+
+        if (error) {
+            console.error('Error removing company member from Supabase:', error);
+            throw error;
+        }
+        return true;
+    }
+
     // ==========================================
     // 2. COMPANY & SUBSCRIPTIONS
     // ==========================================
@@ -680,34 +793,54 @@ class ConWorkSupabaseService {
 
     async createCalendarEvent(eventData) {
         if (!this.isAvailable()) return null;
-        
+
+        // Separate attendee_ids and non-database UI fields
+        const { attendee_ids, color, files, createdInTab, ...mainData } = eventData;
+
+        // Map event_type to PostgreSQL check constraint: ('meeting', 'task_deadline', 'company_event', 'personal')
+        const allowedTypes = ['meeting', 'task_deadline', 'company_event', 'personal'];
+        let mappedType = mainData.event_type;
+        if (mappedType === 'event') mappedType = 'company_event';
+        else if (mappedType === 'deadline') mappedType = 'task_deadline';
+        else if (!allowedTypes.includes(mappedType)) mappedType = 'company_event';
+        mainData.event_type = mappedType;
+
         const { data, error } = await this.client
             .from('events')
-            .insert([eventData])
+            .insert([mainData])
             .select()
             .single();
-            
+
         if (error) throw error;
-        
+
         // Also insert attendees if any
-        if (eventData.attendee_ids && eventData.attendee_ids.length > 0 && data.id) {
-            const attendees = eventData.attendee_ids.map(uid => ({
+        if (attendee_ids && attendee_ids.length > 0 && data.id) {
+            const attendees = attendee_ids.map(uid => ({
                 event_id: data.id,
                 user_id: uid,
                 status: 'pending'
             }));
             await this.client.from('event_attendees').insert(attendees);
         }
-        
+
         return data;
     }
 
     async updateCalendarEvent(eventId, updateData) {
         if (!this.isAvailable()) return null;
-        
-        // Separate attendee_ids from main update data
-        const { attendee_ids, ...mainData } = updateData;
-        
+
+        // Separate attendee_ids and non-database UI fields
+        const { attendee_ids, color, files, createdInTab, ...mainData } = updateData;
+
+        if (mainData.event_type) {
+            const allowedTypes = ['meeting', 'task_deadline', 'company_event', 'personal'];
+            let mappedType = mainData.event_type;
+            if (mappedType === 'event') mappedType = 'company_event';
+            else if (mappedType === 'deadline') mappedType = 'task_deadline';
+            else if (!allowedTypes.includes(mappedType)) mappedType = 'company_event';
+            mainData.event_type = mappedType;
+        }
+
         if (Object.keys(mainData).length > 0) {
             const { data, error } = await this.client
                 .from('events')
@@ -715,13 +848,12 @@ class ConWorkSupabaseService {
                 .eq('id', eventId)
                 .select()
                 .single();
-                
+
             if (error) throw error;
         }
-        
+
         // Handle attendees update if provided
         if (attendee_ids !== undefined) {
-            // Very simple approach: delete old and insert new (for a real app we might want to diff)
             await this.client.from('event_attendees').delete().eq('event_id', eventId);
             if (attendee_ids.length > 0) {
                 const attendees = attendee_ids.map(uid => ({
@@ -732,7 +864,7 @@ class ConWorkSupabaseService {
                 await this.client.from('event_attendees').insert(attendees);
             }
         }
-        
+
         return { id: eventId, ...updateData };
     }
 

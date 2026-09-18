@@ -5052,6 +5052,10 @@
                             class="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl border border-gray-200 shadow-sm text-xs font-semibold flex items-center gap-1.5 transition-colors">
                             <i class="fa-solid fa-pen"></i> แก้ไขข้อมูล
                         </button>
+                        <button id="up-delete-btn" onclick="App.confirmDeleteMember(App.state.currentViewingUserId)"
+                            class="hidden bg-white hover:bg-red-50 text-red-600 px-3.5 py-2 rounded-xl border border-red-200 shadow-sm text-xs font-semibold items-center gap-1.5 transition-colors" title="ลบพนักงานออกจากบริษัท">
+                            <i class="fa-solid fa-trash-can"></i> ลบพนักงาน
+                        </button>
                         <div class="relative">
                             <button onclick="App.toggleUserProfileContextMenu(event)"
                                 class="bg-white hover:bg-gray-50 text-gray-700 w-8 h-8 flex items-center justify-center rounded-xl border border-gray-200 shadow-sm transition-colors text-xs">
@@ -5082,7 +5086,7 @@
                                 </button>
                                 <button
                                     class="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2 transition-colors"
-                                    onclick="alert('Delete user functionality')" data-require-perm="ลบพนักงาน">
+                                    onclick="App.confirmDeleteMember(App.state.currentViewingUserId)" data-require-perm="ลบพนักงาน">
                                     <i class="fa-solid fa-trash w-4 text-center"></i> ลบพนักงาน
                                 </button>
                             </div>
@@ -6593,14 +6597,14 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/mockData.js?v=8"></script>
-    <script src="js/config.js?v=7"></script>
-    <script src="js/supabaseClient.js?v=1"></script>
+    <script src="js/config.js?v=8"></script>
+    <script src="js/supabaseClient.js?v=2"></script>
     <script src="js/apiService.js?v=7"></script>
     <script src="js/i18n.js?v=7"></script>
     <script src="js/workReport.js?v=7"></script>
-    <script src="js/finance.js?v=2"></script>
-    <script src="js/app.js?v=40"></script>
-    <script src="js/login-flow.js?v=5"></script>
+    <script src="js/finance.js?v=5"></script>
+    <script src="js/app.js?v=43"></script>
+    <script src="js/login-flow.js?v=6"></script>
 
 </body>
 

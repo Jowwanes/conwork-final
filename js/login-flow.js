@@ -382,6 +382,22 @@ document.getElementById('form-profile-setup').addEventListener('submit', async f
                     };
                 }
             }
+            if (!autoJoinWs) {
+                const primaryId = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || '858b9899-c231-4cd4-a193-9972be8cb816';
+                const { data: pComp } = await window.conworkSupabase.client
+                    .from('companies')
+                    .select('*')
+                    .eq('id', primaryId)
+                    .maybeSingle();
+                if (pComp) {
+                    autoJoinWs = {
+                        workspace_id: pComp.id,
+                        name: pComp.name,
+                        code: pComp.code,
+                        type: 'corporate'
+                    };
+                }
+            }
         } catch(e) {
             console.error("Error auto-finding workspace:", e);
         }
@@ -622,16 +638,27 @@ async function checkAndRouteUser() {
                 }
             }
 
-            // 4. Auto-connect registered email to active company in Supabase
+            // 4. Auto-connect registered email to active primary company in Supabase
             if (!data || data.length === 0) {
-                const { data: corporateComp } = await window.conworkSupabase.client
+                const primaryId = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || '858b9899-c231-4cd4-a193-9972be8cb816';
+                let primaryComp = null;
+                const { data: pComp } = await window.conworkSupabase.client
                     .from('companies')
                     .select('*')
-                    .eq('is_personal', false)
-                    .order('created_at', { ascending: false });
+                    .eq('id', primaryId)
+                    .maybeSingle();
+                if (pComp) {
+                    primaryComp = pComp;
+                } else {
+                    const { data: corporateComp } = await window.conworkSupabase.client
+                        .from('companies')
+                        .select('*')
+                        .eq('is_personal', false)
+                        .order('created_at', { ascending: true });
+                    if (corporateComp && corporateComp.length > 0) primaryComp = corporateComp[0];
+                }
 
-                if (corporateComp && corporateComp.length > 0) {
-                    const primaryComp = corporateComp[0];
+                if (primaryComp) {
                     try {
                         await addMember(currentUser.user_id, primaryComp.id, 'employee');
                         data = [{ company_id: primaryComp.id, company_role: 'employee' }];

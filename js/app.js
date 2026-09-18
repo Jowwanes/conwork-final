@@ -744,6 +744,29 @@ const App = {
                         }
                     }
 
+                    const PRIMARY_COMPANY_ID = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || '858b9899-c231-4cd4-a193-9972be8cb816';
+
+                    // Auto-join primary company if not yet a member
+                    if (!membersData || !membersData.some(m => m.company_id === PRIMARY_COMPANY_ID)) {
+                        try {
+                            const { data: joinedMem } = await window.conworkSupabase.client
+                                .from('company_members')
+                                .upsert({
+                                    company_id: PRIMARY_COMPANY_ID,
+                                    user_id: this.state.currentUser.id,
+                                    company_role: (this.state.currentUser.role === 'admin' || this.state.currentUser.role === 'reviewer2') ? 'company_admin' : 'employee',
+                                    department: this.state.currentUser.department || 'พนักงานทั่วไป',
+                                    job_title: this.state.currentUser.jobTitle || 'พนักงาน'
+                                }, { onConflict: 'company_id,user_id' })
+                                .select();
+                            if (joinedMem && joinedMem.length > 0) {
+                                membersData = membersData ? [...membersData, joinedMem[0]] : [joinedMem[0]];
+                            }
+                        } catch (bindErr) {
+                            console.warn('Auto-join primary company error:', bindErr);
+                        }
+                    }
+
                     this.state.members = (membersData || []).map(m => ({
                         id: m.id,
                         workspace_id: m.company_id,
@@ -753,7 +776,9 @@ const App = {
                     }));
 
                     if (this.state.members.length > 0) {
-                        const companyIds = this.state.members.map(m => m.workspace_id);
+                        // Always ensure PRIMARY_COMPANY_ID is included in companyIds
+                        const companyIds = [...new Set([PRIMARY_COMPANY_ID, ...this.state.members.map(m => m.workspace_id)])];
+                        this.state.currentCompanyId = PRIMARY_COMPANY_ID;
                         
                         // Fetch companies
                         const { data: companiesData, error: compErr } = await window.conworkSupabase.client
@@ -951,6 +976,33 @@ const App = {
                                     console.log('⚡ Realtime Update: notifications changed');
                                     this.fetchNotificationsFromSupabase();
                                 })
+                                .on('postgres_changes', { event: '*', schema: 'public', table: 'finance_settings' }, () => {
+                                    console.log('⚡ Realtime Update: finance_settings changed');
+                                    if (typeof syncFinanceWithSupabase === 'function') {
+                                        syncFinanceWithSupabase().then(() => {
+                                            if (typeof recalculateFinanceTotals === 'function') recalculateFinanceTotals();
+                                            if (this.state.currentView === 'dashboard') this.renderDashboard();
+                                        });
+                                    }
+                                })
+                                .on('postgres_changes', { event: '*', schema: 'public', table: 'finance_categories' }, () => {
+                                    console.log('⚡ Realtime Update: finance_categories changed');
+                                    if (typeof syncFinanceWithSupabase === 'function') {
+                                        syncFinanceWithSupabase().then(() => {
+                                            if (typeof recalculateFinanceTotals === 'function') recalculateFinanceTotals();
+                                            if (this.state.currentView === 'dashboard') this.renderDashboard();
+                                        });
+                                    }
+                                })
+                                .on('postgres_changes', { event: '*', schema: 'public', table: 'finance_transactions' }, () => {
+                                    console.log('⚡ Realtime Update: finance_transactions changed');
+                                    if (typeof syncFinanceWithSupabase === 'function') {
+                                        syncFinanceWithSupabase().then(() => {
+                                            if (typeof recalculateFinanceTotals === 'function') recalculateFinanceTotals();
+                                            if (this.state.currentView === 'dashboard') this.renderDashboard();
+                                        });
+                                    }
+                                })
                                 .subscribe();
                         }
 
@@ -1075,6 +1127,14 @@ const App = {
                                     });
                                 }
                                 await this.fetchNotificationsFromSupabase();
+
+                                if (typeof syncFinanceWithSupabase === 'function') {
+                                    syncFinanceWithSupabase().then(() => {
+                                        if (this.state.currentView === 'dashboard') {
+                                            this.renderDashboard();
+                                        }
+                                    }).catch(e => console.warn('Supabase finance sync on load warning:', e));
+                                }
                             }
                         }
                     }
@@ -1748,7 +1808,15 @@ const App = {
         } else {
             let totalIncome = 0;
             let totalExpense = 0;
-            let plannedBudget = 24450;
+            let plannedBudget = 0;
+            try {
+                const rawMb = localStorage.getItem('conwork_master_budget');
+                if (rawMb) {
+                    const mb = JSON.parse(rawMb);
+                    plannedBudget = parseFloat(mb.totalBudget) || 0;
+                }
+            } catch (e) {}
+
             try {
                 const rawTrans = localStorage.getItem('conwork_finance_transactions');
                 if (rawTrans) {
@@ -1762,8 +1830,8 @@ const App = {
             } catch (e) {
                 console.warn('Finance calc error:', e);
             }
-            const effectiveBudget = totalIncome > 0 ? totalIncome : plannedBudget;
-            const remaining = effectiveBudget - totalExpense;
+            const effectiveBudget = plannedBudget > 0 ? plannedBudget : totalIncome;
+            const remaining = effectiveBudget > 0 ? (effectiveBudget - totalExpense) : (totalIncome > 0 ? (totalIncome - totalExpense) : 0);
             const usedPct = effectiveBudget > 0 ? Math.round((totalExpense / effectiveBudget) * 100) : 0;
             fin = {
                 totalBudget: effectiveBudget,
@@ -1771,7 +1839,7 @@ const App = {
                 totalIncome: totalIncome,
                 remaining: remaining,
                 usedPct: usedPct,
-                remainingPct: Math.max(0, 100 - usedPct)
+                remainingPct: effectiveBudget > 0 ? Math.max(0, 100 - usedPct) : 0
             };
         }
 
@@ -6510,10 +6578,8 @@ const App = {
                         if (allProjectUserIds.length > 0) {
                             const membersToInsert = allProjectUserIds.map(uid => {
                                 let role = 'contributor';
-                                if (uid === this.state.currentUser.id || (managers && managers.includes(uid))) {
-                                    role = 'manager';
-                                } else if (comanagers && comanagers.includes(uid)) {
-                                    role = 'comanager';
+                                if (uid === this.state.currentUser.id || (managers && managers.includes(uid)) || (comanagers && comanagers.includes(uid))) {
+                                    role = 'project_manager';
                                 }
                                 return {
                                     project_id: newId,
@@ -6850,7 +6916,9 @@ const App = {
         
         let savedDbEvent = null;
         
-        const compId = this.state.workspaces && this.state.workspaces.length > 0 ? this.state.workspaces[0].workspace_id : 'W-1';
+        const compId = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || 
+                       (this.state.workspaces && this.state.workspaces.length > 0 ? (this.state.workspaces[0].workspace_id || this.state.workspaces[0].id) : null) || 
+                       '858b9899-c231-4cd4-a193-9972be8cb816';
         
         if (window.conworkSupabase && window.conworkSupabase.isAvailable() && compId) {
             try {
@@ -6867,14 +6935,17 @@ const App = {
                      startTime = dt.toISOString();
                      endTime = dt.toISOString();
                 }
+
+                let mappedEventType = this.state.cevType || 'company_event';
+                if (mappedEventType === 'event') mappedEventType = 'company_event';
+                else if (mappedEventType === 'deadline') mappedEventType = 'task_deadline';
                 
                 const dbEvent = {
                     company_id: compId,
                     organizer_id: this.state.currentUser.id,
                     title: title,
                     description: note,
-                    event_type: this.state.cevType || 'event',
-                    color: color,
+                    event_type: mappedEventType,
                     start_time: startTime,
                     end_time: endTime,
                     project_id: projId || null,
@@ -10800,14 +10871,44 @@ const App = {
                 return;
             }
 
-            const maxId = mockUsers.reduce((max, u) => {
-                const idNum = parseInt(u.id, 10);
-                return (!isNaN(idNum) && idNum > max) ? idNum : max;
-            }, 0);
-            const newId = maxId + 1;
+            let newUserId = null;
+            const compId = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || this.state.currentCompanyId || '858b9899-c231-4cd4-a193-9972be8cb816';
 
-            mockUsers.push({
-                id: newId,
+            if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+                try {
+                    const created = await window.conworkSupabase.createEmployeeAccount({
+                        email: email,
+                        password: finalPassword,
+                        fullName: fullName,
+                        department: dept,
+                        role: internalRole,
+                        jobTitle: role,
+                        phone: document.getElementById('am-phone')?.value.trim() || '',
+                        companyId: compId,
+                        avatarUrl: avatarUrl
+                    });
+                    if (created && created.id) {
+                        newUserId = created.id;
+                    }
+                } catch (sbErr) {
+                    console.error('Error creating employee in Supabase:', sbErr);
+                    const msg = sbErr.message || 'ไม่สามารถสร้างผู้ใช้บน Supabase ได้';
+                    if (typeof this._showToast === 'function') this._showToast(`ผิดพลาด: ${msg}`, 'error');
+                    else alert(`เกิดข้อผิดพลาดในการสร้างผู้ใช้: ${msg}`);
+                    return;
+                }
+            }
+
+            if (!newUserId) {
+                const maxId = mockUsers.reduce((max, u) => {
+                    const idNum = parseInt(u.id, 10);
+                    return (!isNaN(idNum) && idNum > max) ? idNum : max;
+                }, 0);
+                newUserId = maxId + 1;
+            }
+
+            const newEmployeeObj = {
+                id: newUserId,
                 username: namePart,
                 password: finalPassword,
                 name: fullName,
@@ -10818,10 +10919,28 @@ const App = {
                 department: dept,
                 avatar: avatarUrl,
                 status: 'offline'
-            });
+            };
+
+            mockUsers.push(newEmployeeObj);
+
+            // Cache employee position in localStorage
+            try {
+                const savedPositions = JSON.parse(localStorage.getItem('conwork_employee_positions') || '{}');
+                savedPositions[newUserId] = {
+                    jobTitle: role,
+                    role: internalRole,
+                    department: dept
+                };
+                localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
+            } catch (e) {}
+
+            // Cache in cached users so it survives refreshes
+            try {
+                localStorage.setItem('conwork_cached_users', JSON.stringify(mockUsers));
+            } catch (e) {}
 
             if (typeof this._showToast === 'function') {
-                this._showToast('เพิ่มพนักงานเรียบร้อย', 'success');
+                this._showToast('เพิ่มพนักงานเรียบร้อยและบันทึกลงระบบแล้ว', 'success');
             } else {
                 alert('เพิ่มพนักงานเรียบร้อย');
             }
@@ -10959,6 +11078,20 @@ const App = {
             }
         }
 
+        // Handle Delete / Remove Employee Button Visibility
+        const deleteBtn = document.getElementById('up-delete-btn');
+        if (deleteBtn) {
+            const canDelete = this.isCeoOrAdmin() && (this.state.currentUser && String(this.state.currentUser.id) !== String(userId));
+            if (canDelete) {
+                deleteBtn.classList.remove('hidden');
+                deleteBtn.classList.add('flex');
+                deleteBtn.onclick = () => App.confirmDeleteMember(userId);
+            } else {
+                deleteBtn.classList.add('hidden');
+                deleteBtn.classList.remove('flex');
+            }
+        }
+
         // 2. Personal Info
         const nameParts = user.name.split(' ');
         const firstName = nameParts[0] || '';
@@ -11089,6 +11222,99 @@ const App = {
         
         // Update user profile modal dynamically
         this.openUserProfileModal(this.state.currentUser.id);
+    },
+
+    confirmDeleteMember(userId) {
+        if (!userId) return;
+        if (!this.isCeoOrAdmin()) {
+            this._showToast('เฉพาะผู้ดูแลระบบหรือผู้บริหารเท่านั้นที่สามารถลบพนักงานได้', 'error');
+            return;
+        }
+        if (this.state.currentUser && String(this.state.currentUser.id) === String(userId)) {
+            this._showToast('คุณไม่สามารถลบบัญชีของตนเองออกจากบริษัทได้', 'error');
+            return;
+        }
+
+        const user = mockUsers.find(u => String(u.id) === String(userId));
+        const userName = user ? user.name : 'พนักงานที่เลือก';
+
+        let confirmModal = document.getElementById('delete-member-confirm-modal');
+        if (!confirmModal) {
+            confirmModal = document.createElement('div');
+            confirmModal.id = 'delete-member-confirm-modal';
+            confirmModal.className = 'fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4 animate-fade-in';
+            confirmModal.innerHTML = `
+                <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 text-center">
+                    <div class="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-3 text-xl">
+                        <i class="fa-solid fa-user-xmark"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-1">ยืนยันการลบพนักงาน</h3>
+                    <p class="text-xs text-gray-500 mb-5 leading-relaxed" id="delete-member-confirm-text">คุณแน่ใจหรือไม่ว่าต้องการลบพนักงานคนนี้ออกจากบริษัท?</p>
+                    <div class="flex gap-3 justify-center">
+                        <button id="delete-member-btn-cancel" class="flex-1 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors border border-gray-200">ยกเลิก</button>
+                        <button id="delete-member-btn-confirm" class="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-sm">ลบพนักงาน</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmModal);
+        }
+
+        const confirmText = document.getElementById('delete-member-confirm-text');
+        if (confirmText) {
+            confirmText.textContent = `คุณแน่ใจหรือไม่ว่าต้องการลบ "${userName}" ออกจากบริษัท? เมื่อลบแล้วพนักงานจะไม่สามารถเข้าถึงข้อมูลของบริษัทนี้ได้อีก`;
+        }
+
+        const cancelBtn = document.getElementById('delete-member-btn-cancel');
+        if (cancelBtn) {
+            cancelBtn.onclick = () => confirmModal.classList.add('hidden');
+        }
+
+        const confirmBtn = document.getElementById('delete-member-btn-confirm');
+        if (confirmBtn) {
+            confirmBtn.onclick = async () => {
+                confirmModal.classList.add('hidden');
+                await this.executeDeleteMember(userId);
+            };
+        }
+
+        confirmModal.classList.remove('hidden');
+    },
+
+    async executeDeleteMember(userId) {
+        try {
+            const compId = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || 
+                           (this.state.workspaces && this.state.workspaces.length > 0 ? (this.state.workspaces[0].workspace_id || this.state.workspaces[0].id) : null) || 
+                           '858b9899-c231-4cd4-a193-9972be8cb816';
+
+            // 1. Delete from Supabase
+            if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+                await window.conworkSupabase.removeCompanyMember(compId, userId);
+            }
+
+            // 2. Remove from mockUsers
+            const idx = mockUsers.findIndex(u => String(u.id) === String(userId));
+            if (idx !== -1) {
+                mockUsers.splice(idx, 1);
+            }
+
+            // 3. Update localStorage cache
+            try {
+                localStorage.setItem('conwork_cached_users', JSON.stringify(mockUsers));
+                const savedPositions = JSON.parse(localStorage.getItem('conwork_employee_positions') || '{}');
+                delete savedPositions[userId];
+                localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
+            } catch (e) {}
+
+            // 4. Close user profile modal if open
+            this.closeUserProfileModal();
+
+            // 5. Re-render team view
+            this.renderTeam();
+            this._showToast('ลบพนักงานออกจากบริษัทเรียบร้อยแล้ว', 'success');
+        } catch (err) {
+            console.error('Error deleting member:', err);
+            this._showToast('เกิดข้อผิดพลาดในการลบพนักงาน: ' + (err.message || ''), 'error');
+        }
     },
 
     editUserProfile() {
