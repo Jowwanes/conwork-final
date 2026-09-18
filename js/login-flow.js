@@ -2,50 +2,34 @@
 let currentUser = null;
 let tempOnboardingData = {};
 
-// Initialize Database in LocalStorage if empty
+// Initialize Database in LocalStorage and clean up any legacy mock users
 function initDB() {
-    let usersStr = localStorage.getItem('users');
-    let users = usersStr ? JSON.parse(usersStr) : [];
-    
-    let workspacesStr = localStorage.getItem('workspaces');
-    let workspaces = workspacesStr ? JSON.parse(workspacesStr) : [];
-    
-    let membersStr = localStorage.getItem('workspace_members');
-    let members = membersStr ? JSON.parse(membersStr) : [];
-
-    // Seed initial admin and company if empty (for backward compatibility / demo)
-    if (workspaces.length === 0) {
-        const defaultWorkspace = {
-            workspace_id: 'W-1',
-            type: 'corporate',
-            name: 'Acme Corp',
-            code: 'COMP-1234',
-            domain: 'acme.com',
-            created_at: new Date().toISOString()
-        };
-        workspaces.push(defaultWorkspace);
-        localStorage.setItem('workspaces', JSON.stringify(workspaces));
-    }
-
-    if (users.length === 0) {
-        const defaultAdmin = {
-            user_id: 'U-1',
-            email: 'admin@acme.com',
-            password: 'Password@123',
-            first_name: 'Admin',
-            last_name: 'Acme',
-            created_at: new Date().toISOString()
-        };
-        users.push(defaultAdmin);
-        localStorage.setItem('users', JSON.stringify(users));
-
-        members.push({
-            user_id: 'U-1',
-            workspace_id: 'W-1',
-            role: 'admin'
-        });
-        localStorage.setItem('workspace_members', JSON.stringify(members));
-    }
+    try {
+        let usersStr = localStorage.getItem('users');
+        if (usersStr) {
+            let users = JSON.parse(usersStr);
+            if (Array.isArray(users)) {
+                users = users.filter(u => u && u.email !== 'admin@acme.com' && u.email !== 'admin@conwork.com' && !String(u.email || '').includes('@d2cbrand.com'));
+                localStorage.setItem('users', JSON.stringify(users));
+            }
+        }
+        let workspacesStr = localStorage.getItem('workspaces');
+        if (workspacesStr) {
+            let workspaces = JSON.parse(workspacesStr);
+            if (Array.isArray(workspaces)) {
+                workspaces = workspaces.filter(w => w && w.name !== 'Acme Corp' && w.code !== 'COMP-1234');
+                localStorage.setItem('workspaces', JSON.stringify(workspaces));
+            }
+        }
+        let membersStr = localStorage.getItem('workspace_members');
+        if (membersStr) {
+            let members = JSON.parse(membersStr);
+            if (Array.isArray(members)) {
+                members = members.filter(m => m && m.user_id !== 'U-1');
+                localStorage.setItem('workspace_members', JSON.stringify(members));
+            }
+        }
+    } catch (e) {}
 }
 
 initDB();

@@ -37,8 +37,22 @@ const App = {
         // Preload cached users immediately to avoid 0-employee flash on page load/refresh
         try {
             const cachedUsers = JSON.parse(localStorage.getItem('conwork_cached_users') || '[]');
-            if (cachedUsers && cachedUsers.length > 0 && mockUsers.length === 0) {
-                mockUsers.push(...cachedUsers);
+            if (cachedUsers && cachedUsers.length > 0) {
+                const cleanUsers = cachedUsers.filter(u => {
+                    const idStr = String(u?.id || '');
+                    const emailStr = String(u?.email || '').toLowerCase();
+                    const nameStr = String(u?.name || '').toLowerCase();
+                    if (typeof u?.id === 'number' || (!isNaN(u?.id) && idStr.length < 10) || idStr.startsWith('U-') || idStr.startsWith('mock_')) return false;
+                    if (emailStr.includes('@d2cbrand.com') || emailStr.includes('@acme.com') || emailStr === 'admin@conwork.com') return false;
+                    if (nameStr.includes('admin user') || nameStr.includes('admin acme') || nameStr.includes('วิชญ์ บรรจบ')) return false;
+                    return true;
+                });
+                if (cleanUsers.length !== cachedUsers.length) {
+                    localStorage.setItem('conwork_cached_users', JSON.stringify(cleanUsers));
+                }
+                if (mockUsers.length === 0 && cleanUsers.length > 0) {
+                    mockUsers.push(...cleanUsers);
+                }
             }
         } catch(e){}
         this.checkAuth();
@@ -878,6 +892,10 @@ const App = {
                                     jobTitle = savedPos.jobTitle || jobTitle || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
                                 }
 
+                                if (email === 'admin@conwork.com' || name === 'Admin User' || String(email).includes('@d2cbrand.com') || String(email).includes('@acme.com')) {
+                                    return;
+                                }
+
                                 if (mDept || jobTitle) {
                                     savedPositions[uid] = {
                                         jobTitle: jobTitle,
@@ -1182,7 +1200,16 @@ const App = {
                 if (mockUsers.length === 0) {
                     try {
                         const cached = JSON.parse(localStorage.getItem('conwork_cached_users') || '[]');
-                        if (cached && cached.length > 0) mockUsers.push(...cached);
+                        const clean = (cached || []).filter(u => {
+                            const idStr = String(u?.id || '');
+                            const emailStr = String(u?.email || '').toLowerCase();
+                            const nameStr = String(u?.name || '').toLowerCase();
+                            if (typeof u?.id === 'number' || (!isNaN(u?.id) && idStr.length < 10) || idStr.startsWith('U-') || idStr.startsWith('mock_')) return false;
+                            if (emailStr.includes('@d2cbrand.com') || emailStr.includes('@acme.com') || emailStr === 'admin@conwork.com') return false;
+                            if (nameStr.includes('admin user') || nameStr.includes('admin acme') || nameStr.includes('วิชญ์ บรรจบ')) return false;
+                            return true;
+                        });
+                        if (clean && clean.length > 0) mockUsers.push(...clean);
                     } catch(e){}
                 }
                 mockEvents.splice(0, mockEvents.length);
@@ -1193,7 +1220,16 @@ const App = {
             if (mockUsers.length === 0) {
                 try {
                     const cached = JSON.parse(localStorage.getItem('conwork_cached_users') || '[]');
-                    if (cached && cached.length > 0) mockUsers.push(...cached);
+                    const clean = (cached || []).filter(u => {
+                        const idStr = String(u?.id || '');
+                        const emailStr = String(u?.email || '').toLowerCase();
+                        const nameStr = String(u?.name || '').toLowerCase();
+                        if (typeof u?.id === 'number' || (!isNaN(u?.id) && idStr.length < 10) || idStr.startsWith('U-') || idStr.startsWith('mock_')) return false;
+                        if (emailStr.includes('@d2cbrand.com') || emailStr.includes('@acme.com') || emailStr === 'admin@conwork.com') return false;
+                        if (nameStr.includes('admin user') || nameStr.includes('admin acme') || nameStr.includes('วิชญ์ บรรจบ')) return false;
+                        return true;
+                    });
+                    if (clean && clean.length > 0) mockUsers.push(...clean);
                 } catch(e){}
             }
 
