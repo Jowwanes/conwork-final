@@ -2,7 +2,7 @@ const App = {
     /** @type {Record<string, any>} */
     state: {
         currentUser: null,
-        currentView: 'dashboard',
+        currentView: 'projects',
         currentProject: null,
         currentChat: 'note',
         chatFilter: 'all',
@@ -23,13 +23,35 @@ const App = {
         members: []
     },
 
-    isCeoOrAdmin(user = this.state.currentUser) {
+    isExecutive(user = this.state.currentUser) {
         if (!user) return false;
         const role = String(user.role || '').toLowerCase();
-        const jobTitle = String(user.jobTitle || '').toLowerCase();
-        return role === 'admin' || role === 'reviewer2' || role === 'ceo' || role === 'super_admin' || role === 'company_admin' ||
-               role.includes('admin') || role.includes('ceo') ||
-               jobTitle.includes('ceo') || jobTitle.includes('ผู้บริหาร') || jobTitle.includes('ประธาน') || jobTitle.includes('ผู้อำนวยการ');
+        const companyRole = String(user.company_role || user.companyRole || '').toLowerCase();
+        const jobTitle = String(user.jobTitle || user.job_title || '').toLowerCase();
+        const dept = String(user.department || '').toLowerCase();
+
+        // 1. Roles corresponding to Executive / CEO / Admin
+        const execRoles = ['reviewer2', 'ceo', 'admin', 'super_admin', 'company_admin'];
+        if (execRoles.includes(role) || execRoles.includes(companyRole)) return true;
+
+        // 2. Keyword checks in role
+        if (role.includes('ceo') || role.includes('ผู้บริหาร') || role.includes('admin') ||
+            companyRole.includes('ceo') || companyRole.includes('ผู้บริหาร') || companyRole.includes('admin')) {
+            return true;
+        }
+
+        // 3. Keyword checks in jobTitle / Position
+        const execTitles = ['ผู้บริหาร', 'ceo', 'ประธาน', 'ผู้อำนวยการ', 'executive', 'กรรมการผู้จัดการ', 'chief'];
+        if (execTitles.some(t => jobTitle.includes(t))) return true;
+
+        // 4. Department strictly for executive
+        if (dept === 'ผู้บริหาร' || dept === 'executive') return true;
+
+        return false;
+    },
+
+    isCeoOrAdmin(user = this.state.currentUser) {
+        return this.isExecutive(user);
     },
 
     async init() {
@@ -58,6 +80,9 @@ const App = {
         this.checkAuth();
         await this._loadData();
         if (this.state.currentView) {
+            if (this.state.currentView === 'dashboard' && !this.isExecutive()) {
+                this.state.currentView = 'projects';
+            }
             this.switchView(this.state.currentView);
         }
         this.bindEvents();
@@ -1303,7 +1328,10 @@ const App = {
         if (app) app.classList.remove('hidden');
         
         this.updateProfile();
-        this.switchView(this.state.currentView);
+        if (this.state.currentView === 'dashboard' && !this.isExecutive()) {
+            this.state.currentView = 'projects';
+        }
+        this.switchView(this.state.currentView || (this.isExecutive() ? 'dashboard' : 'projects'));
     },
 
     updateProfile() {
@@ -1316,6 +1344,8 @@ const App = {
             if (matchingUser.avatar) this.state.currentUser.avatar = matchingUser.avatar;
             if (matchingUser.department) this.state.currentUser.department = matchingUser.department;
             if (matchingUser.role) this.state.currentUser.role = matchingUser.role;
+            if (matchingUser.jobTitle) this.state.currentUser.jobTitle = matchingUser.jobTitle;
+            if (matchingUser.company_role) this.state.currentUser.company_role = matchingUser.company_role;
         }
 
         const nameEl = document.getElementById('current-user-name');
@@ -1350,11 +1380,22 @@ const App = {
     },
 
     applyRBAC() {
+        if (!this.state.currentUser) return;
         const role = this.state.currentUser.role || 'worker';
         const lowerRole = role.toLowerCase();
         const isAdmin = role === 'admin' || role === 'reviewer2' || lowerRole.includes('admin') || lowerRole.includes('ceo');
+        const isExec = this.isExecutive();
 
-        // Set "Create Project" button visibility is now handled by applyGlobalPermissions
+        // Toggle Executive Only Elements (Dashboard - only for executives/management)
+        document.querySelectorAll('.executive-only-element, [data-view="dashboard"]').forEach(el => {
+            if (isExec) {
+                el.classList.remove('hidden');
+                el.style.display = '';
+            } else {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+        });
 
         // Toggle Admin Only Elements
         document.querySelectorAll('.admin-only-element').forEach(el => {
@@ -1366,6 +1407,11 @@ const App = {
                 el.classList.add('hidden');
             }
         });
+
+        // Guard: if non-executive is currently viewing dashboard, force switch to projects
+        if (!isExec && (this.state.currentView === 'dashboard' || !document.getElementById('view-dashboard')?.classList.contains('hidden'))) {
+            this.switchView('projects');
+        }
     },
 
     bindEvents() {
@@ -1658,6 +1704,11 @@ const App = {
 
     // --- Core Navigation ---
     switchView(viewName) {
+        // Guard: Dashboard is strictly for executives
+        if (viewName === 'dashboard' && !this.isExecutive()) {
+            viewName = 'projects';
+        }
+
         document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
         const targetView = document.getElementById(`view-${viewName}`);
         if (targetView) targetView.classList.remove('hidden');
@@ -1685,7 +1736,7 @@ const App = {
 
         // Update header title
         const titleMap = { 
-            dashboard: 'แดชบอร์ดส่วนตัว', 
+            dashboard: 'แดชบอร์ดภาพรวมองค์กร', 
             projects: 'งานทั้งหมด', 
             calendar: 'ปฏิทิน', 
             messages: 'ข้อความ', 
@@ -1825,6 +1876,11 @@ const App = {
     },
 
     renderDashboard() {
+        if (!this.isExecutive()) {
+            this.switchView('projects');
+            return;
+        }
+
         // CEO Executive Dashboard: System-wide overview & All Employee info
         const totalProjects = mockProjects.filter(p => p.status !== 'deleted' && p.status !== 'hidden');
         const completedProjects = totalProjects.filter(p => p.status === 'completed');
