@@ -1669,45 +1669,31 @@ function escapeHtml(str) {
 }
 
 function filterTransactionsByProject(projectId) {
-    const tableRows = document.querySelectorAll('#view-accounting tbody tr');
-    const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');
-    if (tabs.length > 0) tabs[0].click();
-
-    tableRows.forEach(row => {
-        if (!projectId || projectId === 'all') {
-            row.style.display = '';
-        } else if (row._txData) {
-            row.style.display = (String(row._txData.project_id) === String(projectId)) ? '' : 'none';
-        } else {
-            row.style.display = '';
-        }
-    });
-
+    currentFinanceProjectFilter = (!projectId || projectId === 'all') ? null : String(projectId);
+    currentFinanceCategoryFilter = null;
+    const projects = getFinanceProjects();
+    const projObj = projects.find(p => String(p.id) === String(projectId));
+    const searchInput = document.getElementById('finance-search-input');
+    if (searchInput) {
+        searchInput.value = (projObj && projectId !== 'all') ? projObj.name : '';
+    }
+    setFinanceLedgerTab('all');
     scrollToTable();
 }
 
 function filterTransactionsByCategory(catKey) {
-    const tableRows = document.querySelectorAll('#view-accounting tbody tr');
-    const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');
-    if (tabs.length > 0) tabs[0].click();
-
+    currentFinanceCategoryFilter = (!catKey || catKey === 'all') ? null : catKey;
+    currentFinanceProjectFilter = null;
     const categories = getFinanceCategories();
     const meta = categories[catKey];
-    tableRows.forEach(row => {
-        const catCell = row.querySelector('td:nth-child(3)');
-        if (!catCell) return;
-        if (!meta || catKey === 'all') {
-            row.style.display = '';
-        } else if (row._txData) {
-            row.style.display = (row._txData.category === catKey) ? '' : 'none';
-        } else {
-            const matches = catCell.textContent.includes(meta.name) || (catKey === 'welfare' && catCell.textContent.includes('สวัสดิการ'));
-            row.style.display = matches ? '' : 'none';
-        }
-    });
-
+    const searchInput = document.getElementById('finance-search-input');
+    if (searchInput) {
+        searchInput.value = (meta && catKey !== 'all') ? meta.name : '';
+    }
+    setFinanceLedgerTab('all');
     scrollToTable();
 }
+
 
 function showFinanceDetailModal(title, iconClass, items) {
     let modal = document.getElementById('finance-summary-detail-modal');
@@ -1745,6 +1731,8 @@ function showFinanceDetailModal(title, iconClass, items) {
 }
 
 let currentFinanceTab = 'all';
+let currentFinanceCategoryFilter = null;
+let currentFinanceProjectFilter = null;
 
 function setFinanceLedgerTab(tabKey) {
     currentFinanceTab = tabKey;
@@ -1770,7 +1758,7 @@ function filterFinanceLedgerTable() {
     const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
     const clearBtn = document.getElementById('finance-search-clear-btn');
     if (clearBtn) {
-        clearBtn.classList.toggle('hidden', !searchTerm);
+        clearBtn.classList.toggle('hidden', !searchTerm && !currentFinanceCategoryFilter && !currentFinanceProjectFilter);
     }
 
     // Remove any previous temporary no-match placeholder
@@ -1784,6 +1772,8 @@ function filterFinanceLedgerTable() {
     let creditCount = 0;
     let cashCount = 0;
     let pendingCount = 0;
+
+    const allCats = getFinanceCategories();
 
     rows.forEach(row => {
         const tx = row._txData;
@@ -1802,6 +1792,17 @@ function filterFinanceLedgerTable() {
         else if (currentFinanceTab === 'cash' && tx.transaction_type === 'cash') tabMatch = true;
         else if (currentFinanceTab === 'pending' && isPending) tabMatch = true;
 
+        // Category & Project direct filter condition
+        let categoryMatch = true;
+        if (currentFinanceCategoryFilter && currentFinanceCategoryFilter !== 'all') {
+            categoryMatch = (tx.category === currentFinanceCategoryFilter);
+        }
+
+        let projectMatch = true;
+        if (currentFinanceProjectFilter && currentFinanceProjectFilter !== 'all') {
+            projectMatch = (String(tx.project_id) === String(currentFinanceProjectFilter));
+        }
+
         // Search match condition
         let searchMatch = true;
         if (searchTerm) {
@@ -1813,17 +1814,23 @@ function filterFinanceLedgerTable() {
             const noteStr = (tx.note || '').toLowerCase();
             const projectObj = tx.project_id ? getFinanceProjects().find(p => String(p.id) === String(tx.project_id)) : null;
             const projectName = (projectObj?.name || '').toLowerCase();
+            
+            const catMeta = allCats ? allCats[tx.category] : null;
+            const catThaiName = (catMeta?.name || '').toLowerCase();
+            const statusThai = curStatus.toLowerCase();
 
             searchMatch = titleStr.includes(searchTerm) ||
                           catStr.includes(searchTerm) ||
+                          catThaiName.includes(searchTerm) ||
                           subcatStr.includes(searchTerm) ||
                           authorStr.includes(searchTerm) ||
                           amountStr.includes(searchTerm) ||
                           noteStr.includes(searchTerm) ||
+                          statusThai.includes(searchTerm) ||
                           projectName.includes(searchTerm);
         }
 
-        if (tabMatch && searchMatch) {
+        if (tabMatch && searchMatch && categoryMatch && projectMatch) {
             row.style.display = '';
             visibleCount++;
             visibleTotal += parseFloat(tx.amount) || 0;
@@ -1892,12 +1899,16 @@ function setupFinanceLedgerControls() {
     const clearBtn = document.getElementById('finance-search-clear-btn');
     if (searchInput) {
         searchInput.addEventListener('input', () => {
+            currentFinanceCategoryFilter = null;
+            currentFinanceProjectFilter = null;
             filterFinanceLedgerTable();
         });
     }
     if (clearBtn && searchInput) {
         clearBtn.addEventListener('click', () => {
             searchInput.value = '';
+            currentFinanceCategoryFilter = null;
+            currentFinanceProjectFilter = null;
             searchInput.focus();
             filterFinanceLedgerTable();
         });
@@ -2024,13 +2035,15 @@ function initFinanceDashboard() {
     viewAllLinks.forEach(link => {
         if (link.innerText.includes('ดูรายละเอียดทั้งหมด')) {
             link.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (link.classList.contains('text-blue-600')) {
-                    // Credit Donut view all
-                    tabs[1].click();
+                    // Credit Donut view all -> switch to Credit tab
+                    setFinanceLedgerTab('credit');
                     scrollToTable();
                 } else if (link.classList.contains('text-green-600')) {
-                    // Cash Donut view all
-                    tabs[2].click();
+                    // Cash Donut view all -> switch to Cash tab
+                    setFinanceLedgerTab('cash');
                     scrollToTable();
                 }
             });
@@ -2083,6 +2096,13 @@ function initFinanceDashboard() {
 
 function scrollToTable() {
     const tableContainer = document.getElementById('finance-ledger-container') || document.querySelector('#view-accounting table')?.closest('.rounded-2xl');
+    const scrollParent = document.getElementById('view-accounting');
+    if (tableContainer && scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const tableRect = tableContainer.getBoundingClientRect();
+        const relativeTop = tableRect.top - parentRect.top + scrollParent.scrollTop - 16;
+        scrollParent.scrollTo({ top: Math.max(0, relativeTop), behavior: 'smooth' });
+    }
     if (tableContainer) {
         tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -3169,3 +3189,7 @@ window.submitSubcategoryAllocation = submitSubcategoryAllocation;
 window.handleApproveFinanceTransaction = handleApproveFinanceTransaction;
 window.confirmRejectFinanceTransaction = confirmRejectFinanceTransaction;
 window.executeRejectFinanceTransaction = executeRejectFinanceTransaction;
+window.setFinanceLedgerTab = setFinanceLedgerTab;
+window.filterFinanceLedgerTable = filterFinanceLedgerTable;
+window.scrollToTable = scrollToTable;
+

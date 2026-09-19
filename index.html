@@ -1478,7 +1478,7 @@
             <!-- Dynamic Views Container -->
             <div class="flex-1 overflow-hidden flex flex-col relative">
                 <!-- ACCOUNTING VIEW -->
-                <div id="view-accounting" class="view-section hidden h-full flex flex-col overflow-y-auto custom-scrollbar p-6 pb-24 px-2">
+                <div id="view-accounting" class="view-section hidden h-full flex flex-col overflow-y-auto custom-scrollbar p-6 pb-24 px-2 relative">
                     
                     <!-- Top Header -->
                     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 mt-2">
@@ -1694,7 +1694,7 @@
                     </div>
 
                     <!-- Dashboard Columns -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 shrink-0">
                         
                         <!-- Col 1: Credit Donut -->
                         <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col h-full hover:shadow-md transition-shadow">
@@ -1715,7 +1715,7 @@
                                     <p class="text-xs text-gray-400 text-center py-4">ยังไม่ได้จัดสรรงบประมาณ</p>
                                 </div>
                                 
-                                <button class="text-xs text-blue-600 hover:text-blue-800 mt-6 w-full text-center font-medium">ดูรายละเอียดทั้งหมด <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i></button>
+                                <button type="button" onclick="setFinanceLedgerTab('credit'); scrollToTable();" class="text-xs text-blue-600 hover:text-blue-800 mt-6 w-full text-center font-medium cursor-pointer transition-colors">ดูรายละเอียดทั้งหมด <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i></button>
                             </div>
                         </div>
                         
@@ -1753,7 +1753,7 @@
                                     </div>
                                 </div>
                                 
-                                <button class="text-xs text-green-600 hover:text-green-800 mt-6 w-full text-center font-medium">ดูรายละเอียดทั้งหมด <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i></button>
+                                <button type="button" onclick="setFinanceLedgerTab('cash'); scrollToTable();" class="text-xs text-green-600 hover:text-green-800 mt-6 w-full text-center font-medium cursor-pointer transition-colors">ดูรายละเอียดทั้งหมด <i class="fa-solid fa-chevron-right text-[10px] ml-1"></i></button>
                             </div>
                         </div>
 
@@ -1795,7 +1795,7 @@
                     </div>
 
                     <!-- Transaction Ledger -->
-                    <div id="finance-ledger-container" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col mb-8">
+                    <div id="finance-ledger-container" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col mb-12 shrink-0 min-h-[350px]">
                         <!-- Tabs & Search Toolbar -->
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 bg-gray-50/60 px-4 pt-2 gap-3 overflow-x-auto custom-scrollbar">
                             <!-- Filter Tabs -->
@@ -6728,7 +6728,7 @@
     <script src="js/apiService.js?v=7"></script>
     <script src="js/i18n.js?v=7"></script>
     <script src="js/workReport.js?v=7"></script>
-    <script src="js/finance.js?v=6"></script>
+    <script src="js/finance.js?v=8"></script>
     <script src="js/app.js?v=44"></script>
     <script src="js/login-flow.js?v=7"></script>
 
