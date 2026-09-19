@@ -4,9 +4,10 @@
   "description": "ConWork - Enterprise Management Platform",
   "main": "index.html",
   "scripts": {
-    "dev": "npx -y serve -l 3000 .",
-    "start": "npx -y serve -l 3000 .",
-    "serve": "npx -y serve -l 3000 ."
+    "dev": "serve -l 3000 .",
+    "start": "serve -l 3000 .",
+    "serve": "serve -l 3000 .",
+    "dev:py": "python3 -m http.server 3000"
   },
   "keywords": [
     "enterprise",
@@ -14,5 +15,8 @@
     "conwork"
   ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "serve": "^14.2.6"
+  }
 }

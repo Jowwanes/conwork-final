@@ -715,33 +715,60 @@ function recalculateFinanceTotals() {
         }
     }
 
-    // --- 3. Comparison Progress Bar ---
+    // --- 3. Executive Metric Cards (Master Budget, Allocation & Cash Spent) ---
+    const pTotalBudget = document.getElementById('finance-progress-total-budget');
+    if (pTotalBudget) pTotalBudget.textContent = '฿' + effectiveTotalBudget.toLocaleString();
+
     const pAllocText = document.getElementById('finance-progress-allocated-text');
     if (pAllocText) pAllocText.textContent = '฿' + sumAllocated.toLocaleString();
 
     const pRemainText = document.getElementById('finance-progress-remaining-text');
     if (pRemainText) pRemainText.textContent = '฿' + unallocatedReserve.toLocaleString();
 
-    const spentPct = effectiveTotalBudget > 0 ? Math.min(100, Math.round((cashUsed / effectiveTotalBudget) * 100)) : 0;
-    const allocPct = effectiveTotalBudget > 0 ? Math.min(100, Math.round((sumAllocated / effectiveTotalBudget) * 100)) : 0;
-    const unallocPct = Math.max(0, 100 - allocPct);
+    const pSpentStat = document.getElementById('finance-stat-spent-amount');
+    if (pSpentStat) pSpentStat.textContent = '฿' + cashUsed.toLocaleString();
 
+    const rawSpentPct = effectiveTotalBudget > 0 ? (cashUsed / effectiveTotalBudget) * 100 : 0;
+    const rawAllocPct = effectiveTotalBudget > 0 ? (sumAllocated / effectiveTotalBudget) * 100 : 0;
+    const rawUnallocPct = Math.max(0, 100 - rawAllocPct);
+
+    const allocPctText = (rawAllocPct % 1 !== 0 ? rawAllocPct.toFixed(1) : rawAllocPct.toFixed(0)) + '%';
+    const spentPctText = rawSpentPct < 0.1 && cashUsed > 0 ? '< 0.1%' : (rawSpentPct % 1 !== 0 ? rawSpentPct.toFixed(1) : rawSpentPct.toFixed(0)) + '%';
+    const unallocPctText = (rawUnallocPct % 1 !== 0 ? rawUnallocPct.toFixed(1) : rawUnallocPct.toFixed(0)) + '%';
+
+    // Badges
+    const spentBadge = document.getElementById('finance-stat-spent-pct-badge');
+    if (spentBadge) spentBadge.textContent = spentPctText;
+
+    const allocBadge = document.getElementById('finance-stat-alloc-pct-badge');
+    if (allocBadge) allocBadge.textContent = allocPctText;
+
+    const unallocBadge = document.getElementById('finance-stat-unalloc-pct-badge');
+    if (unallocBadge) unallocBadge.textContent = unallocPctText;
+
+    // Card subtexts
+    const allocSub = document.getElementById('finance-stat-alloc-sub');
+    if (allocSub) allocSub.textContent = `${allocPctText} ของงบประมาณรวมทั้งหมด`;
+
+    const burnRateDisplay = document.getElementById('finance-stat-burn-rate-display');
+    if (burnRateDisplay) {
+        const burnRate = sumAllocated > 0 ? ((cashUsed / sumAllocated) * 100) : 0;
+        const bText = (burnRate % 1 !== 0 ? burnRate.toFixed(1) : burnRate.toFixed(0)) + '%';
+        burnRateDisplay.textContent = `เบิกจ่าย ${bText} ของงบจัดสรร`;
+    }
+
+    const unallocSub = document.getElementById('finance-stat-unalloc-sub');
+    if (unallocSub) unallocSub.textContent = `สำรอง ${unallocPctText} พร้อมจัดสรร`;
+
+    // Legacy progress bar elements fallback (if present)
     const spentBar = document.getElementById('finance-progress-spent-bar');
-    if (spentBar) {
-        spentBar.style.width = `${spentPct}%`;
-        spentBar.textContent = `ใช้จริง ${spentPct}% (฿${cashUsed.toLocaleString()})`;
-    }
+    if (spentBar) spentBar.style.width = `${rawSpentPct}%`;
+
     const allocBar = document.getElementById('finance-progress-allocated-bar');
-    if (allocBar) {
-        const extraAllocWidth = Math.max(0, allocPct - spentPct);
-        allocBar.style.width = `${extraAllocWidth}%`;
-        allocBar.textContent = extraAllocWidth > 12 ? `จัดสรรให้หมวดหมู่ ${allocPct}%` : '';
-    }
+    if (allocBar) allocBar.style.width = `${Math.max(0, rawAllocPct - rawSpentPct)}%`;
+
     const remainingBar = document.getElementById('finance-progress-remaining-bar');
-    if (remainingBar) {
-        remainingBar.style.width = `${unallocPct}%`;
-        remainingBar.textContent = `คงเหลือยังไม่จัดสรร ${unallocPct}% (฿${unallocatedReserve.toLocaleString()})`;
-    }
+    if (remainingBar) remainingBar.style.width = `${rawUnallocPct}%`;
 
     // --- 4. Col 1: Credit Donut Chart & Legends (Master Budget & Category Allocations) ---
     let currentPct = 0;
@@ -1893,7 +1920,7 @@ function initFinanceDashboard() {
     });
 
     // 5. Tooltip interaction for Progress bar
-    const progressBarContainer = document.querySelector('#view-accounting .h-8.rounded-lg.overflow-hidden');
+    const progressBarContainer = document.getElementById('finance-progress-container') || document.querySelector('#view-accounting .h-8.rounded-lg.overflow-hidden');
     if (progressBarContainer) {
         progressBarContainer.addEventListener('click', () => {
             const txs = getStoredTransactions();

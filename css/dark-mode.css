@@ -670,3 +670,57 @@ html.dark option {
     background-color: #070f1c !important;
     color: #e2e8f0 !important;
 }
+
+/* Executive Metric Cards (Master Budget & Allocation Overview - Dark Mode) */
+html.dark .bg-blue-50\/40 {
+    background-color: rgba(37, 99, 235, 0.1) !important;
+}
+html.dark .border-blue-100 {
+    border-color: rgba(37, 99, 235, 0.25) !important;
+}
+html.dark .border-blue-100\/80 {
+    border-color: rgba(37, 99, 235, 0.2) !important;
+}
+html.dark .bg-blue-100 {
+    background-color: rgba(37, 99, 235, 0.22) !important;
+    color: #93c5fd !important;
+}
+html.dark .text-blue-700 {
+    color: #93c5fd !important;
+}
+
+html.dark .bg-violet-50\/40 {
+    background-color: rgba(99, 102, 241, 0.1) !important;
+}
+html.dark .border-violet-100 {
+    border-color: rgba(99, 102, 241, 0.25) !important;
+}
+html.dark .border-violet-100\/80 {
+    border-color: rgba(99, 102, 241, 0.2) !important;
+}
+html.dark .bg-violet-100 {
+    background-color: rgba(99, 102, 241, 0.22) !important;
+    color: #c7d2fe !important;
+}
+html.dark .text-indigo-700 {
+    color: #a5b4fc !important;
+}
+
+html.dark .bg-emerald-50\/40 {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+}
+html.dark .border-emerald-100 {
+    border-color: rgba(16, 185, 129, 0.25) !important;
+}
+html.dark .border-emerald-100\/80 {
+    border-color: rgba(16, 185, 129, 0.2) !important;
+}
+html.dark .bg-emerald-100 {
+    background-color: rgba(16, 185, 129, 0.22) !important;
+    color: #a7f3d0 !important;
+}
+html.dark .text-emerald-700 {
+    color: #6ee7b7 !important;
+}
+
+
