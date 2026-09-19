@@ -1055,7 +1055,7 @@ const App = {
                                         id: p.id,
                                         name: p.name,
                                         description: p.description || '',
-                                        startDate: p.start_date ? p.start_date.split('T')[0] : '',
+                                        startDate: p.start_date ? p.start_date.split('T')[0] : (p.created_at ? p.created_at.split('T')[0] : ''),
                                         dueDate: p.due_date ? p.due_date.split('T')[0] : '',
                                         progress: p.progress_pct || 0,
                                         status: p.status === 'in_progress' ? 'active' : (p.status || 'active'),
@@ -1064,6 +1064,9 @@ const App = {
                                         comanagers: comanagerIds,
                                         manager: managerIds.length > 0 ? managerIds[0] : null,
                                         color: p.color || 'bg-blue-500',
+                                        ownerId: p.owner_id || '',
+                                        owner_id: p.owner_id || '',
+                                        creatorId: p.owner_id || '',
                                         tags: []
                                     });
                                 });
@@ -4799,7 +4802,7 @@ const App = {
             this.state.calendarMonth = now.getMonth();
             this.state.calendarDate = now.getDate();
         }
-        this.state.calTab = this.state.calTab || 'personal'; // all, group, personal
+        this.state.calTab = this.state.calTab || 'all'; // all, group, personal
         this.state.calView = this.state.calView || 'month'; // month, week, day
         this.state.calGroup = this.state.calGroup || '';
         this.state.selectedDate = this.state.selectedDate || `${this.state.calendarYear}-${String(this.state.calendarMonth + 1).padStart(2, '0')}-${String(this.state.calendarDate).padStart(2, '0')}`;
@@ -4951,12 +4954,14 @@ const App = {
             if (this.state.calTab === 'personal') {
                 count = 1;
             } else if (this.state.calTab === 'group') {
-                count = mockUsers.filter(u => mockProjects.some(p => p.team && p.team.includes(u.id))).length || mockUsers.length;
+                count = mockUsers.filter(u => mockProjects.some(p => p.team && p.team.some(tid => String(tid) === String(u.id)))).length || mockUsers.length;
+            } else {
+                count = mockUsers.length || 1;
             }
             countSpan.textContent = isEn ? `${count} Members` : `สมาชิก ${count} คน`;
         }
 
-        const allEvents = this._getAllFilteredEvents(year, month, chkDeadlines, chkDeadlines, chkEvents, chkMeetings, chkRecur);
+        const allEvents = this._getAllFilteredEvents(year, month, true, chkDeadlines, chkEvents, chkMeetings, chkRecur);
 
         // Update Main Calendar Day Headers
         const calDayHeaders = document.getElementById('cal-day-headers');
@@ -5349,7 +5354,7 @@ const App = {
 
         const _getProjColors = (projectId, defCl, defBr) => {
             if (!projectId) return { cl: defCl, br: defBr };
-            const p = mockProjects.find(pr => pr.id === projectId);
+            const p = mockProjects.find(pr => String(pr.id) === String(projectId));
             if (!p || !p.color) return { cl: defCl, br: defBr };
             const m = p.color.match(/^bg-([a-z]+)-\d+$/);
             if (m) {
@@ -5408,11 +5413,15 @@ const App = {
                 mockProjects.forEach(p => {
                     if (this._isVisibleByTab(p.id)) {
                         const colors = _getProjColors(p.id, 'bg-emerald-50 text-emerald-700', 'border-l-2 border-emerald-500');
-                        if (p.startDate && p.startDate.startsWith(mStr)) {
-                            events.push({ id: 'proj-start-' + p.id, date: p.startDate, title: `▶ ${p.name}`, time: '', projectId: p.id, colorClass: colors.cl, borderClass: colors.br });
-                        }
-                        if (p.dueDate && p.dueDate.startsWith(mStr)) {
-                            events.push({ id: 'proj-end-' + p.id, date: p.dueDate, title: `■ ${p.name}`, time: '', projectId: p.id, colorClass: colors.cl, borderClass: colors.br });
+                        if (p.startDate && p.dueDate && p.startDate === p.dueDate && p.startDate.startsWith(mStr)) {
+                            events.push({ id: 'proj-single-' + p.id, date: p.startDate, title: `🚩 ${p.name}`, time: '', projectId: p.id, colorClass: colors.cl, borderClass: colors.br });
+                        } else {
+                            if (p.startDate && p.startDate.startsWith(mStr)) {
+                                events.push({ id: 'proj-start-' + p.id, date: p.startDate, title: `▶ ${p.name}`, time: '', projectId: p.id, colorClass: colors.cl, borderClass: colors.br });
+                            }
+                            if (p.dueDate && p.dueDate.startsWith(mStr)) {
+                                events.push({ id: 'proj-end-' + p.id, date: p.dueDate, title: `■ ${p.name}`, time: '', projectId: p.id, colorClass: colors.cl, borderClass: colors.br });
+                            }
                         }
                     }
                 });
@@ -5481,7 +5490,7 @@ const App = {
 
     _isVisibleByTab(projectId, userIds = []) {
         if (projectId) {
-            const p = mockProjects.find(pr => pr.id === projectId);
+            const p = mockProjects.find(pr => String(pr.id) === String(projectId));
             if (!p || p.status === 'deleted') return false;
         }
 
@@ -5490,29 +5499,35 @@ const App = {
         const curUser = this.state.currentUser;
         if (!curUser) return true;
 
+        const curUid = String(curUser.id || '');
+
         if (this.state.calTab === 'personal') {
             // Must be related to current user
-            if (userIds && userIds.includes(curUser.id)) return true;
+            if (userIds && userIds.some(id => String(id) === curUid)) return true;
             if (projectId) {
-                const p = mockProjects.find(pr => pr.id === projectId);
-                if (p && p.team && p.team.includes(curUser.id)) return true;
+                const p = mockProjects.find(pr => String(pr.id) === String(projectId));
+                if (p) {
+                    if (p.team && p.team.some(id => String(id) === curUid)) return true;
+                    if (String(p.owner_id || p.ownerId || p.creatorId || p.manager || '') === curUid) return true;
+                    if (p.managers && p.managers.some(id => String(id) === curUid)) return true;
+                    if (p.comanagers && p.comanagers.some(id => String(id) === curUid)) return true;
+                }
             }
             return false;
         }
 
         if (this.state.calTab === 'group') {
             // Must match selected project
-            if (!this.state.calGroup) return true; // all projects
+            if (!this.state.calGroup) return true; // all projects in group
 
-            if (projectId) {
-                if (projectId === this.state.calGroup) return true;
-            }
+            if (projectId && String(projectId) === String(this.state.calGroup)) return true;
+            
             // Check if any user in userIds belongs to the project team
             if (userIds) {
-                const proj = mockProjects.find(p => p.id === this.state.calGroup);
+                const proj = mockProjects.find(p => String(p.id) === String(this.state.calGroup));
                 if (proj && proj.team) {
                     for (let uid of userIds) {
-                        if (proj.team.includes(uid)) return true;
+                        if (proj.team.some(tid => String(tid) === String(uid))) return true;
                     }
                 }
             }
@@ -5576,7 +5591,7 @@ const App = {
         const chkEvents = document.getElementById('cal-filter-events')?.checked ?? true;
         const chkDeadlines = document.getElementById('cal-filter-deadlines')?.checked ?? true;
         const chkRecur = true;
-        const allEvents = this._getAllFilteredEvents(y, m, chkDeadlines, chkDeadlines, chkEvents, chkMeetings, chkRecur);
+        const allEvents = this._getAllFilteredEvents(y, m, true, chkDeadlines, chkEvents, chkMeetings, chkRecur);
 
         let html = '';
         for (let i = 0; i < firstDay; i++) {
@@ -5636,7 +5651,7 @@ const App = {
         const chkDeadlines = document.getElementById('cal-filter-deadlines')?.checked ?? true;
         const chkRecur = true;
 
-        const allEvents = this._getAllFilteredEvents(d.getFullYear(), d.getMonth(), chkDeadlines, chkDeadlines, chkEvents, chkMeetings, chkRecur);
+        const allEvents = this._getAllFilteredEvents(d.getFullYear(), d.getMonth(), true, chkDeadlines, chkEvents, chkMeetings, chkRecur);
         const dayEvents = allEvents.filter(e => e.date === this.state.selectedDate);
         dayEvents.sort((a, b) => (a.time || '24:00').localeCompare(b.time || '24:00'));
 
