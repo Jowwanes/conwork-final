@@ -1744,6 +1744,166 @@ function showFinanceDetailModal(title, iconClass, items) {
     modal.classList.remove('hidden');
 }
 
+let currentFinanceTab = 'all';
+
+function setFinanceLedgerTab(tabKey) {
+    currentFinanceTab = tabKey;
+    const tabButtons = document.querySelectorAll('#finance-ledger-tabs-container .finance-tab-btn');
+    tabButtons.forEach(btn => {
+        const isSelected = btn.dataset.tab === tabKey;
+        if (isSelected) {
+            btn.className = 'finance-tab-btn px-5 py-3 text-xs sm:text-sm font-semibold text-blue-600 border-b-2 border-blue-600 bg-white rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer';
+            btn.style.borderBottomWidth = '2px';
+        } else {
+            btn.className = 'finance-tab-btn px-5 py-3 text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer';
+            btn.style.borderBottomWidth = '0px';
+        }
+    });
+    filterFinanceLedgerTable();
+}
+
+function filterFinanceLedgerTable() {
+    const tbody = document.querySelector('#view-accounting tbody');
+    if (!tbody) return;
+
+    const searchInput = document.getElementById('finance-search-input');
+    const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const clearBtn = document.getElementById('finance-search-clear-btn');
+    if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !searchTerm);
+    }
+
+    // Remove any previous temporary no-match placeholder
+    const existingNoMatch = tbody.querySelector('.finance-no-match-row');
+    if (existingNoMatch) existingNoMatch.remove();
+
+    const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r._txData);
+    let visibleCount = 0;
+    let visibleTotal = 0;
+    let totalAllCount = 0;
+    let creditCount = 0;
+    let cashCount = 0;
+    let pendingCount = 0;
+
+    rows.forEach(row => {
+        const tx = row._txData;
+        totalAllCount++;
+        if (tx.transaction_type === 'credit') creditCount++;
+        if (tx.transaction_type === 'cash') cashCount++;
+
+        const curStatus = String(tx.status || (tx.transaction_type === 'credit' ? 'รออนุมัติ' : 'จ่ายแล้ว')).trim();
+        const isPending = curStatus.includes('รออนุมัติ') || curStatus.toLowerCase() === 'pending';
+        if (isPending) pendingCount++;
+
+        // Tab match condition
+        let tabMatch = false;
+        if (currentFinanceTab === 'all') tabMatch = true;
+        else if (currentFinanceTab === 'credit' && tx.transaction_type === 'credit') tabMatch = true;
+        else if (currentFinanceTab === 'cash' && tx.transaction_type === 'cash') tabMatch = true;
+        else if (currentFinanceTab === 'pending' && isPending) tabMatch = true;
+
+        // Search match condition
+        let searchMatch = true;
+        if (searchTerm) {
+            const titleStr = (tx.title || '').toLowerCase();
+            const catStr = (tx.category || '').toLowerCase();
+            const subcatStr = (tx.subcategory_name || '').toLowerCase();
+            const authorStr = (tx.author || '').toLowerCase();
+            const amountStr = String(tx.amount || '').toLowerCase();
+            const noteStr = (tx.note || '').toLowerCase();
+            const projectObj = tx.project_id ? getFinanceProjects().find(p => String(p.id) === String(tx.project_id)) : null;
+            const projectName = (projectObj?.name || '').toLowerCase();
+
+            searchMatch = titleStr.includes(searchTerm) ||
+                          catStr.includes(searchTerm) ||
+                          subcatStr.includes(searchTerm) ||
+                          authorStr.includes(searchTerm) ||
+                          amountStr.includes(searchTerm) ||
+                          noteStr.includes(searchTerm) ||
+                          projectName.includes(searchTerm);
+        }
+
+        if (tabMatch && searchMatch) {
+            row.style.display = '';
+            visibleCount++;
+            visibleTotal += parseFloat(tx.amount) || 0;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update tab count badges
+    const allBadge = document.getElementById('finance-tab-all-count');
+    if (allBadge) allBadge.textContent = totalAllCount;
+
+    const creditBadge = document.getElementById('finance-tab-credit-count');
+    if (creditBadge) creditBadge.textContent = creditCount;
+
+    const cashBadge = document.getElementById('finance-tab-cash-count');
+    if (cashBadge) cashBadge.textContent = cashCount;
+
+    const pendingBadge = document.getElementById('finance-tab-pending-count');
+    if (pendingBadge) pendingBadge.textContent = pendingCount;
+
+    // Show empty placeholder if search/filter returned 0 visible rows
+    if (visibleCount === 0 && rows.length > 0) {
+        const noMatchTr = document.createElement('tr');
+        noMatchTr.className = 'finance-no-match-row';
+        noMatchTr.innerHTML = `
+            <td colspan="8" class="text-center py-10 text-gray-400">
+                <div class="flex flex-col items-center justify-center gap-2">
+                    <i class="fa-solid fa-filter-circle-xmark text-2xl text-gray-300 mb-1"></i>
+                    <p class="text-sm font-medium text-gray-600">ไม่พบรายการที่ตรงกับเงื่อนไข</p>
+                    <p class="text-xs text-gray-400">ลองเปลี่ยนคำค้นหาหรือเลือกดูแท็บ "ทั้งหมด"</p>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(noMatchTr);
+    }
+
+    // Update footer summary
+    const footerInfo = document.getElementById('finance-table-footer-info');
+    if (footerInfo) {
+        if (searchTerm || currentFinanceTab !== 'all') {
+            footerInfo.textContent = `แสดง ${visibleCount} จากทั้งหมด ${totalAllCount} รายการ`;
+        } else {
+            footerInfo.textContent = `แสดงทั้งหมด ${visibleCount} รายการ`;
+        }
+    }
+
+    const footerTotal = document.getElementById('finance-table-footer-total');
+    if (footerTotal) {
+        footerTotal.textContent = '฿' + visibleTotal.toLocaleString(undefined, { minimumFractionDigits: 0 });
+    }
+}
+
+function setupFinanceLedgerControls() {
+    // 1. Tab buttons click
+    const tabButtons = document.querySelectorAll('#finance-ledger-tabs-container .finance-tab-btn');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tabKey = btn.dataset.tab || 'all';
+            setFinanceLedgerTab(tabKey);
+        });
+    });
+
+    // 2. Search input live filtering
+    const searchInput = document.getElementById('finance-search-input');
+    const clearBtn = document.getElementById('finance-search-clear-btn');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            filterFinanceLedgerTable();
+        });
+    }
+    if (clearBtn && searchInput) {
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            searchInput.focus();
+            filterFinanceLedgerTable();
+        });
+    }
+}
+
 function loadStoredTransactionsToTable() {
     const tbody = document.querySelector('#view-accounting tbody');
     if (!tbody) return;
@@ -1751,7 +1911,7 @@ function loadStoredTransactionsToTable() {
     const txs = getStoredTransactions();
     if (txs.length === 0) {
         tbody.innerHTML = `
-            <tr>
+            <tr class="finance-table-empty-row">
                 <td colspan="8" class="text-center py-12 text-gray-400">
                     <div class="flex flex-col items-center justify-center gap-2">
                         <i class="fa-solid fa-receipt text-3xl text-gray-300 mb-1"></i>
@@ -1763,10 +1923,11 @@ function loadStoredTransactionsToTable() {
         `;
     } else {
         txs.forEach(tx => {
-            insertTransactionRow(tx, false);
+            insertTransactionRow(tx, false, true);
         });
     }
     recalculateFinanceTotals();
+    filterFinanceLedgerTable();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1783,51 +1944,8 @@ function initFinanceDashboard() {
     loadStoredTransactionsToTable();
     syncFinanceWithSupabase();
 
-    // 1. Transaction Tabs Filtering
-    const tabs = document.querySelectorAll('#view-accounting .border-b .px-6');
-    const tableRows = document.querySelectorAll('#view-accounting tbody tr');
-
-    if (tabs.length > 0) {
-        tabs.forEach((tab, index) => {
-            tab.addEventListener('click', () => {
-                // Reset all tabs
-                tabs.forEach(t => {
-                    t.classList.remove('text-blue-600', 'border-blue-600');
-                    t.classList.add('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-100');
-                    t.style.borderBottomWidth = '0px';
-                });
-
-                // Set active tab
-                tab.classList.remove('text-gray-500', 'hover:text-gray-700', 'hover:bg-gray-100');
-                tab.classList.add('text-blue-600', 'border-blue-600');
-                tab.style.borderBottomWidth = '2px';
-
-                // Filter table rows
-                const filterType = index; // 0: All, 1: Credit, 2: Cash, 3: Pending
-                
-                tableRows.forEach(row => {
-                    if (filterType === 0) {
-                        row.style.display = ''; // Show all
-                    } else if (filterType === 1) {
-                        // Credit
-                        const typeCell = row.querySelector('td:nth-child(4)')?.innerText || '';
-                        row.style.display = typeCell.includes('Credit') ? '' : 'none';
-                    } else if (filterType === 2) {
-                        // Cash
-                        const typeCell = row.querySelector('td:nth-child(4)')?.innerText || '';
-                        row.style.display = typeCell.includes('Cash') ? '' : 'none';
-                    } else if (filterType === 3) {
-                        // Pending
-                        const statusCell = row.querySelector('td:nth-child(6)')?.innerText || '';
-                        row.style.display = statusCell.includes('รออนุมัติ') ? '' : 'none';
-                    }
-                });
-            });
-        });
-        
-        // Ensure first tab has correct border
-        tabs[0].style.borderBottomWidth = '2px';
-    }
+    // 1. Transaction Tabs & Search Toolbar Setup
+    setupFinanceLedgerControls();
 
     // 2. Summary Cards Click
     const summaryCards = document.querySelectorAll('#view-accounting .grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-5 > div');
@@ -1839,7 +1957,7 @@ function initFinanceDashboard() {
         
         // Card 2: Cash Used -> Click triggers Tab 2 (Cash)
         summaryCards[1].addEventListener('click', () => {
-            tabs[2].click();
+            setFinanceLedgerTab('cash');
             scrollToTable();
         });
 
@@ -1860,7 +1978,7 @@ function initFinanceDashboard() {
 
         // Card 4: Pending -> Click triggers Tab 3 (Pending)
         summaryCards[3].addEventListener('click', () => {
-            tabs[3].click();
+            setFinanceLedgerTab('pending');
             scrollToTable();
         });
 
@@ -1964,7 +2082,7 @@ function initFinanceDashboard() {
 }
 
 function scrollToTable() {
-    const tableContainer = document.querySelector('#view-accounting .bg-white.rounded-2xl.border.border-gray-100.overflow-hidden.flex.flex-col.flex-1');
+    const tableContainer = document.getElementById('finance-ledger-container') || document.querySelector('#view-accounting table')?.closest('.rounded-2xl');
     if (tableContainer) {
         tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -2653,12 +2771,12 @@ async function submitFinanceTransaction() {
     }
 }
 
-function insertTransactionRow(data, isNew = false) {
+function insertTransactionRow(data, isNew = false, skipFilter = false) {
     const tbody = document.querySelector('#view-accounting tbody');
     if (!tbody) return;
     
     // Remove empty state placeholder if present
-    const emptyRow = tbody.querySelector('td[colspan="8"]')?.closest('tr');
+    const emptyRow = tbody.querySelector('.finance-table-empty-row, td[colspan="8"]')?.closest('tr');
     if (emptyRow) emptyRow.remove();
     
     // Dynamic category resolution from stored categories
@@ -2676,62 +2794,68 @@ function insertTransactionRow(data, isNew = false) {
     
     let typeBadge, statusBadge;
     if (data.transaction_type === 'credit') {
-        typeBadge = `<span class="bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded text-[10px] font-bold tracking-wide">Credit</span>`;
+        typeBadge = `<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200/70 px-2.5 py-1 rounded-full text-xs font-semibold"><i class="fa-solid fa-credit-card text-[10px] opacity-70"></i> Credit</span>`;
     } else {
-        typeBadge = `<span class="bg-green-50 text-green-600 border border-green-100 px-2 py-1 rounded text-[10px] font-bold tracking-wide">Cash</span>`;
+        typeBadge = `<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200/70 px-2.5 py-1 rounded-full text-xs font-semibold"><i class="fa-solid fa-money-bill-wave text-[10px] opacity-70"></i> Cash</span>`;
     }
 
     const curStatus = String(data.status || (data.transaction_type === 'credit' ? 'รออนุมัติ' : 'จ่ายแล้ว')).trim();
     const isPending = curStatus.includes('รออนุมัติ') || curStatus.toLowerCase() === 'pending';
 
     if (isPending) {
-        statusBadge = `<span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-md text-[10px] font-bold border border-orange-100">รออนุมัติ</span>`;
+        statusBadge = `<span class="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-amber-200/80 shadow-2xs"><i class="fa-solid fa-clock text-[10px] text-amber-600"></i> รออนุมัติ</span>`;
     } else if (curStatus.includes('อนุมัติแล้ว') || curStatus.toLowerCase() === 'approved') {
-        statusBadge = `<span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-blue-200">อนุมัติแล้ว</span>`;
+        statusBadge = `<span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-emerald-200/80 shadow-2xs"><i class="fa-solid fa-circle-check text-[10px] text-emerald-600"></i> อนุมัติแล้ว</span>`;
     } else if (curStatus.includes('ไม่อนุมัติ') || curStatus.includes('ปฏิเสธ') || curStatus.toLowerCase() === 'rejected') {
-        statusBadge = `<span class="bg-red-50 text-red-600 px-2.5 py-1 rounded-md text-[10px] font-bold border border-red-200">ไม่อนุมัติ</span>`;
+        statusBadge = `<span class="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-rose-200/80 shadow-2xs"><i class="fa-solid fa-circle-xmark text-[10px] text-rose-600"></i> ไม่อนุมัติ</span>`;
     } else {
-        statusBadge = `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-green-200">จ่ายแล้ว</span>`;
+        statusBadge = `<span class="inline-flex items-center gap-1.5 bg-teal-50 text-teal-700 px-2.5 py-1 rounded-full text-xs font-semibold border border-teal-200/80 shadow-2xs"><i class="fa-solid fa-check-double text-[10px] text-teal-600"></i> จ่ายแล้ว</span>`;
     }
     
     const projectObj = data.project_id ? getFinanceProjects().find(p => String(p.id) === String(data.project_id)) : null;
     const projectBadge = projectObj ? `<div class="mt-1"><span class="inline-flex items-center gap-1 text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5 font-medium"><i class="fa-solid fa-folder-open text-[9px]"></i> ${projectObj.name}</span></div>` : '';
 
+    const authorName = data.author || 'คุณ (Me)';
+    const isMe = authorName.includes('คุณ') || authorName.toLowerCase().includes('me');
+    const authorAvatarHtml = isMe
+        ? `<div class="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shadow-2xs shrink-0"><i class="fa-solid fa-user text-[9px]"></i></div>`
+        : `<div class="w-6 h-6 rounded-full bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center text-[10px] font-bold shadow-2xs shrink-0">${encodeURIComponent(authorName.charAt(0).toUpperCase())}</div>`;
+
     const tr = document.createElement('tr');
-    tr.className = `hover:bg-gray-50 transition-colors ${isNew ? 'animate-fade-in-up bg-yellow-50' : ''}`;
+    tr.className = `hover:bg-blue-50/40 transition-colors cursor-pointer ${isNew ? 'animate-fade-in-up bg-yellow-50' : ''}`;
     
     tr.innerHTML = `
-        <td class="px-6 py-4 text-xs text-gray-500">${formattedDate}</td>
-        <td class="px-6 py-4 font-medium text-gray-800">
-            <div>${data.title}</div>
+        <td class="px-6 py-4 text-xs font-medium text-gray-500">${formattedDate}</td>
+        <td class="px-6 py-4">
+            <div class="font-semibold text-sm text-gray-800 hover:text-blue-600 transition-colors">${data.title}</div>
             ${projectBadge}
         </td>
         <td class="px-6 py-4">
             <div class="flex items-center gap-2">
                 <i class="fa-solid ${cat.icon || 'fa-box'} ${cat.textClass || 'text-gray-500'} w-4 text-center shrink-0" style="${!cat.textClass && cat.color ? 'color: ' + cat.color : ''}"></i>
                 <div>
-                    <span class="text-xs font-medium text-gray-700">${cat.name}</span>
+                    <span class="text-xs font-semibold text-gray-700">${cat.name}</span>
                     ${data.subcategory_name ? `<div class="text-[10px] text-indigo-600 font-normal"><i class="fa-solid fa-turn-up fa-rotate-90 text-[8px] mr-1"></i>${data.subcategory_name}</div>` : ''}
                 </div>
             </div>
         </td>
         <td class="px-6 py-4 text-center">${typeBadge}</td>
-        <td class="px-6 py-4 text-right font-bold text-gray-800">${formattedAmount}</td>
+        <td class="px-6 py-4 text-right font-bold text-gray-900 text-sm tracking-tight">${formattedAmount}</td>
         <td class="px-6 py-4 text-center">${statusBadge}</td>
         <td class="px-6 py-4">
             <div class="flex items-center gap-2">
-                <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(data.author || 'User')}&background=random" class="w-6 h-6 rounded-full border border-gray-200">
-                <span class="text-xs text-gray-600">${data.author || 'คุณ (Me)'}</span>
+                ${authorAvatarHtml}
+                <span class="text-xs text-gray-700 font-medium">${authorName}</span>
             </div>
         </td>
         <td class="px-6 py-4 text-center">
             <div class="flex items-center justify-center gap-1.5">
                 ${isPending ? `
-                    <button class="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="อนุมัติงบประมาณทันที" onclick="event.stopPropagation(); handleApproveFinanceTransaction('${data.id}')"><i class="fa-solid fa-check text-xs"></i></button>
-                    <button class="text-red-500 hover:text-red-700 hover:bg-red-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="ไม่อนุมัติ" onclick="event.stopPropagation(); confirmRejectFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-solid fa-xmark text-xs"></i></button>
+                    <button class="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer shadow-2xs" title="อนุมัติงบประมาณทันที" onclick="event.stopPropagation(); handleApproveFinanceTransaction('${data.id}')"><i class="fa-solid fa-check text-xs"></i></button>
+                    <button class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer shadow-2xs" title="ไม่อนุมัติ" onclick="event.stopPropagation(); confirmRejectFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-solid fa-xmark text-xs"></i></button>
                 ` : ''}
                 <button class="text-gray-400 hover:text-blue-600 hover:bg-blue-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="ดูรายละเอียด" onclick="event.stopPropagation(); openFinancePanel(this.closest('tr')._txData)"><i class="fa-regular fa-comment-dots text-sm"></i></button>
-                <button class="text-gray-400 hover:text-red-600 hover:bg-red-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="ลบรายการ" onclick="event.stopPropagation(); confirmDeleteFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                <button class="text-gray-400 hover:text-rose-600 hover:bg-rose-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="ลบรายการ" onclick="event.stopPropagation(); confirmDeleteFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-regular fa-trash-can text-sm"></i></button>
             </div>
         </td>
     `;
@@ -2749,6 +2873,10 @@ function insertTransactionRow(data, isNew = false) {
         }, 3000);
     } else {
         tbody.appendChild(tr);
+    }
+
+    if (!skipFilter) {
+        filterFinanceLedgerTable();
     }
 }
 

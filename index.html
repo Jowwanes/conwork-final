@@ -1795,35 +1795,58 @@
                     </div>
 
                     <!-- Transaction Ledger -->
-                    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-[400px]">
-                        <!-- Tabs -->
-                        <div class="flex border-b border-gray-100 px-4 pt-2 bg-gray-50/50 overflow-x-auto custom-scrollbar">
-                            <button class="px-6 py-3.5 text-sm font-semibold text-blue-600 border-b-2 border-blue-600 bg-white rounded-t-lg transition-colors whitespace-nowrap">ทั้งหมด</button>
-                            <button class="px-6 py-3.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors whitespace-nowrap">Credit / แผนงบ</button>
-                            <button class="px-6 py-3.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors whitespace-nowrap">Cash / เงินสด</button>
-                            <button class="px-6 py-3.5 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors flex items-center gap-2 whitespace-nowrap">รออนุมัติ <span id="finance-tab-pending-count" class="bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded text-[10px] font-bold">0</span></button>
-                            <div class="ml-auto flex items-center px-2">
-                                <button class="text-xs text-gray-500 hover:text-gray-800 font-medium flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm"><i class="fa-solid fa-filter"></i> Filter</button>
+                    <div id="finance-ledger-container" class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col mb-8">
+                        <!-- Tabs & Search Toolbar -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-100 bg-gray-50/60 px-4 pt-2 gap-3 overflow-x-auto custom-scrollbar">
+                            <!-- Filter Tabs -->
+                            <div class="flex items-center space-x-1 shrink-0" id="finance-ledger-tabs-container">
+                                <button data-tab="all" class="finance-tab-btn px-5 py-3 text-xs sm:text-sm font-semibold text-blue-600 border-b-2 border-blue-600 bg-white rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                                    <span>ทั้งหมด</span>
+                                    <span id="finance-tab-all-count" class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 leading-none">0</span>
+                                </button>
+                                <button data-tab="credit" class="finance-tab-btn px-5 py-3 text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                                    <span>Credit / แผนงบ</span>
+                                    <span id="finance-tab-credit-count" class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 leading-none">0</span>
+                                </button>
+                                <button data-tab="cash" class="finance-tab-btn px-5 py-3 text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                                    <span>Cash / เงินสด</span>
+                                    <span id="finance-tab-cash-count" class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 leading-none">0</span>
+                                </button>
+                                <button data-tab="pending" class="finance-tab-btn px-5 py-3 text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                                    <span>รออนุมัติ</span>
+                                    <span id="finance-tab-pending-count" class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 leading-none">0</span>
+                                </button>
+                            </div>
+
+                            <!-- Search Input -->
+                            <div class="flex items-center gap-2 pb-2 sm:pb-0 sm:ml-auto">
+                                <div class="relative w-full sm:w-64">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                                    <input id="finance-search-input" type="text" placeholder="ค้นหารายการ, หมวดหมู่, ผู้บันทึก..." class="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-700 placeholder-gray-400 transition-all shadow-2xs">
+                                    <button id="finance-search-clear-btn" type="button" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs cursor-pointer p-0.5" title="ล้างการค้นหา">
+                                        <i class="fa-solid fa-circle-xmark"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
                         <!-- Table -->
-                        <div class="overflow-x-auto flex-1">
+                        <div class="overflow-x-auto">
                             <table class="w-full text-left text-sm whitespace-nowrap">
                                 <thead class="text-xs text-gray-500 bg-gray-50/80 border-b border-gray-100">
                                     <tr>
-                                        <th class="px-6 py-4 font-medium">วันที่</th>
-                                        <th class="px-6 py-4 font-medium">รายการ</th>
-                                        <th class="px-6 py-4 font-medium">หมวดหมู่</th>
-                                        <th class="px-6 py-4 font-medium text-center">ประเภท</th>
-                                        <th class="px-6 py-4 font-medium text-right">จำนวนเงิน</th>
-                                        <th class="px-6 py-4 font-medium text-center">สถานะ</th>
-                                        <th class="px-6 py-4 font-medium">ผู้บันทึก</th>
-                                        <th class="px-6 py-4 font-medium text-center">จัดการ</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600">วันที่</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600">รายการ</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600">หมวดหมู่</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600 text-center">ประเภท</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600 text-right">จำนวนเงิน</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600 text-center">สถานะ</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600">ผู้บันทึก</th>
+                                        <th class="px-6 py-3.5 font-semibold text-gray-600 text-center">จัดการ</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-50 text-gray-700">
-                                    <tr>
+                                    <tr class="finance-table-empty-row">
                                         <td colspan="8" class="text-center py-12 text-gray-400">
                                             <div class="flex flex-col items-center justify-center gap-2">
                                                 <i class="fa-solid fa-receipt text-3xl text-gray-300 mb-1"></i>
@@ -1836,8 +1859,20 @@
                             </table>
                         </div>
                         
-                        <div class="p-4 border-t border-gray-100 flex justify-center bg-gray-50/50 hover:bg-gray-100 transition-colors cursor-pointer">
-                            <button class="text-xs text-blue-600 font-medium flex items-center gap-2">ดูรายการทั้งหมด <i class="fa-solid fa-chevron-down text-[10px]"></i></button>
+                        <!-- Smart Summary Footer -->
+                        <div id="finance-table-footer" class="px-6 py-3.5 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+                            <div class="flex items-center gap-2">
+                                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span id="finance-table-footer-info">แสดงทั้งหมด 0 รายการ</span>
+                            </div>
+                            <div class="flex items-center gap-4 text-xs">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-gray-400">ยอดเงินรวม:</span>
+                                    <span id="finance-table-footer-total" class="font-bold text-gray-800">฿0</span>
+                                </div>
+                                <span class="text-gray-300 hidden sm:inline">|</span>
+                                <span class="text-gray-400 hidden sm:inline"><i class="fa-regular fa-hand-pointer mr-1"></i>คลิกที่แถวเพื่อดูรายละเอียด</span>
+                            </div>
                         </div>
                     </div>
                 </div>
