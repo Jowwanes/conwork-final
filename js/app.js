@@ -54,6 +54,62 @@ const App = {
         return this.isExecutive(user);
     },
 
+    isUserInProject(p, user = this.state.currentUser) {
+        if (!p || !user) return false;
+        const uid = String(user.id || '');
+        const email = String(user.email || '').toLowerCase();
+        const name = String(user.name || '').toLowerCase();
+
+        // 1. Owner / Creator / Managers
+        const ownerId = String(p.owner_id || p.ownerId || p.creatorId || p.created_by || '');
+        if (ownerId && (ownerId === uid || (email && ownerId.toLowerCase() === email))) return true;
+
+        if (Array.isArray(p.managers) && p.managers.some(id => String(id) === uid)) return true;
+        if (Array.isArray(p.comanagers) && p.comanagers.some(id => String(id) === uid)) return true;
+
+        // 2. Team members array
+        if (Array.isArray(p.team)) {
+            const inTeam = p.team.some(id => {
+                const s = String(id || '').toLowerCase();
+                return s === uid.toLowerCase() || (email && s === email) || (name && s === name);
+            });
+            if (inTeam) return true;
+        }
+
+        // 3. Members array (if objects or IDs)
+        if (Array.isArray(p.members)) {
+            const inMembers = p.members.some(m => {
+                if (typeof m === 'object' && m !== null) {
+                    const mid = String(m.id || m.user_id || '').toLowerCase();
+                    const mEmail = String(m.email || '').toLowerCase();
+                    const mName = String(m.name || m.full_name || '').toLowerCase();
+                    return mid === uid.toLowerCase() || (email && mEmail === email) || (name && mName === name);
+                }
+                const s = String(m || '').toLowerCase();
+                return s === uid.toLowerCase() || (email && s === email);
+            });
+            if (inMembers) return true;
+        }
+
+        // 4. Tasks assigned to this user in this project
+        if (Array.isArray(mockTasks)) {
+            const hasTask = mockTasks.some(t => {
+                if (String(t.projectId) !== String(p.id)) return false;
+                if (Array.isArray(t.assignees)) {
+                    if (t.assignees.some(a => {
+                        const s = String(a || '').toLowerCase();
+                        return s === uid.toLowerCase() || (email && s === email) || (name && s === name);
+                    })) return true;
+                }
+                const tAssignee = String(t.assigneeId || t.assignee || t.userId || '').toLowerCase();
+                return tAssignee && (tAssignee === uid.toLowerCase() || (email && tAssignee === email));
+            });
+            if (hasTask) return true;
+        }
+
+        return false;
+    },
+
     async init() {
         this._loadSettings();
         // Preload cached users immediately to avoid 0-employee flash on page load/refresh
@@ -2847,11 +2903,9 @@ const App = {
         if (addSecBtn) { const isManager = this.state.currentUser && ['admin', 'reviewer2', 'reviewer1', 'manager', 'supervisor'].includes(this.state.currentUser.role); addSecBtn.style.display = (this.hasPermission('สร้างหัวข้องาน')) ? '' : 'none'; }
         // Show project filter toggle only for admin/ceo
         const toggleContainer = document.getElementById('proj-filter-toggle-container');
-        const role = this.state.currentUser?.role || 'worker';
-        const lowerRole = role.toLowerCase();
-        const isAdmin = role === 'admin' || role === 'reviewer2' || lowerRole.includes('admin') || lowerRole.includes('ceo');
+        const isExec = this.isExecutive();
         if (toggleContainer) {
-            if (isAdmin) {
+            if (isExec) {
                 toggleContainer.classList.remove('hidden');
                 toggleContainer.classList.add('flex');
             } else {
@@ -2860,13 +2914,14 @@ const App = {
             }
         }
 
+        let filter = this.state.projectFilter || (isExec ? 'all' : 'related');
         let filteredProjects = mockProjects;
-        let filter = this.state.projectFilter || 'all';
 
-        // Filter to 'related' only if selected
-        if (filter === 'related' && this.state.currentUser) {
-            const currentUserId = String(this.state.currentUser.id);
-            filteredProjects = mockProjects.filter(p => p.team && p.team.some(id => String(id) === currentUserId || id == currentUserId));
+        // If employee (non-executive): strictly filter to only projects where the employee has their name/is listed!
+        if (!isExec) {
+            filteredProjects = mockProjects.filter(p => this.isUserInProject(p, this.state.currentUser));
+        } else if (filter === 'related' && this.state.currentUser) {
+            filteredProjects = mockProjects.filter(p => this.isUserInProject(p, this.state.currentUser));
         }
 
         // Pre-process and update statuses dynamically before filtering
@@ -2947,7 +3002,7 @@ const App = {
                         <i class="fa-regular fa-folder-open"></i>
                     </div>
                     <p class="text-base font-medium text-slate-600 dark:text-slate-300">ไม่พบโปรเจกต์</p>
-                    <p class="text-xs text-slate-400 mt-1">ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ</p>
+                    <p class="text-xs text-slate-400 mt-1">${!isExec ? 'ไม่มีงานหรือโปรเจกต์ที่มีรายชื่อของคุณ' : 'ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ'}</p>
                 </div>
             `;
             return;
@@ -3059,12 +3114,21 @@ const App = {
     },
 
     openProject(id) {
+        const proj = mockProjects.find(p => String(p.id) === String(id));
+        if (!this.isExecutive() && proj && !this.isUserInProject(proj, this.state.currentUser)) {
+            if (typeof this._showToast === 'function') {
+                this._showToast('คุณไม่มีสิทธิ์เข้าถึงโครงการนี้', 'error');
+            } else {
+                alert('คุณไม่มีสิทธิ์เข้าถึงโครงการนี้');
+            }
+            return;
+        }
+
         this.state.currentProject = id;
         this.state.viewedSupervisorFilters = {}; // Reset viewed state when opening a new project
         document.getElementById('view-projects').classList.add('hidden');
         document.getElementById('view-tasks').classList.remove('hidden');
 
-        const proj = mockProjects.find(p => p.id === id);
         if (proj) {
             document.getElementById('task-project-name').innerText = proj.name;
             
