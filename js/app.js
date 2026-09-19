@@ -110,12 +110,11 @@ const App = {
         return false;
     },
 
-    async init() {
-        this._loadSettings();
-        // Preload cached users immediately to avoid 0-employee flash on page load/refresh
+    _loadFromCache() {
         try {
+            // 1. Preload Users
             const cachedUsers = JSON.parse(localStorage.getItem('conwork_cached_users') || '[]');
-            if (cachedUsers && cachedUsers.length > 0) {
+            if (Array.isArray(cachedUsers) && cachedUsers.length > 0) {
                 const cleanUsers = cachedUsers.filter(u => {
                     const idStr = String(u?.id || '');
                     const emailStr = String(u?.email || '').toLowerCase();
@@ -125,22 +124,93 @@ const App = {
                     if (nameStr.includes('admin user') || nameStr.includes('admin acme') || nameStr.includes('วิชญ์ บรรจบ')) return false;
                     return true;
                 });
-                if (cleanUsers.length !== cachedUsers.length) {
-                    localStorage.setItem('conwork_cached_users', JSON.stringify(cleanUsers));
-                }
-                if (mockUsers.length === 0 && cleanUsers.length > 0) {
+                if (cleanUsers.length > 0) {
+                    mockUsers.length = 0;
                     mockUsers.push(...cleanUsers);
                 }
             }
-        } catch(e){}
+
+            // 2. Preload Projects
+            const cachedProjects = JSON.parse(localStorage.getItem('conwork_cached_projects') || '[]');
+            if (Array.isArray(cachedProjects) && cachedProjects.length > 0) {
+                mockProjects.length = 0;
+                mockProjects.push(...cachedProjects);
+            }
+
+            // 3. Preload Tasks
+            const cachedTasks = JSON.parse(localStorage.getItem('conwork_cached_tasks') || '[]');
+            if (Array.isArray(cachedTasks) && cachedTasks.length > 0) {
+                mockTasks.length = 0;
+                mockTasks.push(...cachedTasks);
+            }
+
+            // 4. Preload Task Sections
+            const cachedSections = JSON.parse(localStorage.getItem('conwork_cached_sections') || '[]');
+            if (Array.isArray(cachedSections) && cachedSections.length > 0) {
+                mockTaskSections.length = 0;
+                mockTaskSections.push(...cachedSections);
+            }
+
+            // 5. Preload Events
+            const cachedEvents = JSON.parse(localStorage.getItem('conwork_cached_events') || '[]');
+            if (Array.isArray(cachedEvents) && cachedEvents.length > 0) {
+                mockEvents.length = 0;
+                mockEvents.push(...cachedEvents);
+            }
+
+            // 6. Preload Workspaces
+            const cachedWorkspaces = JSON.parse(localStorage.getItem('conwork_cached_workspaces') || '[]');
+            if (Array.isArray(cachedWorkspaces) && cachedWorkspaces.length > 0) {
+                this.state.workspaces = cachedWorkspaces;
+            }
+        } catch (e) {
+            console.warn('Cache preload error:', e);
+        }
+    },
+
+    _saveToCache() {
+        try {
+            if (mockProjects.length > 0) localStorage.setItem('conwork_cached_projects', JSON.stringify(mockProjects));
+            if (mockTasks.length > 0) localStorage.setItem('conwork_cached_tasks', JSON.stringify(mockTasks));
+            if (mockTaskSections.length > 0) localStorage.setItem('conwork_cached_sections', JSON.stringify(mockTaskSections));
+            if (mockEvents.length > 0) localStorage.setItem('conwork_cached_events', JSON.stringify(mockEvents));
+            if (mockUsers.length > 0) localStorage.setItem('conwork_cached_users', JSON.stringify(mockUsers));
+            if (this.state.workspaces && this.state.workspaces.length > 0) {
+                localStorage.setItem('conwork_cached_workspaces', JSON.stringify(this.state.workspaces));
+            }
+        } catch (e) {
+            console.warn('Cache save error:', e);
+        }
+    },
+
+    async init() {
+        this._loadSettings();
+
+        // 1. Immediately hydrate from cache so the UI paints in 0ms (no loading delay on refresh!)
+        this._loadFromCache();
         this.checkAuth();
-        await this._loadData();
+
         if (this.state.currentView) {
             if (this.state.currentView === 'dashboard' && !this.isExecutive()) {
                 this.state.currentView = 'projects';
             }
             this.switchView(this.state.currentView);
         }
+
+        // 2. Parallel sync with Supabase in background (or wait only if first visit with no cache)
+        const hasCache = mockProjects.length > 0 || mockUsers.length > 0;
+        const loadPromise = this._loadData();
+
+        if (!hasCache) {
+            await loadPromise;
+            if (this.state.currentView) {
+                if (this.state.currentView === 'dashboard' && !this.isExecutive()) {
+                    this.state.currentView = 'projects';
+                }
+                this.switchView(this.state.currentView);
+            }
+        }
+
         this.bindEvents();
         this._initRichTextEditor();
         this.renderNotifications();
@@ -766,6 +836,7 @@ const App = {
             // Only save non-database data like notifications or local messages if needed.
             // Core data (Projects, Tasks, Events, etc.) are now strictly managed by Supabase.
             localStorage.setItem(`conwork_notifications_${wid}`, JSON.stringify(mockNotifications));
+            this._saveToCache();
         } catch (e) {
             console.warn('Cannot save to localStorage:', e);
         }
@@ -804,13 +875,39 @@ const App = {
             // --- Real Data from Supabase (Companies & Members) ---
             if (window.conworkSupabase && window.conworkSupabase.isAvailable() && this.state.currentUser) {
                 try {
-                    // Fetch user's company memberships
-                    let { data: membersData, error: memErr } = await window.conworkSupabase.client
-                        .from('company_members')
-                        .select('*')
-                        .eq('user_id', this.state.currentUser.id);
-                    
-                    if (memErr) console.error("Error loading members:", memErr);
+                    const PRIMARY_COMPANY_ID = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || '858b9899-c231-4cd4-a193-9972be8cb816';
+                    const curUid = this.state.currentUser.id;
+
+                    // ==========================================
+                    // FAST CONCURRENT BATCH 1:
+                    // Fetch user's company membership, companies, team members,
+                    // projects, and calendar events concurrently
+                    // ==========================================
+                    const [membersRes, companiesRes, teamMembersRes, projectsRes, eventsRes] = await Promise.all([
+                        window.conworkSupabase.client
+                            .from('company_members')
+                            .select('*')
+                            .eq('user_id', curUid),
+                        window.conworkSupabase.client
+                            .from('companies')
+                            .select('*')
+                            .in('id', [PRIMARY_COMPANY_ID]),
+                        window.conworkSupabase.client
+                            .from('company_members')
+                            .select('user_id, company_role, department, job_title')
+                            .in('company_id', [PRIMARY_COMPANY_ID]),
+                        window.conworkSupabase.client
+                            .from('projects')
+                            .select('*, project_members(user_id, project_role)')
+                            .in('company_id', [PRIMARY_COMPANY_ID]),
+                        window.conworkSupabase.fetchCalendarEvents([PRIMARY_COMPANY_ID]).catch(err => {
+                            console.warn("fetchCalendarEvents error:", err);
+                            return [];
+                        })
+                    ]);
+
+                    let membersData = membersRes?.data || [];
+                    if (membersRes?.error) console.error("Error loading members:", membersRes.error);
 
                     // If not found by user_id, fallback to search by email in profiles
                     if ((!membersData || membersData.length === 0) && this.state.currentUser.email) {
@@ -838,8 +935,6 @@ const App = {
                             console.error("Error finding profile by email:", e);
                         }
                     }
-
-                    const PRIMARY_COMPANY_ID = (window.CONWORK_CONFIG && window.CONWORK_CONFIG.PRIMARY_COMPANY_ID) || '858b9899-c231-4cd4-a193-9972be8cb816';
 
                     // Auto-join primary company if not yet a member
                     if (!membersData || !membersData.some(m => m.company_id === PRIMARY_COMPANY_ID)) {
@@ -871,19 +966,13 @@ const App = {
                     }));
 
                     if (this.state.members.length > 0) {
-                        // Always ensure PRIMARY_COMPANY_ID is included in companyIds
                         const companyIds = [...new Set([PRIMARY_COMPANY_ID, ...this.state.members.map(m => m.workspace_id)])];
                         this.state.currentCompanyId = PRIMARY_COMPANY_ID;
-                        
-                        // Fetch companies
-                        const { data: companiesData, error: compErr } = await window.conworkSupabase.client
-                            .from('companies')
-                            .select('*')
-                            .in('id', companyIds);
-                            
-                        if (compErr) console.error("Error loading companies:", compErr);
 
-                        this.state.workspaces = (companiesData || []).map(c => ({
+                        const companiesData = companiesRes?.data || [];
+                        if (companiesRes?.error) console.error("Error loading companies:", companiesRes.error);
+
+                        this.state.workspaces = companiesData.map(c => ({
                             workspace_id: c.id,
                             name: c.name,
                             code: c.code,
@@ -893,124 +982,256 @@ const App = {
                             created_by: c.created_by
                         }));
 
-                        // --- FETCH PROFILES (mockUsers) ---
-                        let teamMembersData = null;
-                        const { data: tmWithJob, error: tmJobErr } = await window.conworkSupabase.client
-                            .from('company_members')
-                            .select('user_id, company_role, department, job_title')
-                            .in('company_id', companyIds);
-
-                        if (!tmJobErr && tmWithJob) {
-                            teamMembersData = tmWithJob;
-                        } else {
+                        // Handle team members fallback if job_title column doesn't exist
+                        let teamMembersData = teamMembersRes?.data;
+                        if (teamMembersRes?.error || !teamMembersData) {
                             const { data: tmFallback } = await window.conworkSupabase.client
                                 .from('company_members')
                                 .select('user_id, company_role, department')
                                 .in('company_id', companyIds);
-                            teamMembersData = tmFallback;
+                            teamMembersData = tmFallback || [];
                         }
-                        
-                        this.state.currentCompanyId = companyIds[0];
 
-                        if (teamMembersData && teamMembersData.length > 0) {
-                            const userIds = [...new Set(teamMembersData.map(m => m.user_id))];
-                            const { data: profilesData } = await window.conworkSupabase.client
-                                .from('profiles')
-                                .select('*')
-                                .in('id', userIds);
-                            
-                            const profileMap = new Map();
-                            if (profilesData) {
-                                profilesData.forEach(p => profileMap.set(p.id, p));
+                        // Collect user IDs and project IDs for Batch 2
+                        const userIds = [...new Set((teamMembersData || []).map(m => m.user_id).filter(Boolean))];
+                        const projectsData = projectsRes?.data || [];
+                        const projectIds = projectsData.map(p => p.id).filter(Boolean);
+
+                        // ==========================================
+                        // FAST CONCURRENT BATCH 2:
+                        // Fetch profiles, tasks (with assignees), and sections concurrently
+                        // ==========================================
+                        const [profilesRes, tasksRes, sectionsRes] = await Promise.all([
+                            userIds.length > 0
+                                ? window.conworkSupabase.client.from('profiles').select('*').in('id', userIds)
+                                : Promise.resolve({ data: [] }),
+                            projectIds.length > 0
+                                ? window.conworkSupabase.client.from('tasks').select('*, task_assignees(user_id)').in('project_id', projectIds)
+                                : Promise.resolve({ data: [] }),
+                            projectIds.length > 0
+                                ? window.conworkSupabase.client.from('task_sections').select('*').in('project_id', projectIds)
+                                : Promise.resolve({ data: [] })
+                        ]);
+
+                        // --- 1. Populate PROFILES (mockUsers) ---
+                        const profilesData = profilesRes?.data || [];
+                        const profileMap = new Map();
+                        profilesData.forEach(p => profileMap.set(p.id, p));
+
+                        const savedPositions = JSON.parse(localStorage.getItem('conwork_employee_positions') || '{}');
+                        mockUsers.length = 0;
+
+                        userIds.forEach(uid => {
+                            const p = profileMap.get(uid);
+                            const memberObj = teamMembersData.find(m => m.user_id === uid);
+                            const mRole = memberObj?.company_role;
+                            const savedPos = savedPositions[uid] || {};
+
+                            const isCurrentUser = this.state.currentUser && (
+                                String(uid) === String(this.state.currentUser.id) ||
+                                (this.state.currentUser.email && p && p.email && this.state.currentUser.email.toLowerCase() === p.email.toLowerCase())
+                            );
+                            const defaultName = isCurrentUser ? (this.state.currentUser.name || this.state.currentUser.username) : `พนักงาน (${uid.substring(0, 5)})`;
+                            const defaultEmail = isCurrentUser ? this.state.currentUser.email : '';
+                            const name = (p && p.full_name) ? p.full_name : (isCurrentUser && this.state.currentUser?.name ? this.state.currentUser.name : defaultName);
+                            const email = (p && p.email) ? p.email : defaultEmail;
+                            const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
+
+                            const isCompanyCreator = (companiesData || []).some(c => String(c.created_by) === String(uid));
+                            const isFirstUserInCompany = teamMembersData.length > 0 && String(teamMembersData[0].user_id) === String(uid);
+
+                            const defaultDept = (isCompanyCreator || isFirstUserInCompany) ? 'บริหาร' : 'พนักงานทั่วไป';
+                            let mDept = memberObj?.department || p?.department;
+                            if (!mDept || mDept === 'พนักงานทั่วไป') {
+                                mDept = savedPos.department || mDept || defaultDept;
                             }
 
-                            const savedPositions = JSON.parse(localStorage.getItem('conwork_employee_positions') || '{}');
+                            let mappedRole = 'worker';
+                            if (mRole === 'reviewer2' || mRole === 'super_admin' || mRole === 'ceo') {
+                                mappedRole = 'reviewer2';
+                            } else if (mRole === 'reviewer1' || mRole === 'manager') {
+                                mappedRole = 'reviewer1';
+                            } else if (mRole === 'admin' || mRole === 'company_admin') {
+                                mappedRole = 'admin';
+                            } else if (savedPos.role) {
+                                mappedRole = savedPos.role;
+                            } else if (mRole === 'worker' || mRole === 'employee') {
+                                mappedRole = 'worker';
+                            } else if (isCompanyCreator || isFirstUserInCompany) {
+                                mappedRole = 'admin';
+                            }
 
-                            mockUsers.length = 0; // Clear mock
-                            userIds.forEach(uid => {
-                                const p = profileMap.get(uid);
-                                const memberObj = teamMembersData.find(m => m.user_id === uid);
-                                const mRole = memberObj?.company_role;
-                                const savedPos = savedPositions[uid] || {};
-                                
-                                const isCurrentUser = this.state.currentUser && (
-                                    String(uid) === String(this.state.currentUser.id) ||
-                                    (this.state.currentUser.email && p && p.email && this.state.currentUser.email.toLowerCase() === p.email.toLowerCase())
-                                );
-                                const defaultName = isCurrentUser ? (this.state.currentUser.name || this.state.currentUser.username) : `พนักงาน (${uid.substring(0, 5)})`;
-                                const defaultEmail = isCurrentUser ? this.state.currentUser.email : '';
-                                const name = (p && p.full_name) ? p.full_name : (isCurrentUser && this.state.currentUser?.name ? this.state.currentUser.name : defaultName);
-                                const email = (p && p.email) ? p.email : defaultEmail;
-                                const avatar = (p && p.avatar_url) ? p.avatar_url : (isCurrentUser && this.state.currentUser?.avatar ? this.state.currentUser.avatar : null);
+                            let jobTitle = memberObj?.job_title || p?.job_title;
+                            if (!jobTitle || jobTitle === 'พนักงาน') {
+                                jobTitle = savedPos.jobTitle || jobTitle || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
+                            }
 
-                                // Check if user is company creator or first user registered in company
-                                const isCompanyCreator = (companiesData || []).some(c => String(c.created_by) === String(uid));
-                                const isFirstUserInCompany = teamMembersData.length > 0 && String(teamMembersData[0].user_id) === String(uid);
-                                
-                                const defaultDept = (isCompanyCreator || isFirstUserInCompany) ? 'บริหาร' : 'พนักงานทั่วไป';
-                                let mDept = memberObj?.department || p?.department;
-                                if (!mDept || mDept === 'พนักงานทั่วไป') {
-                                    mDept = savedPos.department || mDept || defaultDept;
-                                }
+                            if (email === 'admin@conwork.com' || name === 'Admin User' || String(email).includes('@d2cbrand.com') || String(email).includes('@acme.com')) {
+                                return;
+                            }
 
-                                let mappedRole = 'worker';
-                                if (mRole === 'reviewer2' || mRole === 'super_admin' || mRole === 'ceo') {
-                                    mappedRole = 'reviewer2';
-                                } else if (mRole === 'reviewer1' || mRole === 'manager') {
-                                    mappedRole = 'reviewer1';
-                                } else if (mRole === 'admin' || mRole === 'company_admin') {
-                                    mappedRole = 'admin';
-                                } else if (savedPos.role) {
-                                    mappedRole = savedPos.role;
-                                } else if (mRole === 'worker' || mRole === 'employee') {
-                                    mappedRole = 'worker';
-                                } else if (isCompanyCreator || isFirstUserInCompany) {
-                                    mappedRole = 'admin';
-                                }
-
-                                let jobTitle = memberObj?.job_title || p?.job_title;
-                                if (!jobTitle || jobTitle === 'พนักงาน') {
-                                    jobTitle = savedPos.jobTitle || jobTitle || (mappedRole === 'reviewer2' ? 'ประธานเจ้าหน้าที่บริหาร' : (mappedRole === 'admin' ? 'แอดมิน' : (mappedRole === 'reviewer1' ? 'หัวหน้า' : 'พนักงาน')));
-                                }
-
-                                if (email === 'admin@conwork.com' || name === 'Admin User' || String(email).includes('@d2cbrand.com') || String(email).includes('@acme.com')) {
-                                    return;
-                                }
-
-                                if (mDept || jobTitle) {
-                                    savedPositions[uid] = {
-                                        jobTitle: jobTitle,
-                                        role: mappedRole,
-                                        department: mDept
-                                    };
-                                }
-
-                                mockUsers.push({
-                                    id: uid,
-                                    email: email || `${uid.substring(0, 8)}@company.com`,
-                                    username: name,
-                                    name: name,
-                                    role: mappedRole,
+                            if (mDept || jobTitle) {
+                                savedPositions[uid] = {
                                     jobTitle: jobTitle,
-                                    department: mDept,
-                                    avatar: avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-                                    status: 'online'
-                                });
+                                    role: mappedRole,
+                                    department: mDept
+                                };
+                            }
 
-                                if (isCurrentUser) {
-                                    this.state.currentUser.name = name;
-                                    this.state.currentUser.avatar = avatar || this.state.currentUser.avatar;
-                                    this.state.currentUser.department = mDept;
-                                    this.state.currentUser.role = mappedRole;
-                                    this.state.currentUser.jobTitle = jobTitle;
-                                }
+                            mockUsers.push({
+                                id: uid,
+                                email: email || `${uid.substring(0, 8)}@company.com`,
+                                username: name,
+                                name: name,
+                                role: mappedRole,
+                                jobTitle: jobTitle,
+                                department: mDept,
+                                avatar: avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+                                status: 'online'
                             });
-                            try {
-                                localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
-                                localStorage.setItem('conwork_cached_users', JSON.stringify(mockUsers));
-                            } catch (e) {}
-                            this.updateProfile();
-                            await this.loadUserChats();
+
+                            if (isCurrentUser) {
+                                this.state.currentUser.name = name;
+                                this.state.currentUser.avatar = avatar || this.state.currentUser.avatar;
+                                this.state.currentUser.department = mDept;
+                                this.state.currentUser.role = mappedRole;
+                                this.state.currentUser.jobTitle = jobTitle;
+                            }
+                        });
+
+                        try {
+                            localStorage.setItem('conwork_employee_positions', JSON.stringify(savedPositions));
+                            localStorage.setItem('conwork_cached_users', JSON.stringify(mockUsers));
+                        } catch (e) {}
+
+                        // --- 2. Populate PROJECTS (mockProjects) ---
+                        if (!projectsRes?.error) {
+                            mockProjects.length = 0;
+                            if (projectsData && projectsData.length > 0) {
+                                projectsData.forEach(p => {
+                                    const memberUserIds = [];
+                                    const managerIds = [];
+                                    const comanagerIds = [];
+
+                                    if (p.project_members) {
+                                        p.project_members.forEach(pm => {
+                                            memberUserIds.push(pm.user_id);
+                                            if (pm.project_role === 'manager') managerIds.push(pm.user_id);
+                                            if (pm.project_role === 'comanager') comanagerIds.push(pm.user_id);
+                                        });
+                                    }
+
+                                    if (p.owner_id && !memberUserIds.includes(p.owner_id)) {
+                                        memberUserIds.push(p.owner_id);
+                                        managerIds.push(p.owner_id);
+                                    }
+
+                                    mockProjects.push({
+                                        id: p.id,
+                                        name: p.name,
+                                        description: p.description || '',
+                                        startDate: p.start_date ? p.start_date.split('T')[0] : (p.created_at ? p.created_at.split('T')[0] : ''),
+                                        dueDate: p.due_date ? p.due_date.split('T')[0] : '',
+                                        progress: p.progress_pct || 0,
+                                        status: p.status === 'in_progress' ? 'active' : (p.status || 'active'),
+                                        team: memberUserIds,
+                                        managers: managerIds,
+                                        comanagers: comanagerIds,
+                                        manager: managerIds.length > 0 ? managerIds[0] : null,
+                                        color: p.color || 'bg-blue-500',
+                                        ownerId: p.owner_id || '',
+                                        owner_id: p.owner_id || '',
+                                        creatorId: p.owner_id || '',
+                                        tags: []
+                                    });
+                                });
+                            }
+                        }
+
+                        // --- 3. Populate TASKS (mockTasks) ---
+                        const tasksData = tasksRes?.data || [];
+                        mockTasks.length = 0;
+                        tasksData.forEach(t => {
+                            mockTasks.push({
+                                id: t.id,
+                                projectId: t.project_id,
+                                sectionId: t.section_id,
+                                creatorId: t.creator_id || '',
+                                creator: t.creator_id || '',
+                                createdAt: t.created_at || '',
+                                updatedAt: t.updated_at || '',
+                                title: t.title,
+                                description: t.description || '',
+                                dueDate: t.due_date ? t.due_date.split('T')[0] : '',
+                                dueTime: t.due_date && t.due_date.includes('T') ? t.due_date.split('T')[1].substring(0,5) : '',
+                                status: t.status === 'in_progress' ? 'in-progress' : (t.status === 'in_review' ? 'pending-review' : (t.status === 'done' ? 'completed' : t.status)),
+                                priority: t.priority || 'medium',
+                                subtasks: t.subtasks || [],
+                                assignees: t.task_assignees ? t.task_assignees.map(ta => ta.user_id) : []
+                            });
+                        });
+
+                        // --- 4. Populate TASK SECTIONS (mockTaskSections) ---
+                        const sectionsData = sectionsRes?.data || [];
+                        mockTaskSections.length = 0;
+                        sectionsData.forEach(s => {
+                            mockTaskSections.push({
+                                id: s.id,
+                                projectId: s.project_id,
+                                title: s.title || s.name || 'ไม่มีชื่อ',
+                                color: s.color || 'bg-emerald-500',
+                                order: s.display_order || 0
+                            });
+                        });
+
+                        // --- 5. Populate EVENTS (mockEvents) ---
+                        const rawEvents = Array.isArray(eventsRes) ? eventsRes : (eventsRes?.data || []);
+                        mockEvents.length = 0;
+                        rawEvents.forEach(ev => {
+                            mockEvents.push({
+                                id: ev.id,
+                                title: ev.title,
+                                date: ev.start_time ? ev.start_time.split('T')[0] : '',
+                                time: (ev.start_time && ev.start_time.includes('T')) ? ev.start_time.split('T')[1].substring(0,5) : '',
+                                projectId: ev.project_id || '',
+                                note: ev.description || '',
+                                type: ev.event_type || 'event',
+                                userIds: [ev.organizer_id],
+                                createdInTab: 'all',
+                                color: ev.color || 'bg-blue-500',
+                                files: []
+                            });
+                        });
+
+                        // Save updated data to cache for future instant paints!
+                        this._saveToCache();
+
+                        // Refresh active view to display freshest data seamlessly
+                        this.updateProfile();
+                        if (typeof this.renderProjects === 'function' && (this.state.currentView === 'projects' || this.state.currentView === 'dashboard')) {
+                            this.renderProjects();
+                        }
+                        if (typeof this.renderTasks === 'function' && this.state.currentView === 'tasks') {
+                            this.renderTasks();
+                        }
+                        if (typeof this.renderTeam === 'function' && this.state.currentView === 'team') {
+                            this.renderTeam();
+                        }
+                        if (typeof this.renderCalendar === 'function' && this.state.currentView === 'calendar') {
+                            this.renderCalendar();
+                        }
+                        if (typeof this.renderDashboard === 'function' && this.state.currentView === 'dashboard') {
+                            this.renderDashboard();
+                        }
+
+                        // --- ASYNC BACKGROUND TASKS (Non-blocking) ---
+                        this.loadUserChats().catch(e => console.warn('loadUserChats background error:', e));
+                        this.fetchNotificationsFromSupabase().catch(e => console.warn('fetchNotifications background error:', e));
+                        if (typeof syncFinanceWithSupabase === 'function') {
+                            syncFinanceWithSupabase().then(() => {
+                                if (typeof recalculateFinanceTotals === 'function') recalculateFinanceTotals();
+                                if (this.state.currentView === 'dashboard') this.renderDashboard();
+                            }).catch(e => console.warn('Supabase finance sync on load warning:', e));
                         }
 
                         // --- REALTIME SUBSCRIPTION FOR COMPANY DATA ---
@@ -1104,143 +1325,6 @@ const App = {
                                 })
                                 .subscribe();
                         }
-
-                        // --- FETCH PROJECTS (mockProjects) ---
-                        const { data: projectsData, error: projErr } = await window.conworkSupabase.client
-                            .from('projects')
-                            .select('*, project_members(user_id, project_role)')
-                            .in('company_id', companyIds);
-                            
-                        if (!projErr) {
-                            mockProjects.length = 0; // ALWAYS Clear mock if fetch succeeds
-                            if (projectsData && projectsData.length > 0) {
-                                projectsData.forEach(p => {
-                                    const memberUserIds = [];
-                                    const managerIds = [];
-                                    const comanagerIds = [];
-
-                                    if (p.project_members) {
-                                        p.project_members.forEach(pm => {
-                                            memberUserIds.push(pm.user_id);
-                                            if (pm.project_role === 'manager') managerIds.push(pm.user_id);
-                                            if (pm.project_role === 'comanager') comanagerIds.push(pm.user_id);
-                                        });
-                                    }
-                                    
-                                    if (p.owner_id && !memberUserIds.includes(p.owner_id)) {
-                                        memberUserIds.push(p.owner_id);
-                                        managerIds.push(p.owner_id);
-                                    }
-
-                                    mockProjects.push({
-                                        id: p.id,
-                                        name: p.name,
-                                        description: p.description || '',
-                                        startDate: p.start_date ? p.start_date.split('T')[0] : (p.created_at ? p.created_at.split('T')[0] : ''),
-                                        dueDate: p.due_date ? p.due_date.split('T')[0] : '',
-                                        progress: p.progress_pct || 0,
-                                        status: p.status === 'in_progress' ? 'active' : (p.status || 'active'),
-                                        team: memberUserIds,
-                                        managers: managerIds,
-                                        comanagers: comanagerIds,
-                                        manager: managerIds.length > 0 ? managerIds[0] : null,
-                                        color: p.color || 'bg-blue-500',
-                                        ownerId: p.owner_id || '',
-                                        owner_id: p.owner_id || '',
-                                        creatorId: p.owner_id || '',
-                                        tags: []
-                                    });
-                                });
-                            }
-                        }
-
-                        // --- FETCH TASKS (mockTasks) ---
-                        // Get project ids to fetch tasks
-                        if (!projErr) {
-                            if (projectsData) {
-                                const projectIds = projectsData.length > 0 ? projectsData.map(p => p.id) : [];
-                                
-                                if (projectIds.length > 0) {
-                                    const { data: tasksData } = await window.conworkSupabase.client
-                                    .from('tasks')
-                                    .select('*, task_assignees(user_id)')
-                                    .in('project_id', projectIds);
-                                    
-                                if (tasksData) {
-                                    mockTasks.length = 0; // Clear mock
-                                    tasksData.forEach(t => {
-                                        mockTasks.push({
-                                            id: t.id,
-                                            projectId: t.project_id,
-                                            sectionId: t.section_id,
-                                            creatorId: t.creator_id || '',
-                                            creator: t.creator_id || '',
-                                            createdAt: t.created_at || '',
-                                            updatedAt: t.updated_at || '',
-                                            title: t.title,
-                                            description: t.description || '',
-                                            dueDate: t.due_date ? t.due_date.split('T')[0] : '',
-                                            dueTime: t.due_date && t.due_date.includes('T') ? t.due_date.split('T')[1].substring(0,5) : '',
-                                            status: t.status === 'in_progress' ? 'in-progress' : (t.status === 'in_review' ? 'pending-review' : (t.status === 'done' ? 'completed' : t.status)),
-                                            priority: t.priority || 'medium',
-                                            subtasks: t.subtasks || [],
-                                            assignees: t.task_assignees ? t.task_assignees.map(ta => ta.user_id) : []
-                                        });
-                                    });
-                                }
-
-                                // --- FETCH TASK SECTIONS (mockTaskSections) ---
-                                const { data: sectionsData } = await window.conworkSupabase.client
-                                    .from('task_sections')
-                                    .select('*')
-                                    .in('project_id', projectIds);
-                                    
-                                if (sectionsData) {
-                                    mockTaskSections.length = 0; // Clear mock
-                                    sectionsData.forEach(s => {
-                                        mockTaskSections.push({
-                                            id: s.id,
-                                            projectId: s.project_id,
-                                            title: s.title || s.name || 'ไม่มีชื่อ',
-                                            color: s.color || 'bg-emerald-500',
-                                            order: s.display_order || 0
-                                        });
-                                    });
-                                }
-                                
-                                // --- FETCH EVENTS (mockEvents) ---
-                                const { data: eventsData } = await window.conworkSupabase.fetchCalendarEvents(companyIds);
-                                if (eventsData) {
-                                    mockEvents.length = 0; // Clear mock
-                                    eventsData.forEach(ev => {
-                                        mockEvents.push({
-                                            id: ev.id,
-                                            title: ev.title,
-                                            date: ev.start_time ? ev.start_time.split('T')[0] : '',
-                                            time: (ev.start_time && ev.start_time.includes('T')) ? ev.start_time.split('T')[1].substring(0,5) : '',
-                                            projectId: ev.project_id || '',
-                                            note: ev.description || '',
-                                            type: ev.event_type || 'event',
-                                            userIds: [ev.organizer_id], // Simplified for UI
-                                            createdInTab: 'all',
-                                            color: ev.color || 'bg-blue-500',
-                                            files: []
-                                        });
-                                    });
-                                }
-                                await this.fetchNotificationsFromSupabase();
-
-                                if (typeof syncFinanceWithSupabase === 'function') {
-                                    syncFinanceWithSupabase().then(() => {
-                                        if (this.state.currentView === 'dashboard') {
-                                            this.renderDashboard();
-                                        }
-                                    }).catch(e => console.warn('Supabase finance sync on load warning:', e));
-                                }
-                            }
-                        }
-                    }
-
                     } else {
                         this.state.workspaces = [];
                         
