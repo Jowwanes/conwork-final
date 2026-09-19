@@ -1073,6 +1073,26 @@ class ConWorkSupabaseService {
             return false;
         }
     }
+
+    async updateFinanceTransactionStatus(txId, status) {
+        if (!this.isAvailable()) return null;
+        try {
+            const { data, error } = await this.client
+                .from('finance_transactions')
+                .update({ status: status })
+                .eq('id', txId)
+                .select()
+                .maybeSingle();
+            if (error) {
+                console.warn('Supabase updateFinanceTransactionStatus warning:', error);
+                return null;
+            }
+            return data;
+        } catch (e) {
+            console.warn('Supabase updateFinanceTransactionStatus error:', e);
+            return null;
+        }
+    }
 }
 
 // Global Singleton Instance

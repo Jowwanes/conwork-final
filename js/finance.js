@@ -2102,22 +2102,41 @@ function openFinancePanel(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
             }
         }
 
-        if (statusText.includes('รออนุมัติ') || statusText === 'pending') {
+        const st = String(statusText || '').toLowerCase();
+        if (st.includes('รออนุมัติ') || st === 'pending') {
             badgesContainer.innerHTML += `<span class="bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1 rounded-lg text-xs font-bold">รออนุมัติ</span>`;
-        } else if (statusText.includes('อนุมัติแล้ว') || statusText === 'approved') {
+        } else if (st.includes('อนุมัติแล้ว') || st === 'approved') {
             badgesContainer.innerHTML += `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1 rounded-lg text-xs font-bold">อนุมัติแล้ว</span>`;
+        } else if (st.includes('ไม่อนุมัติ') || st.includes('ปฏิเสธ') || st === 'rejected') {
+            badgesContainer.innerHTML += `<span class="bg-red-100 text-red-700 border border-red-200 px-3 py-1 rounded-lg text-xs font-bold">ไม่อนุมัติ</span>`;
         } else {
             badgesContainer.innerHTML += `<span class="bg-green-100 text-green-700 border border-green-200 px-3 py-1 rounded-lg text-xs font-bold">จ่ายแล้ว</span>`;
         }
     }
 
     const approvalActions = document.getElementById('panel-approval-actions');
+    const approveBtn = document.getElementById('panel-btn-approve');
+    const rejectBtn = document.getElementById('panel-btn-reject');
+
+    const isPending = statusText.includes('รออนุมัติ') || statusText === 'pending';
     if (approvalActions) {
-        if (statusText.includes('รออนุมัติ') || statusText === 'pending') {
+        if (isPending) {
             approvalActions.classList.remove('hidden');
         } else {
             approvalActions.classList.add('hidden');
         }
+    }
+
+    if (approveBtn) {
+        approveBtn.onclick = () => {
+            handleApproveFinanceTransaction(tx.id);
+        };
+    }
+
+    if (rejectBtn) {
+        rejectBtn.onclick = () => {
+            confirmRejectFinanceTransaction(tx.id, tx.title);
+        };
     }
 
     // Project
@@ -2345,6 +2364,126 @@ async function executeDeleteFinanceTransaction(txId) {
     }
 }
 
+async function handleApproveFinanceTransaction(txId) {
+    try {
+        let txs = getStoredTransactions();
+        const targetTx = txs.find(t => String(t.id) === String(txId));
+        if (!targetTx) return;
+
+        targetTx.status = 'อนุมัติแล้ว';
+        targetTx.approved_at = new Date().toISOString();
+        localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(txs));
+
+        // Sync with Supabase if available
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                await window.conworkSupabase.updateFinanceTransactionStatus(txId, 'อนุมัติแล้ว');
+            } catch (err) {
+                console.warn('Supabase approve error:', err);
+            }
+        }
+
+        // Close panel if open
+        closeFinancePanel();
+
+        // Reload table & recalculate all totals and charts
+        loadStoredTransactionsToTable();
+        recalculateFinanceTotals();
+
+        // Show toast
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('อนุมัติงบประมาณสำเร็จเรียบร้อย!', 'success');
+        }
+    } catch (e) {
+        console.error('Approve transaction error:', e);
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เกิดข้อผิดพลาดในการอนุมัติงบประมาณ', 'error');
+        }
+    }
+}
+
+function confirmRejectFinanceTransaction(txId, txTitle) {
+    let confirmModal = document.getElementById('finance-reject-confirm-modal');
+    if (!confirmModal) {
+        confirmModal = document.createElement('div');
+        confirmModal.id = 'finance-reject-confirm-modal';
+        confirmModal.className = 'fixed inset-0 bg-black/50 z-[10000] flex items-center justify-center p-4 animate-fade-in';
+        confirmModal.innerHTML = `
+            <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-800 text-center">
+                <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 text-red-500 flex items-center justify-center mx-auto mb-3 text-xl">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-1">ยืนยันการไม่อนุมัติ</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed" id="finance-reject-confirm-text">คุณแน่ใจหรือไม่ว่าต้องการปฏิเสธคำของบประมาณนี้?</p>
+                <div class="flex gap-3 justify-center">
+                    <button id="finance-reject-btn-cancel" class="flex-1 py-2.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors border border-gray-200 dark:border-slate-700">ยกเลิก</button>
+                    <button id="finance-reject-btn-confirm" class="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-sm">ไม่อนุมัติ</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(confirmModal);
+    }
+
+    const confirmText = document.getElementById('finance-reject-confirm-text');
+    if (confirmText) {
+        confirmText.innerHTML = `คุณต้องการปฏิเสธคำของบประมาณรายการ <br><strong class="text-gray-800 dark:text-gray-200">"${txTitle || 'ไม่ระบุชื่อ'}"</strong> ใช่หรือไม่?`;
+    }
+
+    const cancelBtn = document.getElementById('finance-reject-btn-cancel');
+    if (cancelBtn) {
+        cancelBtn.onclick = () => {
+            confirmModal.classList.add('hidden');
+        };
+    }
+
+    const confirmBtn = document.getElementById('finance-reject-btn-confirm');
+    if (confirmBtn) {
+        confirmBtn.onclick = () => {
+            confirmModal.classList.add('hidden');
+            executeRejectFinanceTransaction(txId);
+        };
+    }
+
+    confirmModal.classList.remove('hidden');
+}
+
+async function executeRejectFinanceTransaction(txId) {
+    try {
+        let txs = getStoredTransactions();
+        const targetTx = txs.find(t => String(t.id) === String(txId));
+        if (!targetTx) return;
+
+        targetTx.status = 'ไม่อนุมัติ';
+        targetTx.rejected_at = new Date().toISOString();
+        localStorage.setItem(FINANCE_STORAGE_KEY, JSON.stringify(txs));
+
+        // Sync with Supabase if available
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            try {
+                await window.conworkSupabase.updateFinanceTransactionStatus(txId, 'ไม่อนุมัติ');
+            } catch (err) {
+                console.warn('Supabase reject error:', err);
+            }
+        }
+
+        // Close panel
+        closeFinancePanel();
+
+        // Reload table & recalculate all totals and charts
+        loadStoredTransactionsToTable();
+        recalculateFinanceTotals();
+
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('ปฏิเสธคำของบประมาณเรียบร้อยแล้ว', 'info');
+        }
+    } catch (e) {
+        console.error('Reject transaction error:', e);
+        if (window.App && typeof App._showToast === 'function') {
+            App._showToast('เกิดข้อผิดพลาดในการปฏิเสธคำขอ', 'error');
+        }
+    }
+}
+
 async function handleSidePanelAttachmentUpload(input, txId) {
     if (!input.files || !input.files[0]) return;
     const file = input.files[0];
@@ -2538,10 +2677,21 @@ function insertTransactionRow(data, isNew = false) {
     let typeBadge, statusBadge;
     if (data.transaction_type === 'credit') {
         typeBadge = `<span class="bg-blue-50 text-blue-600 border border-blue-100 px-2 py-1 rounded text-[10px] font-bold tracking-wide">Credit</span>`;
-        statusBadge = `<span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-md text-[10px] font-bold border border-orange-100">${data.status || 'รออนุมัติ'}</span>`;
     } else {
         typeBadge = `<span class="bg-green-50 text-green-600 border border-green-100 px-2 py-1 rounded text-[10px] font-bold tracking-wide">Cash</span>`;
-        statusBadge = `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-green-200">${data.status || 'จ่ายแล้ว'}</span>`;
+    }
+
+    const curStatus = String(data.status || (data.transaction_type === 'credit' ? 'รออนุมัติ' : 'จ่ายแล้ว')).trim();
+    const isPending = curStatus.includes('รออนุมัติ') || curStatus.toLowerCase() === 'pending';
+
+    if (isPending) {
+        statusBadge = `<span class="bg-orange-50 text-orange-600 px-2.5 py-1 rounded-md text-[10px] font-bold border border-orange-100">รออนุมัติ</span>`;
+    } else if (curStatus.includes('อนุมัติแล้ว') || curStatus.toLowerCase() === 'approved') {
+        statusBadge = `<span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-blue-200">อนุมัติแล้ว</span>`;
+    } else if (curStatus.includes('ไม่อนุมัติ') || curStatus.includes('ปฏิเสธ') || curStatus.toLowerCase() === 'rejected') {
+        statusBadge = `<span class="bg-red-50 text-red-600 px-2.5 py-1 rounded-md text-[10px] font-bold border border-red-200">ไม่อนุมัติ</span>`;
+    } else {
+        statusBadge = `<span class="bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold border border-green-200">จ่ายแล้ว</span>`;
     }
     
     const projectObj = data.project_id ? getFinanceProjects().find(p => String(p.id) === String(data.project_id)) : null;
@@ -2576,8 +2726,12 @@ function insertTransactionRow(data, isNew = false) {
         </td>
         <td class="px-6 py-4 text-center">
             <div class="flex items-center justify-center gap-1.5">
-                <button class="text-gray-400 hover:text-blue-600 hover:bg-blue-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center" title="ดูรายละเอียด" onclick="event.stopPropagation(); openFinancePanel(this.closest('tr')._txData)"><i class="fa-regular fa-comment-dots text-sm"></i></button>
-                <button class="text-gray-400 hover:text-red-600 hover:bg-red-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center" title="ลบรายการ" onclick="event.stopPropagation(); confirmDeleteFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-regular fa-trash-can text-sm"></i></button>
+                ${isPending ? `
+                    <button class="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="อนุมัติงบประมาณทันที" onclick="event.stopPropagation(); handleApproveFinanceTransaction('${data.id}')"><i class="fa-solid fa-check text-xs"></i></button>
+                    <button class="text-red-500 hover:text-red-700 hover:bg-red-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="ไม่อนุมัติ" onclick="event.stopPropagation(); confirmRejectFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-solid fa-xmark text-xs"></i></button>
+                ` : ''}
+                <button class="text-gray-400 hover:text-blue-600 hover:bg-blue-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="ดูรายละเอียด" onclick="event.stopPropagation(); openFinancePanel(this.closest('tr')._txData)"><i class="fa-regular fa-comment-dots text-sm"></i></button>
+                <button class="text-gray-400 hover:text-red-600 hover:bg-red-50 w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer" title="ลบรายการ" onclick="event.stopPropagation(); confirmDeleteFinanceTransaction('${data.id}', '${(data.title || '').replace(/'/g, "\\'")}')"><i class="fa-regular fa-trash-can text-sm"></i></button>
             </div>
         </td>
     `;
@@ -2884,3 +3038,6 @@ window.distributeSubcategoryBudgetEqually = distributeSubcategoryBudgetEqually;
 window.clearAllSubcategoryAllocations = clearAllSubcategoryAllocations;
 window.fitCategoryBudgetToSubcategories = fitCategoryBudgetToSubcategories;
 window.submitSubcategoryAllocation = submitSubcategoryAllocation;
+window.handleApproveFinanceTransaction = handleApproveFinanceTransaction;
+window.confirmRejectFinanceTransaction = confirmRejectFinanceTransaction;
+window.executeRejectFinanceTransaction = executeRejectFinanceTransaction;

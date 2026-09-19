@@ -234,6 +234,10 @@ const ApiService = {
     },
 
     async updateFinanceTransactionStatus(transactionId, status) {
+        if (window.conworkSupabase && window.conworkSupabase.isAvailable()) {
+            const res = await window.conworkSupabase.updateFinanceTransactionStatus(transactionId, status);
+            if (res) return res;
+        }
         await this._delay();
         return { id: transactionId, status: status };
     }
